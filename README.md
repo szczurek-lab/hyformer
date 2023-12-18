@@ -4,7 +4,7 @@
 
 To create and activate an environment that satisfies all the necessary requirements use
 ```
- conda create -f env.yml
+ conda env create -f env.yml
  conda activate hybrid-transformer
 ```
 and install Hybrid Transformer, from the project directory, with 
