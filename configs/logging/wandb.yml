@@ -1,0 +1,3 @@
+wandb_log: True
+wandb_project: 'hybrid_transformer'
+wandb_run_name: None

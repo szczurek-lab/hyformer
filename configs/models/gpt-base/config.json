@@ -1,0 +1,10 @@
+{
+  "bias": false,
+  "block_size": 1024,
+  "dropout": 0.1,
+  "embedding_dim": 512,
+  "layer_norm_eps": 1e-05,
+  "num_heads": 8,
+  "num_layers": 12,
+  "transformers_version": "4.36.1"
+}

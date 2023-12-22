@@ -1,0 +1,7 @@
+{
+  "augment_molecular_representation": true,
+  "dataset_name": "guacamol",
+  "molecular_representation": "SMILES",
+  "subset_dataset": false,
+  "transformers_version": "4.36.1"
+}
