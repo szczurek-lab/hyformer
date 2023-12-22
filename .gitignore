@@ -157,3 +157,6 @@ cython_debug/
 
 # Test notebooks
 test*.ipynb
+
+# Data
+data/
