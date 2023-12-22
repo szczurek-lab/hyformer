@@ -23,5 +23,5 @@ def set_seed(seed: int = 42) -> None:
     return None
 
 
-def get_device() -> torch.device:
-    return None
+def get_device() -> torch.device or str:
+    return 'cuda' if torch.cuda.is_available() else 'cpu'

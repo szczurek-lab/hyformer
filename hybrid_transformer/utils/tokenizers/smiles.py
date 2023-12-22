@@ -39,7 +39,7 @@ class SMILESTokenizer(DeepChemTokenizer):
         self.token_to_id = {item: key for item, key in self.vocab.items()}
         self.ignore_index = ignore_index
 
-    def get_inputs(self, dataset, task, batch_size):
+    def get_inputs(self, dataset, task, batch_size, device=None):
 
         sampled_idx = torch.randperm(len(dataset))[:batch_size]
         mlm_probability = self.mlm_probability
@@ -55,7 +55,8 @@ class SMILESTokenizer(DeepChemTokenizer):
         inputs = super().__call__(
             inputs, return_special_tokens_mask=True, padding='max_length', truncation=False,
             return_tensors='pt', max_length=128, return_token_type_ids=False)
-        masks = inputs['attention_mask']
+        mask = inputs['attention_mask']
+        eos_mask = inputs['input_ids'] == self.eos_token_id
 
         if task == 'lm':
             mlm_probability = 0.0
@@ -67,7 +68,13 @@ class SMILESTokenizer(DeepChemTokenizer):
         else:
             raise ValueError('Variable `task` must be either "seq2seq" or "mlm".')
 
-        return {'input_ids': inputs, 'attention_mask': masks, 'labels': labels, 'target': target}
+        inputs = {'input_ids': inputs, 'attention_mask': mask, 'labels': labels, 'target': target, 'eos_mask': eos_mask}
+
+        if device is not None:
+            for key, value in inputs.items():
+                inputs[key] = value.pin_memory().to(device, non_blocking=True)
+
+        return inputs
 
     def encode(self, x: str or List[str]) -> torch.Tensor:
         if isinstance(x, str):

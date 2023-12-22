@@ -11,6 +11,7 @@ class DistributionLearningConfig(PretrainedConfig):
 
     def __init__(
         self,
+        out_dir: str = None,
         dataset_name: str = "guacamol",
         molecular_representation: str = 'SMILES',
         augment_molecular_representation: bool = True,
@@ -22,6 +23,9 @@ class DistributionLearningConfig(PretrainedConfig):
             raise ValueError(f"`dataset` must be 'guacamol', got {dataset_name}.")
         if molecular_representation not in ["SMILES"]:
             raise ValueError(f"`molecular_representation` must be 'SMILES, got {molecular_representation}.")
+
+        # Output
+        self.out_dir = out_dir
 
         # Data config
         self.dataset_name = dataset_name
@@ -37,8 +41,13 @@ class DistributionLearningConfig(PretrainedConfig):
         self.validate = False
 
         # Tokenizer
-        self.path_to_vocab_file = './data/vocab/smiles.txt'
+        self.path_to_vocab_file = './vocabularies/smiles.txt'
         self.max_molecule_length = 128
+
+        # wandb logging
+        wandb_log = False  # disabled by default
+        wandb_project = 'owt'
+        wandb_run_name = 'gpt2'  # 'run' + str(time.time())
 
         super().__init__(**kwargs)
 
