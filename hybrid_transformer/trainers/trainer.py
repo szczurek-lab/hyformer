@@ -70,9 +70,15 @@ class Trainer:
         # optimizer
         self.optimizer = model.configure_optimizers(
             self.weight_decay, self.learning_rate, (self.beta1, self.beta2), self.device)
+        self.current_learning_rate = None
 
         # scaler
         self.scaler = torch.cuda.amp.GradScaler(enabled=(self.dtype == 'float16'))
+
+        # eval
+        self.iter_num = 0
+        self.best_val_loss = 1e9
+        self.config = config
 
     def _ddp(self) -> None:
 
@@ -119,7 +125,7 @@ class Trainer:
         if self.compile:
             print("compiling the model... (takes a ~minute)")
             self.unoptimized_model = self.model
-            model = torch.compile(self.model)  # requires PyTorch 2.0
+            self.model = torch.compile(self.model)  # requires PyTorch 2.0
 
         # wrap model into DDP container
         if self.ddp and self.ddp_enabled:
@@ -149,6 +155,7 @@ class Trainer:
         lr = self._get_lr(iter_num) if self.decay_lr else self.learning_rate
         for param_group in self.optimizer.param_groups:
             param_group['lr'] = lr
+        self.current_learning_rate = lr
 
     def get_batch(self, split, task):
         inputs = None
@@ -184,6 +191,84 @@ class Trainer:
             out['valid'] = sum(valid) / len(valid)
         self.model.train()
         return out
+
+    def evaluate(self):
+        losses = self.estimate_loss()
+        raw_model = self.model.module if self.ddp else self.model  # unwrap DDP container if needed
+
+        print(f"step {self.iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
+        # if self.wandb_log:
+        #     wandb.log({
+        #         "iter": iter_num,
+        #         "train/loss": losses['train'],
+        #         "val/loss": losses['val'],
+        #         "lr": lr,
+        #         "mfu": running_mfu * 100,  # convert to percentage
+        #     })
+
+        if losses['val'] < self.best_val_loss or self.always_save_checkpoint:
+            best_val_loss = losses['val']
+            if self.iter_num > 0:
+                checkpoint = {
+                    'model': raw_model.state_dict(),
+                    'optimizer': self.optimizer.state_dict(),
+                    'iter_num': self.iter_num,
+                    'best_val_loss': self.best_val_loss,
+                    'config': self.config,
+                }
+                print(f"saving checkpoint to {self.out_dir}")
+                torch.save(checkpoint, os.path.join(self.out_dir, 'ckpt.pt'))
+
+    def train(self):
+
+        task = 'lm'
+        inputs = self.get_batch(split='train', task=task)  # fetch the very first batch
+
+        t0 = time.time()
+        local_iter_num = 0  # number of iterations in the lifetime of this process
+
+        while True:
+            self.set_lr(self.iter_num)
+
+            if self.iter_num % self.eval_interval == 0 and self.master_process:
+                self.evaluate()
+
+            if self.iter_num == 0 and self.eval_only:
+                break
+
+            for micro_step in range(self.gradient_accumulation_steps):
+                if self.ddp:
+                    self.model.require_backward_grad_sync = (micro_step == self.gradient_accumulation_steps - 1)
+                with self.ctx:
+                    outputs = self.model(
+                        input_ids=inputs['input_ids'], attention_mask=inputs['attention_mask'],
+                        labels=inputs['labels'], target=inputs['target'], eos_mask=inputs['eos_mask'])
+                    loss = outputs['loss'] / self.gradient_accumulation_steps
+                inputs = self.get_batch(split='train', task=task) # Here, get task
+                self.scaler.scale(loss).backward()
+
+            if self.grad_clip != 0.0:
+                self.scaler.unscale_(self.optimizer)
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
+            self.scaler.step(self.optimizer)
+            self.scaler.update()
+            self.optimizer.zero_grad(set_to_none=True)
+
+            t1 = time.time()
+            dt = t1 - t0
+            t0 = t1
+            if self.iter_num % self.log_interval == 0 and self.master_process:
+                lossf = loss.item() * self.gradient_accumulation_steps
+                print(f"iter {self.iter_num}: loss {lossf:.4f}, time {dt * 1000:.2f}ms.")
+            self.iter_num += 1
+            local_iter_num += 1
+
+            # termination conditions
+            if self.iter_num > self.max_iters:
+                break
+
+        if self.ddp:
+            destroy_process_group()
 
     @classmethod
     def from_config(cls, config: TrainerConfig, model: torch.nn.Module) -> 'Trainer':

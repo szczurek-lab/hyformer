@@ -104,6 +104,7 @@ class GPT(nn.Module):
             supervised_loss = F.mse_loss(y_pred, target)
 
         return {
+            'loss': loss,
             'unsupervised_loss': loss,
             'supervised_loss': supervised_loss,
             'lm_logits': logits,
