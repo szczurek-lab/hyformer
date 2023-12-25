@@ -6,6 +6,7 @@ class TrainerConfig(PretrainedConfig):
 
     def __init__(
         self,
+        out_dir: str = './results/',
         eval_interval: int = 2000,
         log_interval: int = 1,
         eval_iters: int = 200,
@@ -22,7 +23,7 @@ class TrainerConfig(PretrainedConfig):
         warmup_iters: int = 2000,
         lr_decay_iters: int = 600000,
         min_lr: float = 6e-5,
-        enable_ddp: bool = False,
+        ddp_enabled: bool = True,
         ddp_backend: str = 'nccl',
         gradient_accumulation_steps: int = 5 * 8,
         batch_size: int = 12,
@@ -31,6 +32,9 @@ class TrainerConfig(PretrainedConfig):
         compile: bool = True,
         **kwargs,
     ):
+
+        # Out dir
+        self.out_dir = out_dir
 
         # eval
         self.eval_interval = eval_interval
@@ -57,7 +61,7 @@ class TrainerConfig(PretrainedConfig):
         self.min_lr = min_lr  # minimum learning rate, should be ~= learning_rate/10 per Chinchilla
 
         # DDP settings
-        self.enable_ddp = enable_ddp
+        self.ddp_enabled = ddp_enabled
         self.ddp_backend = ddp_backend  # 'nccl', 'gloo', etc.
 
         # runtime

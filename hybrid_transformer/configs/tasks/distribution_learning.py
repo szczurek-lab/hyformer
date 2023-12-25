@@ -44,6 +44,9 @@ class DistributionLearningConfig(PretrainedConfig):
         self.path_to_vocab_file = './vocabularies/smiles.txt'
         self.max_molecule_length = 128
 
+        # Attention mask
+        self.use_pad_token_attention_mask = False
+
         # wandb logging
         wandb_log = False  # disabled by default
         wandb_project = 'owt'

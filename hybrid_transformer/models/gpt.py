@@ -70,7 +70,7 @@ class GPT(nn.Module):
         elif isinstance(module, nn.Embedding):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
-    def forward(self, input_ids, labels=None, target=None, eos_mask=None, mask=None):
+    def forward(self, input_ids, labels=None, target=None, eos_mask=None, attention_mask=None):
         loss = None
         supervised_loss = None
         y_pred = None
@@ -84,7 +84,7 @@ class GPT(nn.Module):
         pos_emb = self.transformer.wpe(pos)  # position embeddings of shape (t, n_embd)
         x = self.transformer.drop(tok_emb + pos_emb)
         for block in self.transformer.h:
-            x = block(x, task='lm', mask=mask)
+            x = block(x, task='lm', mask=attention_mask)
         x = self.transformer.ln_f(x)
 
         if labels is not None:
@@ -216,7 +216,8 @@ class GPT(nn.Module):
             # if the sequence context is growing too long we must crop it at block_size
             idx_cond = idx if idx.size(1) <= self.max_seq_len else idx[:, -self.max_seq_len:]
             # forward the model to get the logits for the index in the sequence
-            logits, _ = self(idx_cond)
+            outputs = self(input_ids=idx_cond)
+            logits = outputs['lm_logits']
             # pluck the logits at the final step and scale by desired temperature
             logits = logits[:, -1, :] / temperature
             # optionally crop the logits to only the top k options

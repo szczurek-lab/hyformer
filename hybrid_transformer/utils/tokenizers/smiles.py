@@ -4,6 +4,8 @@ import torch
 
 from typing import List, Tuple
 
+from guacamol.utils.chemistry import is_valid
+
 from hybrid_transformer.utils.tokenizers.deepchem import DeepChemTokenizer
 from hybrid_transformer.utils.objectives.guacamol.objective import get_objective
 
@@ -18,7 +20,8 @@ class SMILESTokenizer(DeepChemTokenizer):
         path_to_vocab: str,
         max_molecule_length: int,
         mlm_probability: float = 0.15,
-        ignore_index: int = IGNORE_INDEX
+        ignore_index: int = IGNORE_INDEX,
+        use_pad_token_attention_mask: bool = False
     ):
 
         super().__init__(
@@ -32,6 +35,7 @@ class SMILESTokenizer(DeepChemTokenizer):
 
         self.max_molecule_length = max_molecule_length
         self.mlm_probability = mlm_probability
+        self.use_pad_token_attention_mask = use_pad_token_attention_mask
 
         self.id_to_token = {key: item for item, key in self.vocab.items()}
         for id, special_token in enumerate(self.additional_special_tokens):
@@ -55,7 +59,7 @@ class SMILESTokenizer(DeepChemTokenizer):
         inputs = super().__call__(
             inputs, return_special_tokens_mask=True, padding='max_length', truncation=False,
             return_tensors='pt', max_length=128, return_token_type_ids=False)
-        mask = inputs['attention_mask']
+        mask = inputs['attention_mask'] if self.use_pad_token_attention_mask else None
         eos_mask = inputs['input_ids'] == self.eos_token_id
 
         if task == 'lm':
@@ -72,7 +76,8 @@ class SMILESTokenizer(DeepChemTokenizer):
 
         if device is not None:
             for key, value in inputs.items():
-                inputs[key] = value.pin_memory().to(device, non_blocking=True)
+                if value is not None:
+                    inputs[key] = value.pin_memory().to(device, non_blocking=True)
 
         return inputs
 
@@ -161,8 +166,8 @@ class SMILESTokenizer(DeepChemTokenizer):
         data_decoded = self.decode(x)
         is_valid_data = []
         for smiles in data_decoded:
-            is_valid = is_valid(smiles)
-            if is_valid is False:
+            valid = is_valid(smiles)
+            if valid is False:
                 is_valid_data.append(False)
             else:
                 is_valid_data.append(True)

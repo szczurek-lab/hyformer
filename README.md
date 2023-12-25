@@ -27,6 +27,15 @@ Data is available at ...
 
 ### Pre-Train
 
+To train a model on a single GPU, run
+```
+python train.py
+```
+To run with multiple GPUs, run
+```
+torchrun train.py
+```
+
 ### Fine-Tune
 
 ### Sample
