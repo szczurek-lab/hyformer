@@ -4,7 +4,7 @@ import inspect
 import torch.nn as nn
 import torch.nn.functional as F
 
-from hybrid_transformer.configs.models.model import ModelConfig
+from hybrid_transformer.configs.model import ModelConfig
 from hybrid_transformer.layers.layer_norm import LayerNorm
 from hybrid_transformer.layers.transformer import HybridTransformerBlock
 

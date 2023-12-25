@@ -30,11 +30,16 @@ class TrainerConfig(PretrainedConfig):
         device: str = 'cuda',
         dtype: str = 'float32',
         compile: bool = True,
+        resume: bool = True,
+        wandb_enabled: bool = True,
+        wandb_project: str = 'hybrid_transformer',
+        wandb_run: str = 'hybrid_transformer',
         **kwargs,
     ):
 
         # Out dir
         self.out_dir = out_dir
+        self.resume = resume  # resume from last checkpoint
 
         # eval
         self.eval_interval = eval_interval
@@ -72,6 +77,9 @@ class TrainerConfig(PretrainedConfig):
             dtype = 'bfloat16' if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else 'float16'
         self.dtype = dtype  # 'float32', 'bfloat16', or 'float16', the latter will auto implement a GradScaler
         self.compile = compile  # use PyTorch 2.0 to compile the model to be faster
+        self.wandb_enabled = wandb_enabled
+        self.wandb_project = wandb_project
+        self.wandb_run = wandb_run
         super().__init__(**kwargs)
 
     def save(self, save_directory: str) -> None:

@@ -1,13 +1,11 @@
 import math
 import torch
-from hybrid_transformer.configs.trainers.trainer import TrainerConfig
+from hybrid_transformer.configs.trainer import TrainerConfig
 
 import os
 import time
-import pickle
 from contextlib import nullcontext
 
-import numpy as np
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
 
@@ -18,6 +16,7 @@ class Trainer:
 
         # out dir
         self.out_dir = config.out_dir
+        self.resume = config.resume
 
         # eval
         self.eval_interval = config.eval_interval
@@ -59,26 +58,31 @@ class Trainer:
         self.eval_dataset = eval_dataset
         self.tokenizer = tokenizer
 
-        # model
-        self.model = model
-
-        self._ddp()
-        self._post_init()
-        self._post_init_model()
-        self._init_ckpt()
-
-        # optimizer
-        self.optimizer = model.configure_optimizers(
-            self.weight_decay, self.learning_rate, (self.beta1, self.beta2), self.device)
-        self.current_learning_rate = None
-
-        # scaler
-        self.scaler = torch.cuda.amp.GradScaler(enabled=(self.dtype == 'float16'))
-
         # eval
         self.iter_num = 0
         self.best_val_loss = 1e9
         self.config = config
+
+        # model
+        self.model = model
+        if self.resume and os.path.exists(self.out_dir):
+            self.from_pretrained()
+
+        # scaler
+        self.scaler = torch.cuda.amp.GradScaler(enabled=(self.dtype == 'float16'))
+
+        self._ddp()
+        self._post_init()
+        self._post_init_model()
+
+        # optimizer
+        self.optimizer = model.configure_optimizers(
+            self.weight_decay, self.learning_rate, (self.beta1, self.beta2), next(model.parameters()).device)
+        if self.checkpoint is not None:
+            self.optimizer.load_state_dict(self.checkpoint['optimizer'])
+            self.checkpoint = None
+
+        self.current_learning_rate = None
 
     def _ddp(self) -> None:
 
@@ -91,7 +95,7 @@ class Trainer:
             self.ddp_world_size = int(os.environ['WORLD_SIZE'])
             self.device = f'cuda:{self.ddp_local_rank}'
             torch.cuda.set_device(self.device)
-            self.master_process = self.ddp_rank == 0  # this process will do logging, checkpointing etc.
+            self.master_process = self.ddp_rank == 0  # this process will do loggers, checkpointing etc.
             self.seed_offset = self.ddp_rank  # each process gets a different seed
             # world_size number of processes will be training simultaneously, so we can scale
             # down the desired gradient accumulation iterations per process proportionally
@@ -131,11 +135,19 @@ class Trainer:
         if self.ddp and self.ddp_enabled:
             self.model = DDP(self.model, device_ids=[self.ddp_local_rank])
 
-    def _init_ckpt(self):
-        self.ckpt = {
-            'iter_num': 0,
-            'best_val_loss': 1e9,
-        }
+    def from_pretrained(self):
+        ckpt_path = os.path.join(self.out_dir, 'ckpt.pt')
+        self.checkpoint = torch.load(ckpt_path, map_location=self.device)
+
+        state_dict = self.checkpoint['model']
+        unwanted_prefix = '_orig_mod.'
+        for k, v in list(state_dict.items()):
+            if k.startswith(unwanted_prefix):
+                state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
+        self.model.load_state_dict(state_dict)
+        self.iter_num = self.checkpoint['iter_num']
+        self.best_val_loss = self.checkpoint['best_val_loss']
+        print(f"Resuming training from {self.out_dir}.ckpt...")
 
     # learning rate decay scheduler (cosine with warmup)
     def _get_lr(self, it: int) -> float:
@@ -196,7 +208,7 @@ class Trainer:
         losses = self.estimate_loss()
         raw_model = self.model.module if self.ddp else self.model  # unwrap DDP container if needed
 
-        print(f"step {self.iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
+        print(f"Evaluation at iter {self.iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
         # if self.wandb_log:
         #     wandb.log({
         #         "iter": iter_num,
@@ -207,7 +219,7 @@ class Trainer:
         #     })
 
         if losses['val'] < self.best_val_loss or self.always_save_checkpoint:
-            best_val_loss = losses['val']
+            self.best_val_loss = losses['val']
             if self.iter_num > 0:
                 checkpoint = {
                     'model': raw_model.state_dict(),
@@ -259,7 +271,7 @@ class Trainer:
             t0 = t1
             if self.iter_num % self.log_interval == 0 and self.master_process:
                 lossf = loss.item() * self.gradient_accumulation_steps
-                print(f"iter {self.iter_num}: loss {lossf:.4f}, time {dt * 1000:.2f}ms.")
+                print(f"iter {self.iter_num}: loss {lossf:.4f}, time {dt * 1000:.2f}ms.", end="\r")
             self.iter_num += 1
             local_iter_num += 1
 
@@ -269,6 +281,8 @@ class Trainer:
 
         if self.ddp:
             destroy_process_group()
+
+        print("Training finished.")
 
     @classmethod
     def from_config(cls, config: TrainerConfig, model: torch.nn.Module) -> 'Trainer':

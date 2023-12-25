@@ -1,6 +1,6 @@
 import importlib
 
-from hybrid_transformer.configs.tasks.distribution_learning import DistributionLearningConfig
+from hybrid_transformer.configs.task import DistributionLearningConfig
 
 
 class AutoModel:

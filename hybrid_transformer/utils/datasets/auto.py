@@ -1,13 +1,16 @@
 import importlib
 
-from hybrid_transformer.configs.tasks.distribution_learning import DistributionLearningConfig
+from hybrid_transformer.configs.task import TaskConfig
 
 
 class AutoDataset:
     """Base Dataset. """
 
     @classmethod
-    def from_config(cls, config: DistributionLearningConfig) -> "AutoDataset":
+    def from_config(cls, config: TaskConfig, split: 'str' = None) -> "AutoDataset":
+
+        if split is not None:
+            config.split = split
 
         if config.dataset_name not in ["guacamol"]:
             raise ValueError(f"`dataset` must be 'guacamol', got {config.dataset_name}.")

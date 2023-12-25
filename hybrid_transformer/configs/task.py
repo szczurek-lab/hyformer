@@ -6,8 +6,8 @@ from hybrid_transformer.utils.datasets.guacamol import GuacamolSMILESDataset
 import importlib
 
 
-class DistributionLearningConfig(PretrainedConfig):
-    experiment_type = "distribution_learning"
+class TaskConfig(PretrainedConfig):
+    task_type = "distribution_learning"
 
     def __init__(
         self,
@@ -47,7 +47,7 @@ class DistributionLearningConfig(PretrainedConfig):
         # Attention mask
         self.use_pad_token_attention_mask = False
 
-        # wandb logging
+        # wandb loggers
         wandb_log = False  # disabled by default
         wandb_project = 'owt'
         wandb_run_name = 'gpt2'  # 'run' + str(time.time())
@@ -57,8 +57,8 @@ class DistributionLearningConfig(PretrainedConfig):
     def save(self, save_directory: str) -> None:
         super().save_pretrained(save_directory=save_directory)
 
-    def load(self, config_path: str) -> None:
-        super().from_pretrained(pretrained_model_name_or_path=config_path)
+    def load(self, config_path: str) -> 'PretrainedConfig':
+        return super().from_pretrained(pretrained_model_name_or_path=config_path)
 
     # @property
     # def dataset(self) -> GuacamolSMILESDataset:
