@@ -1,12 +1,13 @@
+import argparse
 import os
+import wandb
 
 from torch.distributed.elastic.multiprocessing.errors import record
-
-import argparse
 
 from hybrid_transformer.configs.task import TaskConfig
 from hybrid_transformer.configs.model import ModelConfig
 from hybrid_transformer.configs.trainer import TrainerConfig
+from hybrid_transformer.configs.logger import LoggerConfig
 
 from hybrid_transformer.utils.datasets.auto import AutoDataset
 from hybrid_transformer.utils.tokenizers.auto import AutoTokenizer
@@ -45,6 +46,7 @@ def main():
     task_config = TaskConfig.from_pretrained(args.path_to_task_config)
     model_config = ModelConfig.from_pretrained(args.path_to_model_config)
     trainer_config = TrainerConfig.from_pretrained(args.path_to_trainer_config)
+    logger_config = LoggerConfig.from_pretrained(args.path_to_logger_config)
 
     # Init
     train_dataset = AutoDataset.from_config(task_config, split='train')
@@ -52,7 +54,21 @@ def main():
     tokenizer = AutoTokenizer.from_config(task_config)
     model = AutoModel.from_config(model_config)
     trainer = Trainer(
-        config=trainer_config, model=model, train_dataset=train_dataset, eval_dataset=eval_dataset, tokenizer=tokenizer)
+        config=trainer_config, model=model, train_dataset=train_dataset,
+        eval_dataset=eval_dataset, tokenizer=tokenizer, wandb_log=logger_config.wandb_log)
+
+    if logger_config.wandb_log and trainer.master_process:
+        run = wandb.init(
+            project=logger_config.wandb_project,
+            name=logger_config.run_name,
+            resume=True,
+            config={
+                'task_config': task_config,
+                'model_config': model_config,
+                'trainer_config': trainer_config,
+                'logger_config': logger_config
+            }
+        )
     trainer.train()
 
 

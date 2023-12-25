@@ -20,7 +20,7 @@
   "lr_decay_iters": 600000,
   "max_iters": 600000,
   "min_lr": 6e-05,
-  "out_dir": "./results/",
+  "out_dir": "./results/lm/pre-trained/",
   "resume": true,
   "transformers_version": "4.36.1",
   "wandb_enabled": true,

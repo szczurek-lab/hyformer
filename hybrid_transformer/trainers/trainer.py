@@ -2,6 +2,8 @@ import math
 import torch
 from hybrid_transformer.configs.trainer import TrainerConfig
 
+import wandb
+
 import os
 import time
 from contextlib import nullcontext
@@ -12,7 +14,7 @@ from torch.distributed import init_process_group, destroy_process_group
 
 class Trainer:
 
-    def __init__(self, config: TrainerConfig, model: torch.nn, train_dataset, eval_dataset, tokenizer):
+    def __init__(self, config: TrainerConfig, model: torch.nn, train_dataset, eval_dataset, tokenizer, wandb_log):
 
         # out dir
         self.out_dir = config.out_dir
@@ -52,6 +54,7 @@ class Trainer:
         self.device = config.device  # examples: 'cpu', 'cuda', 'cuda:0', 'cuda:1' etc., or try 'mps' on macbooks
         self.dtype = config.dtype  # 'float32', 'bfloat16', or 'float16', the latter will auto implement a GradScaler
         self.compile = config.compile  # use PyTorch 2.0 to compile the model to be faster
+        self.wandb_log = wandb_log
 
         # data
         self.train_dataset = train_dataset
@@ -208,15 +211,19 @@ class Trainer:
         losses = self.estimate_loss()
         raw_model = self.model.module if self.ddp else self.model  # unwrap DDP container if needed
 
-        print(f"Evaluation at iter {self.iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
-        # if self.wandb_log:
-        #     wandb.log({
-        #         "iter": iter_num,
-        #         "train/loss": losses['train'],
-        #         "val/loss": losses['val'],
-        #         "lr": lr,
-        #         "mfu": running_mfu * 100,  # convert to percentage
-        #     })
+        print(
+            f"Evaluation at iter {self.iter_num}: train loss {losses['train']:.4f},"
+            f" val loss {losses['val']:.4f},"
+            f" percent {losses['valid']:.4f}")
+
+        if self.wandb_log:
+            wandb.log({
+                "iter": self.iter_num,
+                "train/loss": losses['train'],
+                "val/loss": losses['val'],
+                "valid": losses['valid'],
+                "lr": self.current_learning_rate
+            })
 
         if losses['val'] < self.best_val_loss or self.always_save_checkpoint:
             self.best_val_loss = losses['val']
@@ -230,6 +237,15 @@ class Trainer:
                 }
                 print(f"saving checkpoint to {self.out_dir}")
                 torch.save(checkpoint, os.path.join(self.out_dir, 'ckpt.pt'))
+
+    def get_task(self, p_task):
+        p = torch.bernoulli(torch.Tensor([p_task]))
+        if p == 1:
+            return 'lm'
+        elif p == 0:
+            return 'mlm'
+        else:
+            raise ValueError("Wrong task!")
 
     def train(self):
 

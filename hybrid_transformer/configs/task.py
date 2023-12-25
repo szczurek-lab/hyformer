@@ -59,14 +59,3 @@ class TaskConfig(PretrainedConfig):
 
     def load(self, config_path: str) -> 'PretrainedConfig':
         return super().from_pretrained(pretrained_model_name_or_path=config_path)
-
-    # @property
-    # def dataset(self) -> GuacamolSMILESDataset:
-    #     if self.dataset_name == 'guacamol' and self.molecular_representation == 'SMILES':
-    #         return getattr(importlib.import_module(
-    #             "hybrid_transformer.utils.datasets.guacamol"),
-    #             "GuacamolSMILESDataset")
-    #
-    # @property
-    # def tokenizer(self):
-    #     return None
