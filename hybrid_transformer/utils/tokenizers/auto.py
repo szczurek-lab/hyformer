@@ -1,13 +1,13 @@
 import importlib
 
-from hybrid_transformer.configs.task import DistributionLearningConfig
+from hybrid_transformer.configs.task import TaskConfig
 
 
 class AutoTokenizer:
     """Base Tokenizer. """
 
     @classmethod
-    def from_config(cls, config: DistributionLearningConfig) -> "AutoTokenizer":
+    def from_config(cls, config: TaskConfig) -> "AutoTokenizer":
 
         if config.tokenizer not in ["SMILESTokenizer"]:
             raise ValueError(f"`config.tokenizer` must be 'SMILESTokenizer', got {config.tokenizer}.")

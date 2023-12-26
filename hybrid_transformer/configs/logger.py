@@ -7,17 +7,18 @@ import importlib
 
 
 class LoggerConfig(PretrainedConfig):
-    task_type = "distribution_learning"
 
     def __init__(
         self,
+        wandb_log: bool = True,
+        wandb_project: str = "hybrid_transformer",
+        wandb_run_name: str = "lm",
         **kwargs,
     ):
-        # wandb loggers
-        wandb_log = False  # disabled by default
-        wandb_project = 'owt'
-        wandb_run_name = 'gpt2'  # 'run' + str(time.time())
 
+        self.wandb_log = wandb_log
+        self.wandb_project = wandb_project
+        self.wandb_run_name = wandb_run_name
         super().__init__(**kwargs)
 
     def save(self, save_directory: str) -> None:

@@ -1,20 +1,21 @@
-import math
-import torch
-from hybrid_transformer.configs.trainer import TrainerConfig
-
-import wandb
-
 import os
 import time
+import math
+
 from contextlib import nullcontext
+
+import torch
 
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
 
+from hybrid_transformer.configs.trainer import TrainerConfig
+from hybrid_transformer.utils.loggers.wandb import WandbLogger
+
 
 class Trainer:
 
-    def __init__(self, config: TrainerConfig, model: torch.nn, train_dataset, eval_dataset, tokenizer, wandb_log):
+    def __init__(self, config: TrainerConfig, model: torch.nn, train_dataset, eval_dataset, tokenizer, logger: WandbLogger):
 
         # out dir
         self.out_dir = config.out_dir
@@ -25,6 +26,7 @@ class Trainer:
         self.log_interval = config.log_interval
         self.eval_iters = config.eval_iters
         self.eval_only = config.eval_only  # if True, script exits right after the first eval
+        self.logger = logger
 
         # load / save
         self.always_save_checkpoint = config.always_save_checkpoint  # if True, always save a checkpoint after each eval
@@ -45,6 +47,7 @@ class Trainer:
         self.min_lr = config.min_lr  # minimum learning rate, should be ~= learning_rate/10 per Chinchilla
 
         # DDP settings
+        self.is_ddp_run = None
         self.ddp_enabled = config.ddp_enabled
         self.ddp_backend = config.ddp_backend  # 'nccl', 'gloo', etc.
 
@@ -52,9 +55,9 @@ class Trainer:
         self.gradient_accumulation_steps = config.gradient_accumulation_steps  # used to simulate larger batch sizes
         self.batch_size = config.batch_size  # if gradient_accumulation_steps > 1, this is the micro-batch size
         self.device = config.device  # examples: 'cpu', 'cuda', 'cuda:0', 'cuda:1' etc., or try 'mps' on macbooks
+        self.device_type = config.device
         self.dtype = config.dtype  # 'float32', 'bfloat16', or 'float16', the latter will auto implement a GradScaler
         self.compile = config.compile  # use PyTorch 2.0 to compile the model to be faster
-        self.wandb_log = wandb_log
 
         # data
         self.train_dataset = train_dataset
@@ -68,31 +71,71 @@ class Trainer:
 
         # model
         self.model = model
-        if self.resume and os.path.exists(self.out_dir):
-            self.from_pretrained()
 
         # scaler
         self.scaler = torch.cuda.amp.GradScaler(enabled=(self.dtype == 'float16'))
 
-        self._ddp()
-        self._post_init()
-        self._post_init_model()
-
         # optimizer
-        self.optimizer = model.configure_optimizers(
-            self.weight_decay, self.learning_rate, (self.beta1, self.beta2), next(model.parameters()).device)
-        if self.checkpoint is not None:
-            self.optimizer.load_state_dict(self.checkpoint['optimizer'])
-            self.checkpoint = None
-
+        self.optimizer = None
+        self.optimizer_ckpt = None
         self.current_learning_rate = None
 
-    def _ddp(self) -> None:
+        self._ddp_init()
+        self._post_init()
 
-        self.ddp = int(os.environ.get('RANK', -1)) != -1
-        if self.ddp and self.ddp_enabled:
-            print("DDP enabled!")
-            init_process_group(backend=self.ddp_backend)
+    def load_checkpoint(self, out_dir: str = None) -> None:
+
+        out_dir = out_dir if out_dir is not None else self.out_dir
+        out_dir = os.path.join(out_dir, 'ckpt.pt')
+
+        if not os.path.isfile(out_dir):
+            raise FileNotFoundError(f"Checkpoint file {out_dir} does not exist!")
+
+        ckpt = torch.load(out_dir, map_location=next(self.model.parameters()).device)
+
+        # clean ckpt
+        state_dict = ckpt['model']
+        unwanted_prefix = '_orig_mod.'
+        for k, v in list(state_dict.items()):
+            if k.startswith(unwanted_prefix):
+                state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
+
+        # load
+        self.model.load_state_dict(state_dict)
+        # self.optimizer.load_state_dict(ckpt['optimizer'])
+        self.optimizer_ckpt = ckpt['optimizer']
+        self.iter_num = ckpt['iter_num']
+        self.best_val_loss = ckpt['best_val_loss']
+
+        if 'run_id' in ckpt.keys() and self.logger is not None:
+            self.logger.run_id = ckpt['run_id']
+
+        print(f"Successfully resumed from {self.out_dir}...")
+        return None
+
+    def save_checkpoint(self, out_dir: str = None) -> None:
+
+        out_dir = out_dir if out_dir is not None else self.out_dir
+        if not os.path.isdir(out_dir):
+            os.makedirs(out_dir, exist_ok=True)
+        run_id = None if self.logger is None else self.logger.run_id
+        raw_model = self.model.module if self.is_ddp_run else self.model
+        checkpoint = {
+            'model': raw_model.state_dict(),
+            'optimizer': self.optimizer.state_dict(),
+            'iter_num': self.iter_num,
+            'best_val_loss': self.best_val_loss,
+            'run_id': run_id,
+        }
+        torch.save(checkpoint, os.path.join(self.out_dir, 'ckpt.pt'))
+        print(f"Successfully saved to {self.out_dir}...")
+
+    def _ddp_init(self) -> None:
+
+        self.is_ddp_run = int(os.environ.get('RANK', -1)) != -1 and self.ddp_enabled
+        if self.is_ddp_run:
+            # print("DDP enabled!")
+            # init_process_group(backend=self.ddp_backend)
             self.ddp_rank = int(os.environ['RANK'])
             self.ddp_local_rank = int(os.environ['LOCAL_RANK'])
             self.ddp_world_size = int(os.environ['WORLD_SIZE'])
@@ -104,10 +147,9 @@ class Trainer:
             # down the desired gradient accumulation iterations per process proportionally
             assert self.gradient_accumulation_steps % self.ddp_world_size == 0
             self.gradient_accumulation_steps //= self.ddp_world_size
-            self.model = DDP(self.model, device_ids=[self.ddp_local_rank])
         else:
             # if not ddp, we are running on a single gpu, and one process
-            print("Running on a single device!")
+            # print("Running on a single device!")
             self.master_process = True
             self.seed_offset = 0
             self.ddp_world_size = 1
@@ -126,31 +168,25 @@ class Trainer:
         self.ctx = nullcontext() if self.device_type == 'cpu' else torch.amp.autocast(device_type=self.device_type, dtype=self.ptdtype)
         print(f"Using {self.device_type} device")
 
-    def _post_init_model(self):
-        # compile the model
+    def _train_init(self):
+
         self.model.to(self.device)
+
+        self.optimizer = self.model.configure_optimizers(
+            self.weight_decay, self.learning_rate, (self.beta1, self.beta2), self.device_type)
+
+        if self.optimizer_ckpt:
+            self.optimizer.load_state_dict(self.optimizer_ckpt)
+            self.optimizer_ckpt = None
+
         if self.compile:
             print("compiling the model... (takes a ~minute)")
             self.unoptimized_model = self.model
             self.model = torch.compile(self.model)  # requires PyTorch 2.0
 
         # wrap model into DDP container
-        if self.ddp and self.ddp_enabled:
+        if self.is_ddp_run:
             self.model = DDP(self.model, device_ids=[self.ddp_local_rank])
-
-    def from_pretrained(self):
-        ckpt_path = os.path.join(self.out_dir, 'ckpt.pt')
-        self.checkpoint = torch.load(ckpt_path, map_location=self.device)
-
-        state_dict = self.checkpoint['model']
-        unwanted_prefix = '_orig_mod.'
-        for k, v in list(state_dict.items()):
-            if k.startswith(unwanted_prefix):
-                state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
-        self.model.load_state_dict(state_dict)
-        self.iter_num = self.checkpoint['iter_num']
-        self.best_val_loss = self.checkpoint['best_val_loss']
-        print(f"Resuming training from {self.out_dir}.ckpt...")
 
     # learning rate decay scheduler (cosine with warmup)
     def _get_lr(self, it: int) -> float:
@@ -167,10 +203,9 @@ class Trainer:
         return self.min_lr + coeff * (self.learning_rate - self.min_lr)
 
     def set_lr(self, iter_num: int) -> None:
-        lr = self._get_lr(iter_num) if self.decay_lr else self.learning_rate
+        self.current_learning_rate = self._get_lr(iter_num) if self.decay_lr else self.learning_rate
         for param_group in self.optimizer.param_groups:
-            param_group['lr'] = lr
-        self.current_learning_rate = lr
+            param_group['lr'] = self.current_learning_rate
 
     def get_batch(self, split, task):
         inputs = None
@@ -209,34 +244,24 @@ class Trainer:
 
     def evaluate(self):
         losses = self.estimate_loss()
-        raw_model = self.model.module if self.ddp else self.model  # unwrap DDP container if needed
 
         print(
             f"Evaluation at iter {self.iter_num}: train loss {losses['train']:.4f},"
             f" val loss {losses['val']:.4f},"
             f" percent {losses['valid']:.4f}")
 
-        if self.wandb_log:
-            wandb.log({
-                "iter": self.iter_num,
-                "train/loss": losses['train'],
-                "val/loss": losses['val'],
-                "valid": losses['valid'],
-                "lr": self.current_learning_rate
-            })
+        if self.master_process:
+            self.logger.log({
+                    "iter": self.iter_num,
+                    "train/loss": losses['train'],
+                    "val/loss": losses['val'],
+                    "val/valid": losses['valid'],
+                    "lr": self.current_learning_rate,})
 
         if losses['val'] < self.best_val_loss or self.always_save_checkpoint:
             self.best_val_loss = losses['val']
             if self.iter_num > 0:
-                checkpoint = {
-                    'model': raw_model.state_dict(),
-                    'optimizer': self.optimizer.state_dict(),
-                    'iter_num': self.iter_num,
-                    'best_val_loss': self.best_val_loss,
-                    'config': self.config,
-                }
-                print(f"saving checkpoint to {self.out_dir}")
-                torch.save(checkpoint, os.path.join(self.out_dir, 'ckpt.pt'))
+                self.save_checkpoint()
 
     def get_task(self, p_task):
         p = torch.bernoulli(torch.Tensor([p_task]))
@@ -248,6 +273,9 @@ class Trainer:
             raise ValueError("Wrong task!")
 
     def train(self):
+        self._train_init()
+        self.logger.init_run()
+        self.model.train()
 
         task = 'lm'
         inputs = self.get_batch(split='train', task=task)  # fetch the very first batch
@@ -265,14 +293,14 @@ class Trainer:
                 break
 
             for micro_step in range(self.gradient_accumulation_steps):
-                if self.ddp:
+                if self.is_ddp_run:
                     self.model.require_backward_grad_sync = (micro_step == self.gradient_accumulation_steps - 1)
                 with self.ctx:
                     outputs = self.model(
                         input_ids=inputs['input_ids'], attention_mask=inputs['attention_mask'],
                         labels=inputs['labels'], target=inputs['target'], eos_mask=inputs['eos_mask'])
                     loss = outputs['loss'] / self.gradient_accumulation_steps
-                inputs = self.get_batch(split='train', task=task) # Here, get task
+                inputs = self.get_batch(split='train', task=task)  # Here, get task
                 self.scaler.scale(loss).backward()
 
             if self.grad_clip != 0.0:
@@ -295,11 +323,7 @@ class Trainer:
             if self.iter_num > self.max_iters:
                 break
 
-        if self.ddp:
+        if self.is_ddp_run:
             destroy_process_group()
 
         print("Training finished.")
-
-    @classmethod
-    def from_config(cls, config: TrainerConfig, model: torch.nn.Module) -> 'Trainer':
-        return cls(config, model)

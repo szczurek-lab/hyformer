@@ -15,21 +15,18 @@ pip install -e .
 Optionally, for a faster build, use [micromamba](https://mamba.readthedocs.io/en/latest/user_guide/micromamba.html) or
 enable [conda-libmamba-solver](https://www.anaconda.com/blog/conda-is-fast-now) with 
 ``` 
+conda update -n base conda
 conda install -n base conda-libmamba-solver
 conda config --set solver libmamba
 ```
 
-## Data
+## Tasks
 
-Data is available at ...
-
-## Model
-
-### Pre-Train
+### Distribution Learning
 
 To train a model on a single GPU, run
 ```
-python train.py
+python scripts/distribution_learning/guacamol/train.py
 ```
 To run with multiple GPUs, run
 ```

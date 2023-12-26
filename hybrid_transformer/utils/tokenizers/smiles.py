@@ -131,7 +131,7 @@ class SMILESTokenizer(DeepChemTokenizer):
         return x
 
     def prepare_tokens(self, inputs: torch.Tensor, special_tokens_mask: torch.Tensor,
-                           mlm_probability: float) -> Tuple[torch.Tensor, torch.Tensor]:
+                           mlm_probability: float, mask_special_tokens = False) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Prepare masked tokens inputs/labels for masked language modeling: 80% MASK, 20% original.
         """
@@ -142,11 +142,10 @@ class SMILESTokenizer(DeepChemTokenizer):
         if not special_tokens_mask.dtype == torch.bool:
             special_tokens_mask = special_tokens_mask.to(torch.bool)
 
-        indices_to_mask.masked_fill_(special_tokens_mask, value=0.0)
-
         if mlm_probability > 0.0:
 
             # Get labels of masked tokens
+            indices_to_mask.masked_fill_(special_tokens_mask, value=0.0)
             indices_to_mask = torch.bernoulli(indices_to_mask).bool()
             labels[~indices_to_mask] = self.ignore_index
 
@@ -156,9 +155,10 @@ class SMILESTokenizer(DeepChemTokenizer):
             # The rest of the time (20% of the time) we keep the masked input tokens unchanged
 
         else:
-            indices_to_mask.masked_fill_(special_tokens_mask, value=1.0)
-            indices_to_mask = indices_to_mask.bool()
-            labels[indices_to_mask] = self.ignore_index
+            if mask_special_tokens:
+                indices_to_mask.masked_fill_(special_tokens_mask, value=1.0)
+                indices_to_mask = indices_to_mask.bool()
+                labels[indices_to_mask] = self.ignore_index
 
         return inputs, labels
 

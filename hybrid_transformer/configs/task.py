@@ -1,4 +1,4 @@
-from transformers import PretrainedConfig
+from transformers import PretrainedConfig, PreTrainedTokenizer
 from typing import List
 
 from hybrid_transformer.utils.datasets.guacamol import GuacamolSMILESDataset
@@ -17,6 +17,10 @@ class TaskConfig(PretrainedConfig):
         augment_molecular_representation: bool = True,
         augmentation_prob: float = 0.8,
         subset_dataset: bool or int = False,
+        tokenizer: str = 'SMILESTokenizer',
+        split: str = 'train',
+        target_label: str = None,
+        validate: bool = True,
         **kwargs,
     ):
         if dataset_name not in ["guacamol",]:
@@ -30,15 +34,15 @@ class TaskConfig(PretrainedConfig):
         # Data config
         self.dataset_name = dataset_name
         self.molecular_representation = molecular_representation
-        self.tokenizer = 'SMILESTokenizer'
+        self.tokenizer = tokenizer
 
         # Dataset config
-        self.split = 'train'
-        self.target_label = None
+        self.split = split
+        self.target_label = target_label
         self.augment_molecular_representation = augment_molecular_representation
         self.augmentation_prob = augmentation_prob
         self.subset_dataset = subset_dataset
-        self.validate = False
+        self.validate = validate
 
         # Tokenizer
         self.path_to_vocab_file = './vocabularies/smiles.txt'
@@ -46,11 +50,6 @@ class TaskConfig(PretrainedConfig):
 
         # Attention mask
         self.use_pad_token_attention_mask = False
-
-        # wandb loggers
-        wandb_log = False  # disabled by default
-        wandb_project = 'owt'
-        wandb_run_name = 'gpt2'  # 'run' + str(time.time())
 
         super().__init__(**kwargs)
 
