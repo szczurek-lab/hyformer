@@ -1,5 +1,5 @@
 {
-  "model_name": "GPTPreTrained",
+  "model_name": "HybridTransformerPreTrained",
   "bias": false,
   "dropout": 0.1,
   "embedding_dim": 512,
@@ -9,5 +9,5 @@
   "num_layers": 12,
   "transformers_version": "4.36.1",
   "vocab_size": 588,
-  "task_p": null
+  "task_p": 0.95
 }

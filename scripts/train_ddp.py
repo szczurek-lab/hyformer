@@ -21,8 +21,8 @@ from hybrid_transformer.trainers.trainer import Trainer
 
 DEFAULT_CONFIG_FILES = {
     'task': "./configs/tasks/distribution_learning/guacamol/",
-    'model': "./configs/models/gpt/",
-    'trainer': "./configs/trainers/lm-pretrain/",
+    'model': "./configs/models/gpt_finetune/",
+    'trainer': "./configs/trainers/pretrain/",
     'logger': "./configs/loggers/wandb/"
 }
 

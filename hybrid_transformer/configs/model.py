@@ -5,7 +5,7 @@ class ModelConfig(PretrainedConfig):
 
     def __init__(
         self,
-        model_type: str = 'GPT',
+        model_name: str = 'GPT',
         embedding_dim: int = 512,
         num_heads: int = 8,
         num_layers: int = 12,
@@ -17,7 +17,7 @@ class ModelConfig(PretrainedConfig):
         max_seq_len: int = 128,
         **kwargs,
     ):
-        self.model_type = model_type
+        self.model_name = model_name
         self.embedding_dim = embedding_dim
         self.num_heads = num_heads
         self.num_layers = num_layers

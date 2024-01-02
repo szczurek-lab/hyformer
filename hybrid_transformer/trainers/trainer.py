@@ -1,21 +1,23 @@
 import os
 import time
 import math
+import torch
 
 from contextlib import nullcontext
-
-import torch
 
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
 
 from hybrid_transformer.configs.trainer import TrainerConfig
 from hybrid_transformer.utils.loggers.wandb import WandbLogger
+from hybrid_transformer.models.prediction import MLM_PREDICTION_MODELS, LM_PREDICTION_MODELS
 
 
 class Trainer:
 
-    def __init__(self, config: TrainerConfig, model: torch.nn, train_dataset, eval_dataset, tokenizer, logger: WandbLogger):
+    def __init__(
+            self, config: TrainerConfig, model: torch.nn, tokenizer, logger: WandbLogger,
+            train_dataset = None, eval_dataset = None):
 
         # out dir
         self.out_dir = config.out_dir
@@ -29,6 +31,7 @@ class Trainer:
         self.logger = logger
 
         # load / save
+        self.enable_save_checkpoint = config.enable_save_checkpoint
         self.always_save_checkpoint = config.always_save_checkpoint  # if True, always save a checkpoint after each eval
         self.init_from = config.init_from  # 'scratch' or 'resume' or 'gpt2*'
 
@@ -83,11 +86,9 @@ class Trainer:
         self._ddp_init()
         self._post_init()
 
-    def load_checkpoint(self, out_dir: str = None) -> None:
+    def load_checkpoint(self, path_to_checkpoint: str = None, reset_iter_num: bool = False) -> None:
 
-        out_dir = out_dir if out_dir is not None else self.out_dir
-        out_dir = os.path.join(out_dir, 'ckpt.pt')
-
+        out_dir = path_to_checkpoint if path_to_checkpoint is not None else os.path.join(self.out_dir, 'ckpt.pt')
         if not os.path.isfile(out_dir):
             raise FileNotFoundError(f"Checkpoint file {out_dir} does not exist!")
 
@@ -104,31 +105,35 @@ class Trainer:
         self.model.load_state_dict(state_dict)
         # self.optimizer.load_state_dict(ckpt['optimizer'])
         self.optimizer_ckpt = ckpt['optimizer']
-        self.iter_num = ckpt['iter_num']
+        if reset_iter_num:
+            self.iter_num = 0
+        else:
+            self.iter_num = ckpt['iter_num']
         self.best_val_loss = ckpt['best_val_loss']
 
         if 'run_id' in ckpt.keys() and self.logger is not None:
             self.logger.run_id = ckpt['run_id']
 
-        print(f"Successfully resumed from {self.out_dir}...")
+        print(f"Successfully loaded checkpoint from {out_dir}...")
         return None
 
-    def save_checkpoint(self, out_dir: str = None) -> None:
+    def save_checkpoint(self, checkpoint_dir: str = None) -> None:
 
-        out_dir = out_dir if out_dir is not None else self.out_dir
-        if not os.path.isdir(out_dir):
-            os.makedirs(out_dir, exist_ok=True)
-        run_id = None if self.logger is None else self.logger.run_id
-        raw_model = self.model.module if self.is_ddp_run else self.model
-        checkpoint = {
-            'model': raw_model.state_dict(),
-            'optimizer': self.optimizer.state_dict(),
-            'iter_num': self.iter_num,
-            'best_val_loss': self.best_val_loss,
-            'run_id': run_id,
-        }
-        torch.save(checkpoint, os.path.join(self.out_dir, 'ckpt.pt'))
-        print(f"Successfully saved to {self.out_dir}...")
+        if self.enable_save_checkpoint:
+            out_dir = checkpoint_dir if checkpoint_dir is not None else self.out_dir
+            if not os.path.isdir(out_dir):
+                os.makedirs(out_dir, exist_ok=True)
+            run_id = None if self.logger is None else self.logger.run_id
+            raw_model = self.model.module if self.is_ddp_run else self.model
+            checkpoint = {
+                'model': raw_model.state_dict(),
+                'optimizer': self.optimizer.state_dict(),
+                'iter_num': self.iter_num,
+                'best_val_loss': self.best_val_loss,
+                'run_id': run_id,
+            }
+            torch.save(checkpoint, os.path.join(self.out_dir, 'ckpt.pt'))
+            print(f"Successfully saved to {self.out_dir}...")
 
     def _ddp_init(self) -> None:
 
@@ -159,7 +164,6 @@ class Trainer:
     def _post_init(self):
         if self.master_process:
             os.makedirs(self.out_dir, exist_ok=True)
-        torch.manual_seed(1337 + self.seed_offset)
         torch.backends.cuda.matmul.allow_tf32 = True  # allow tf32 on matmul
         torch.backends.cudnn.allow_tf32 = True  # allow tf32 on cudnn
         self.device_type = 'cuda' if 'cuda' in self.device else 'cpu'  # for later use in torch.autocast
@@ -170,6 +174,8 @@ class Trainer:
 
     def _train_init(self):
 
+        torch.manual_seed(1337 + self.seed_offset)
+
         self.model.to(self.device)
 
         self.optimizer = self.model.configure_optimizers(
@@ -179,10 +185,10 @@ class Trainer:
             self.optimizer.load_state_dict(self.optimizer_ckpt)
             self.optimizer_ckpt = None
 
-        if self.compile:
-            print("compiling the model... (takes a ~minute)")
+        if self.compile and not type(self.model).__name__ == 'OptimizedModule':
+            print("Compiling model..")
             self.unoptimized_model = self.model
-            self.model = torch.compile(self.model)  # requires PyTorch 2.0
+            self.model = torch.compile(self.model)
 
         # wrap model into DDP container
         if self.is_ddp_run:
@@ -221,24 +227,72 @@ class Trainer:
     def estimate_loss(self):
         out = {}
         self.model.eval()
+
+        ###
+        # log the loss of the model->used for model selection // double the num of iters to equal for two type of tasks
+        # in a supervised setting some models may have None loss for some tasks
+        ###
+
         for split in ['train', 'val']:
-            losses = torch.zeros(self.eval_iters)
+            losses = torch.zeros(2 * self.eval_iters)
+
             for k in range(self.eval_iters):
                 inputs = self.get_batch(split, 'lm')
                 with self.ctx:
                     outputs = self.model(
-                        input_ids=inputs['input_ids'], attention_mask=inputs['attention_mask'], labels=inputs['labels'],
-                        target=inputs['target'], eos_mask=inputs['eos_mask'])
-                losses[k] = outputs['unsupervised_loss'].item()
-            out[split] = losses.mean()
+                        task='lm', input_ids=inputs['input_ids'], attention_mask=inputs['attention_mask'],
+                        labels=inputs['labels'], target=inputs['target'], eos_mask=inputs['eos_mask'])
+                losses[k] = torch.Tensor([0.]) if outputs['loss'] is None else outputs['loss'].item()
 
-            valid = []
-            for k in range(self.eval_iters):
-                idx = torch.ones(size=(self.batch_size, 1), device=self.device) * self.tokenizer.generate_token_id
-                idx = idx.long()
-                samples = self.model.generate(idx=idx, max_new_tokens=self.tokenizer.max_molecule_length)
-                valid.extend(self.tokenizer.is_valid_smiles(samples))
-            out['valid'] = sum(valid) / len(valid)
+            for k in range(self.eval_iters, 2 * self.eval_iters):
+                inputs = self.get_batch(split, 'mlm')
+                with self.ctx:
+                    outputs = self.model(
+                        task='mlm', input_ids=inputs['input_ids'], attention_mask=inputs['attention_mask'],
+                        labels=inputs['labels'], target=inputs['target'], eos_mask=inputs['eos_mask'])
+                losses[k] = torch.Tensor([0.]) if outputs['loss'] is None else outputs['loss'].item()
+
+            out[split] = losses[losses != 0.].mean()
+
+        ###
+        # Log percent of valid molecules sampled
+        ###
+
+        valid = []
+        for k in range(2 * self.eval_iters):
+            idx = torch.ones(size=(self.batch_size, 1), device=self.device) * self.tokenizer.generate_token_id
+            idx = idx.long()
+            samples = self.model.generate(idx=idx, max_new_tokens=self.tokenizer.max_molecule_length)
+            valid.extend(self.tokenizer.is_valid_smiles(samples))
+        out['valid'] = sum(valid) / len(valid)
+
+        ###
+        # Log supervised loss for fine-tuning purposes
+        ###
+
+        model_name = type(self.model._orig_mod).__name__
+
+        if model_name in MLM_PREDICTION_MODELS:
+            task = 'mlm'
+        elif model_name in LM_PREDICTION_MODELS:
+            task = 'lm'
+        else:
+            out['train_prediction'] = 0.
+            out['val_prediction'] = 0.
+            return out
+
+        for split in ['train', 'val']:
+            losses = torch.zeros(2 * self.eval_iters)
+            for k in range(2 * self.eval_iters):
+                inputs = self.get_batch(split, task)
+                with self.ctx:
+                    outputs = self.model(
+                        task=task, input_ids=inputs['input_ids'], attention_mask=inputs['attention_mask'],
+                        labels=inputs['labels'], target=inputs['target'], eos_mask=inputs['eos_mask'])
+                losses[k] = torch.Tensor([0.]) if outputs['supervised_loss'] is None else outputs['supervised_loss'].item()
+
+            out[split + '_prediction'] = losses[losses != 0.].mean()
+
         self.model.train()
         return out
 
@@ -255,6 +309,8 @@ class Trainer:
                     "iter": self.iter_num,
                     "train/loss": losses['train'],
                     "val/loss": losses['val'],
+                    "train/loss_prediction": losses['train_prediction'],
+                    "val/loss_prediction": losses['val_prediction'],
                     "val/valid": losses['valid'],
                     "lr": self.current_learning_rate,})
 
@@ -263,8 +319,50 @@ class Trainer:
             if self.iter_num > 0:
                 self.save_checkpoint()
 
-    def get_task(self, p_task):
-        p = torch.bernoulli(torch.Tensor([p_task]))
+    @torch.no_grad()
+    def test(self, dataset):
+        batch_size = 64
+        out = {}
+        self._train_init()
+        self.logger.init_run()
+        self.model.eval()
+
+        idx = [i for i in range(len(dataset))]
+        idx_batched = [idx[i: i + batch_size] for i in range(0, len(idx), batch_size)]
+
+        model_name = type(self.model._orig_mod).__name__
+
+        if model_name in MLM_PREDICTION_MODELS:
+            task = 'mlm'
+        elif model_name in LM_PREDICTION_MODELS:
+            task = 'lm'
+        else:
+            raise ValueError(f'Model {model_name} not in {MLM_PREDICTION_MODELS, LM_PREDICTION_MODELS}.')
+
+        predictions = []
+        losses = torch.zeros(len(idx_batched))
+        num_inputs = 0
+        for batch in range(len(idx_batched)):
+            idx = torch.Tensor(idx_batched[batch]).to(torch.long)
+            inputs = self.tokenizer.get_inputs(
+                dataset=dataset, task=task, batch_size=self.batch_size, device=self.device, idx=idx)
+            with self.ctx:
+                outputs = self.model(
+                    task=task, input_ids=inputs['input_ids'], attention_mask=inputs['attention_mask'],
+                    labels=inputs['labels'], target=inputs['target'], eos_mask=inputs['eos_mask'])
+            predictions.extend(outputs['prediction'].cpu())
+            losses[batch] = outputs['supervised_loss'].item() * len(inputs['input_ids'])
+            num_inputs += len(inputs['input_ids'])
+        out['prediction_loss'] = (losses.sum() / num_inputs).item()
+        out['y_pred'] = [item.item() for item in predictions]
+        if self.master_process:
+            self.logger.log({"test/prediction_loss": out['prediction_loss']})
+
+        return out
+
+    @staticmethod
+    def get_task(task_p: float):
+        p = torch.bernoulli(torch.Tensor([task_p]))
         if p == 1:
             return 'lm'
         elif p == 0:
@@ -297,10 +395,11 @@ class Trainer:
                     self.model.require_backward_grad_sync = (micro_step == self.gradient_accumulation_steps - 1)
                 with self.ctx:
                     outputs = self.model(
-                        input_ids=inputs['input_ids'], attention_mask=inputs['attention_mask'],
+                        task=task, input_ids=inputs['input_ids'], attention_mask=inputs['attention_mask'],
                         labels=inputs['labels'], target=inputs['target'], eos_mask=inputs['eos_mask'])
                     loss = outputs['loss'] / self.gradient_accumulation_steps
-                inputs = self.get_batch(split='train', task=task)  # Here, get task
+                task = self.get_task(task_p=self.model.task_p)
+                inputs = self.get_batch(split='train', task=task)
                 self.scaler.scale(loss).backward()
 
             if self.grad_clip != 0.0:

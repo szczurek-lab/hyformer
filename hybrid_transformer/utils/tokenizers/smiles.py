@@ -43,9 +43,12 @@ class SMILESTokenizer(DeepChemTokenizer):
         self.token_to_id = {item: key for item, key in self.vocab.items()}
         self.ignore_index = ignore_index
 
-    def get_inputs(self, dataset, task, batch_size, device=None):
+    def get_inputs(self, dataset, task, batch_size, device=None, idx=None):
 
-        sampled_idx = torch.randperm(len(dataset))[:batch_size]
+        if idx is None:
+            sampled_idx = torch.randperm(len(dataset))[:batch_size]
+        else:
+            sampled_idx = idx
         mlm_probability = self.mlm_probability
 
         if dataset.target_label is None:
@@ -59,7 +62,8 @@ class SMILESTokenizer(DeepChemTokenizer):
         inputs = super().__call__(
             inputs, return_special_tokens_mask=True, padding='max_length', truncation=False,
             return_tensors='pt', max_length=128, return_token_type_ids=False)
-        mask = inputs['attention_mask'] if self.use_pad_token_attention_mask else None
+        mask = torch.einsum('bi, bj -> bij', (inputs['attention_mask'], inputs['attention_mask'])).unsqueeze(1)
+        mask = mask if self.use_pad_token_attention_mask else None
         eos_mask = inputs['input_ids'] == self.eos_token_id
 
         if task == 'lm':
@@ -69,8 +73,9 @@ class SMILESTokenizer(DeepChemTokenizer):
         elif task == 'mlm':
             inputs, labels = self.prepare_tokens(
                 self.set_prediction_task_token(inputs['input_ids']), inputs['special_tokens_mask'], mlm_probability)
+            # inputs = self.set_prediction_task_token(inputs)
         else:
-            raise ValueError('Variable `task` must be either "seq2seq" or "mlm".')
+            raise ValueError('Variable `task` must be either `lm` or `mlm`.')
 
         inputs = {'input_ids': inputs, 'attention_mask': mask, 'labels': labels, 'target': target, 'eos_mask': eos_mask}
 
@@ -141,13 +146,14 @@ class SMILESTokenizer(DeepChemTokenizer):
 
         if not special_tokens_mask.dtype == torch.bool:
             special_tokens_mask = special_tokens_mask.to(torch.bool)
+            special_tokens_mask[:, 0] = False
 
         if mlm_probability > 0.0:
 
             # Get labels of masked tokens
             indices_to_mask.masked_fill_(special_tokens_mask, value=0.0)
             indices_to_mask = torch.bernoulli(indices_to_mask).bool()
-            labels[~indices_to_mask] = self.ignore_index
+            # labels[~indices_to_mask] = self.ignore_index
 
             # 80% of the time, replace masked input tokens with tokenizer.mask_token ([MASK])
             indices_replaced = torch.bernoulli(torch.full(labels.shape, 0.8)).bool() & indices_to_mask
@@ -158,7 +164,7 @@ class SMILESTokenizer(DeepChemTokenizer):
             if mask_special_tokens:
                 indices_to_mask.masked_fill_(special_tokens_mask, value=1.0)
                 indices_to_mask = indices_to_mask.bool()
-                labels[indices_to_mask] = self.ignore_index
+                # labels[indices_to_mask] = self.ignore_index
 
         return inputs, labels
 

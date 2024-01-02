@@ -1,5 +1,5 @@
 {
-  "model_name": "GPTPreTrained",
+  "model_name": "BERTPreTrained",
   "bias": false,
   "dropout": 0.1,
   "embedding_dim": 512,

@@ -11,13 +11,12 @@ from hybrid_transformer.layers.transformer import HybridTransformerBlock
 from hybrid_transformer.utils.tokenizers.smiles import IGNORE_INDEX
 
 
-class GPT(nn.Module):
+class Transformer(nn.Module):
 
     def __init__(
             self, vocab_size: int, max_seq_len: int, embedding_dim: int,
-            dropout: float, num_layers: int, bias: int, num_heads: int):
+            dropout: float, num_layers: int, bias: int, num_heads: int, task_p: float):
         super().__init__()
-
         self.vocab_size = vocab_size
         self.max_seq_len = max_seq_len
         self.embedding_dim = embedding_dim
@@ -26,6 +25,7 @@ class GPT(nn.Module):
         self.bias = bias
         self.num_heads = num_heads
         self.prediction_head_output_dim = 1
+        self.task_p = task_p
 
         self.transformer = nn.ModuleDict(dict(
             wte = nn.Embedding(self.vocab_size, self.embedding_dim),
@@ -38,6 +38,7 @@ class GPT(nn.Module):
         ))
         self.lm_head = nn.Linear(self.embedding_dim, self.vocab_size, bias=False)
         self.prediction_head = nn.Linear(self.embedding_dim, self.prediction_head_output_dim, bias=False)
+        self.output_dropout = nn.Dropout(self.dropout)
         self.transformer.wte.weight = self.lm_head.weight  # https://paperswithcode.com/method/weight-tying
 
         # init all weights
@@ -70,10 +71,7 @@ class GPT(nn.Module):
         elif isinstance(module, nn.Embedding):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
-    def forward(self, input_ids, labels=None, target=None, eos_mask=None, attention_mask=None):
-        loss = None
-        supervised_loss = None
-        y_pred = None
+    def forward(self, input_ids, task='lm', labels=None, target=None, eos_mask=None, attention_mask=None):
 
         b, t = input_ids.size()
         assert t <= self.max_seq_len, f"Cannot forward sequence of length {t}, max_seq_length is only {self.max_seq_len}"
@@ -84,28 +82,47 @@ class GPT(nn.Module):
         pos_emb = self.transformer.wpe(pos)  # position embeddings of shape (t, n_embd)
         x = self.transformer.drop(tok_emb + pos_emb)
         for block in self.transformer.h:
-            x = block(x, task='lm', mask=attention_mask)
+            x = block(x, task=task, mask=attention_mask)
         x = self.transformer.ln_f(x)
 
         if labels is not None:
+
             lm_logits = self.lm_head(x)
-            shift_logits = lm_logits[..., :-1, :].contiguous()
+
+            if task == 'lm':
+                shift_logits = lm_logits[..., :-1, :].contiguous()
+            if task == 'mlm':
+                shift_logits = lm_logits[..., 1:, :].contiguous()
+
             shift_labels = labels[..., 1:].contiguous()
-            loss = F.cross_entropy(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+
+            unsupervised_loss = F.cross_entropy(
+                shift_logits.view(-1, shift_logits.size(-1)),
+                shift_labels.view(-1),
+                ignore_index=IGNORE_INDEX)
+
         else:
             lm_logits = self.lm_head(x[:, [-1], :])  # note: using list [-1] to preserve the time dim
+            unsupervised_loss = None
 
-        if target is not None:
-            if eos_mask is not None:
-                y_pred = self.prediction_head(x[eos_mask]).flatten()  # p(y | x)
-            else:
-                y_pred = self.prediction_head(x[:, -1, :]).flatten()  # p(y | x + pad)
+        if target is not None:  # p(y | x)
+            if task == 'lm':
+                y_pred = self.prediction_head(x[:, -1, :]).flatten()
+                # y_pred = self.prediction_head(self.output_dropout(x[:, -1, :])).flatten()
+
+            if task == 'mlm':
+                y_pred = self.prediction_head(x[:, 0, :]).flatten()
+                # y_pred = self.prediction_head(self.output_dropout(x[:, 0, :])).flatten()
 
             supervised_loss = F.mse_loss(y_pred, target)
 
+        else:
+            supervised_loss = None
+            y_pred = None
+
         return {
-            'loss': loss,
-            'unsupervised_loss': loss,
+            'loss': None,
+            'unsupervised_loss': unsupervised_loss,
             'supervised_loss': supervised_loss,
             'lm_logits': lm_logits,
             'prediction': y_pred,
@@ -149,7 +166,7 @@ class GPT(nn.Module):
             # if the sequence context is growing too long we must crop it at block_size
             idx_cond = idx if idx.size(1) <= self.max_seq_len else idx[:, -self.max_seq_len:]
             # forward the model to get the logits for the index in the sequence
-            outputs = self(input_ids=idx_cond)
+            outputs = self(input_ids=idx_cond, task='lm')
             logits = outputs['lm_logits']
             # pluck the logits at the final step and scale by desired temperature
             logits = logits[:, -1, :] / temperature
@@ -166,13 +183,17 @@ class GPT(nn.Module):
 
         return idx
 
-    @classmethod
-    def from_config(cls, config: ModelConfig) -> 'GPT':
-        return cls(
-            vocab_size=config.vocab_size,
-            max_seq_len=config.max_seq_len,
-            embedding_dim=config.embedding_dim,
-            dropout=config.dropout,
-            num_layers=config.num_layers,
-            bias=config.bias,
-            num_heads=config.num_heads)
+    def get_lm_loss(self, **kwargs):
+        kwargs['task'] = 'lm'
+        outputs = super().forward(**kwargs)
+        return outputs['unsupervised_loss']
+
+    def get_mlm_loss(self, **kwargs):
+        kwargs['task'] = 'mlm'
+        outputs = super().forward(**kwargs)
+        return outputs['unsupervised_loss']
+
+    def get_prediction_loss(self, **kwargs):
+        kwargs['task'] = 'mlm'
+        outputs = super().forward(**kwargs)
+        return outputs['supervised_loss']

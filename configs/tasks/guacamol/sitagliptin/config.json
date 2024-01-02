@@ -1,0 +1,17 @@
+{
+  "augment_molecular_representation": true,
+  "augmentation_prob": 0.8,
+  "dataset_name": "guacamol",
+  "max_molecule_length": 128,
+  "molecular_representation": "SMILES",
+  "out_dir": null,
+  "path_to_vocab_file": "./vocabularies/smiles.txt",
+  "split": "train",
+  "subset_dataset": false,
+  "target_label": "siga",
+  "tokenizer": "SMILESTokenizer",
+  "transformers_version": "4.36.1",
+  "use_pad_token_attention_mask": false,
+  "validate": true,
+  "num_samples": 10000
+}

@@ -1,6 +1,7 @@
 import os
 import torch
 import logging
+import random
 
 from tqdm import tqdm
 from typing import Tuple, List, Any
@@ -8,11 +9,13 @@ from torch.utils.data.dataset import Dataset
 from urllib.request import urlretrieve
 from guacamol.utils.chemistry import is_valid
 
-from hybrid_transformer.utils.datasets.utils import load_txt_into_list
+from hybrid_transformer.utils.datasets.utils import load_txt_into_list, save_list_into_txt
 from hybrid_transformer.utils.objectives.guacamol.objective import get_objective
 from hybrid_transformer.utils.objectives.guacamol.utils import GUACAMOL_TASK_NAMES
 from hybrid_transformer.utils.utils import select_random_indices_from_length
 from hybrid_transformer.utils.transforms.augment import AugmentSMILES
+
+DATASET_SEED = 0
 
 GUACAMOL_URL = {
     'train': "https://ndownloader.figshare.com/files/13612760",
@@ -32,7 +35,7 @@ class GuacamolSMILESDataset(Dataset):
 
     def __init__(
             self, split: str, target_label: str, transforms: List[Any],
-            validate: bool = True, subset_dataset: int = None) -> None:
+            validate: bool = True, num_samples: int = None) -> None:
 
         super().__init__()
         self.data = None
@@ -41,7 +44,7 @@ class GuacamolSMILESDataset(Dataset):
         self.target_label = target_label
         self.transforms = transforms
         self.path_to_data_dir = None
-        self.subset_dataset = subset_dataset
+        self.num_samples = num_samples if self.split == 'train' else None  # subset only training data
 
         self._check_args()
         self._get_path_to_data_dir()
@@ -50,8 +53,6 @@ class GuacamolSMILESDataset(Dataset):
             self._load_guacamol_target()
         if validate:
             self._validate()
-        if self.subset_dataset:
-            self._subset_dataset()
 
     def __len__(self):
         return len(self.data)
@@ -80,20 +81,57 @@ class GuacamolSMILESDataset(Dataset):
         filename = os.path.join(self.path_to_data_dir, FILE_NAME)
         if not os.path.exists(filename):
             self._download_guacamol_data()
+
+        if self.num_samples is not None:
+            path_to_subset_data_dir = self.path_to_data_dir + '_' + str(self.num_samples)
+            subset_filename = os.path.join(path_to_subset_data_dir, FILE_NAME)
+            if not os.path.exists(subset_filename):
+                os.makedirs(path_to_subset_data_dir)
+                print("Creating dir '%s'" % path_to_subset_data_dir)
+                random.seed(DATASET_SEED)
+                data = load_txt_into_list(filename)
+                data = random.sample(data, self.num_samples)
+                save_list_into_txt(subset_filename, data)
+            self.path_to_data_dir = path_to_subset_data_dir
+            filename = subset_filename
+
         self.data = load_txt_into_list(filename)
         return None
 
+    # def _get_guacamol_data_subset(self) -> None:
+    #
+    #     # Check if the split exists
+    #     filename = os.path.join(self.path_to_data_dir, FILE_NAME)
+    #     if not os.path.exists(filename):
+    #         self._download_guacamol_data()
+    #
+    #     # Load subset
+    #     self.path_to_subset_data_dir = self.path_to_data_dir + '_' + str(self.num_samples)
+    #     filename = os.path.join(self.path_to_subset_data_dir, FILE_NAME)
+    #
+    #         self._select_guacamol_subset()
+    #
+    #     self.data = load_txt_into_list(filename)
+    #     return None
+
+    # def _select_guacamol_subset(self) -> None:
+    #
+    #     if not os.path.isdir(self.path_to_subset_data_dir):
+    #         os.makedirs(self.path_to_subset_data_dir)
+    #     save_list_into_txt(os.path.join(self.path_to_subset_data_dir, 'smiles.txt'), data)
+
     def _load_guacamol_target(self):
+
         filename = os.path.join(self.path_to_data_dir, f'{self.target_label}.pt')
         if not os.path.exists(filename):
             target = get_objective(self.data, self.target_label, verbose=True)
             torch.save(target, filename)
-            print(f"Guacamol {self.split} {self.target_label} objective saved into {self.path_to_data_dir}.")
+            print(f"Guacamol {self.split} {self.target_label} objective saved into {filename}.")
         self.target = torch.load(filename)
         return None
 
     def _download_guacamol_data(self) -> None:
-        logging.info(f"Downloading Guacamol data...")
+        print(f"Downloading Guacamol data...")
         os.makedirs(self.path_to_data_dir, exist_ok=True)
         urlretrieve(GUACAMOL_URL[self.split], os.path.join(self.path_to_data_dir, FILE_NAME))
         print(f"Guacamol {self.split} data downloaded into {self.path_to_data_dir}.")
@@ -109,7 +147,7 @@ class GuacamolSMILESDataset(Dataset):
             self._validate_data_only()
         else:
             self._validate_data_and_target()
-        print("Guacamol dataset validated!")
+        print(f"Guacamol dataset loaded with {len(self.data)} valid examples!")
         return None
 
     def _validate_data_only(self):
@@ -133,7 +171,7 @@ class GuacamolSMILESDataset(Dataset):
         return None
 
     def _subset_dataset(self):
-        idx = select_random_indices_from_length(len(self.data), self.subset_dataset)
+        idx = select_random_indices_from_length(len(self.data), self.num_samples)
         self.data = [self.data[i] for i in idx]
         if self.target_label is not None:
             self.target = self.target[idx]
@@ -147,4 +185,4 @@ class GuacamolSMILESDataset(Dataset):
 
         return cls(
             split=config.split, target_label=config.target_label, transforms=transforms,
-            validate=config.validate, subset_dataset=config.subset_dataset)
+            validate=config.validate, num_samples=config.num_samples)
