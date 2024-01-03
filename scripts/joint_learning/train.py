@@ -60,7 +60,7 @@ def main():
             out_dir = os.path.join(args.out_dir, run_dir)
             print(f"Setting output directory `out_dir` to {out_dir}")
             trainer_config.out_dir = out_dir
-            logger_config.project = 'Table 1'
+            logger_config.project = 'Joint Learning'
             logger_config.name = model_name + '_' + guacamol_task
 
             model = AutoModel.from_config(model_config)

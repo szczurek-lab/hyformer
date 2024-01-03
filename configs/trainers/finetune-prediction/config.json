@@ -28,5 +28,6 @@
   "wandb_project": "hybrid_transformer",
   "wandb_run": "hybrid_transformer",
   "warmup_iters": 42,
-  "weight_decay": 0.1
+  "weight_decay": 0.1,
+  "correct_bias": false
 }

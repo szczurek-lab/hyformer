@@ -7,8 +7,8 @@ from hybrid_transformer.models.pre_train import GPTPreTrained, BERTPreTrained, H
 PREDICTION_MODEL_CONFIGS = {
     'GPTForPrediction': './configs/models/prediction/gpt_finetune/config.json',
     'JointGPT': './configs/models/prediction/gpt_joint/config.json',
-    'JointGPTNonLikelihood': './configs/models/prediction/gpt_joint/config.json',
-    'HybridTransformerGPTInit': './configs/models/prediction/hybrid_transformer_gpt_init/config.json',
+    # 'JointGPTNonLikelihood': './configs/models/prediction/gpt_joint/config.json',
+    # 'HybridTransformerGPTInit': './configs/models/prediction/hybrid_transformer_gpt_init/config.json',
     'HybridTransformer': './configs/models/prediction/hybrid_transformer/config.json',
     'HybridTransformerWithPenalty': './configs/models/prediction/hybrid_transformer_penalty/config.json'
 }

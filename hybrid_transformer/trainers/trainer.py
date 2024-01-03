@@ -16,7 +16,7 @@ from hybrid_transformer.models.prediction import MLM_PREDICTION_MODELS, LM_PREDI
 class Trainer:
 
     def __init__(
-            self, config: TrainerConfig, model: torch.nn, tokenizer, logger: WandbLogger,
+            self, config: TrainerConfig, model: torch.nn, tokenizer, logger: WandbLogger = None,
             train_dataset = None, eval_dataset = None):
 
         # out dir
@@ -80,6 +80,7 @@ class Trainer:
 
         # optimizer
         self.optimizer = None
+        self.correct_bias = config.correct_bias
         self.optimizer_ckpt = None
         self.current_learning_rate = None
 
@@ -179,7 +180,7 @@ class Trainer:
         self.model.to(self.device)
 
         self.optimizer = self.model.configure_optimizers(
-            self.weight_decay, self.learning_rate, (self.beta1, self.beta2), self.device_type)
+            self.weight_decay, self.learning_rate, (self.beta1, self.beta2), self.device_type, self.correct_bias)
 
         if self.optimizer_ckpt:
             self.optimizer.load_state_dict(self.optimizer_ckpt)
@@ -304,7 +305,7 @@ class Trainer:
             f" val loss {losses['val']:.4f},"
             f" percent {losses['valid']:.4f}")
 
-        if self.master_process:
+        if self.master_process and self.logger is not None:
             self.logger.log({
                     "iter": self.iter_num,
                     "train/loss": losses['train'],
@@ -326,6 +327,7 @@ class Trainer:
         self._train_init()
         self.logger.init_run()
         self.model.eval()
+        loss_l1 = torch.nn.L1Loss(reduction='sum')
 
         idx = [i for i in range(len(dataset))]
         idx_batched = [idx[i: i + batch_size] for i in range(0, len(idx), batch_size)]
@@ -341,6 +343,7 @@ class Trainer:
 
         predictions = []
         losses = torch.zeros(len(idx_batched))
+        losses_l1 = torch.zeros(len(idx_batched))
         num_inputs = 0
         for batch in range(len(idx_batched)):
             idx = torch.Tensor(idx_batched[batch]).to(torch.long)
@@ -352,11 +355,13 @@ class Trainer:
                     labels=inputs['labels'], target=inputs['target'], eos_mask=inputs['eos_mask'])
             predictions.extend(outputs['prediction'].cpu())
             losses[batch] = outputs['supervised_loss'].item() * len(inputs['input_ids'])
+            losses_l1[batch] = loss_l1(outputs['prediction'], inputs['target'])
             num_inputs += len(inputs['input_ids'])
-        out['prediction_loss'] = (losses.sum() / num_inputs).item()
+        out['MSE'] = (losses.sum() / num_inputs).item()
+        out['MAE'] = (losses_l1.sum() / num_inputs).item()
         out['y_pred'] = [item.item() for item in predictions]
-        if self.master_process:
-            self.logger.log({"test/prediction_loss": out['prediction_loss']})
+        if self.master_process and self.logger is not None:
+            self.logger.log({"test/MSE": out['MSE'], "test/MAE": out['MAE']})
 
         return out
 

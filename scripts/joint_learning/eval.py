@@ -2,6 +2,7 @@ import os
 import argparse
 import json
 
+import wandb
 from tqdm import tqdm
 from hybrid_transformer.configs.task import TaskConfig
 from hybrid_transformer.configs.model import ModelConfig
@@ -20,30 +21,15 @@ from scripts.joint_learning.train import DEFAULT_CONFIG_FILES
 from hybrid_transformer.utils.objectives.guacamol.objective import GUACAMOL_TASKS
 from hybrid_transformer.models.prediction import PREDICTION_MODEL_CONFIGS
 
-from guacamol.assess_distribution_learning import assess_distribution_learning
 
-from hybrid_transformer.models.utils import GuacamolModelWrapper
-
-
-DEFAULT_REFERENCE_FILE = '../data/guacamol/test/smiles.txt'
-
-
-def evaluate_distribution_learning(tokenizer, model, chembl_file, json_output_file, batch_size, device):
-    assess_distribution_learning(
-        model=GuacamolModelWrapper(model, tokenizer, batch_size, device),
-        chembl_training_file=chembl_file,
-        json_output_file=json_output_file,
-        benchmark_version='v2')
-
-    return None
-
+from scripts.pretrain.eval import DEFAULT_REFERENCE_FILE, evaluate_distribution_learning
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--out_dir", type=str, required=True)
-    parser.add_argument("--data_reference_file", type=str, default=DEFAULT_REFERENCE_FILE)
     parser.add_argument("-trainer", "--path_to_trainer_config", type=str, default=DEFAULT_CONFIG_FILES['trainer'])
     parser.add_argument("-logger", "--path_to_logger_config", type=str, default=DEFAULT_CONFIG_FILES['logger'])
+    parser.add_argument("--reference_file", type=str, default=DEFAULT_REFERENCE_FILE)
     args = parser.parse_args()
     return args
 
@@ -58,8 +44,7 @@ def main():
 
     for guacamol_task in tqdm(GUACAMOL_TASKS):
         task_config = TaskConfig.from_pretrained(task_config_path())
-        task_config.augmentation_prob = 0.0 # disable augmentation
-        task_config.validate = False  # debug
+        task_config.augmentation_prob = 0.0  # disable augmentation
         dataset = AutoDataset.from_config(task_config, split='test')
         tokenizer = AutoTokenizer.from_config(task_config)
 
@@ -88,15 +73,13 @@ def main():
             with open(os.path.join(trainer.out_dir, 'result_prediction.json'), 'w') as fp:
                 json.dump(prediction_results, fp)
 
+            results = evaluate_distribution_learning(trainer, args.reference_file)
+
+            if logger is not None:
+                wandb.log(results)
+
             trainer.logger.finish()
 
 
 if __name__ == "__main__":
     main()
-
-
-# TODO: verify that good checkpoint is loaded
-# TODO: verify that wandb is working
-# TODO: test prediction
-# TODO: test generation
-# TODO: (optional) load json file and write log to wandb

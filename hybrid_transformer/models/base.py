@@ -10,6 +10,8 @@ from hybrid_transformer.layers.transformer import HybridTransformerBlock
 
 from hybrid_transformer.utils.tokenizers.smiles import IGNORE_INDEX
 
+from hybrid_transformer.utils.optimization import AdamW
+
 
 class Transformer(nn.Module):
 
@@ -107,12 +109,12 @@ class Transformer(nn.Module):
 
         if target is not None:  # p(y | x)
             if task == 'lm':
-                y_pred = self.prediction_head(x[:, -1, :]).flatten()
-                # y_pred = self.prediction_head(self.output_dropout(x[:, -1, :])).flatten()
+                # OLD: y_pred = self.prediction_head(x[:, -1, :]).flatten()
+                y_pred = self.prediction_head(self.output_dropout(x[:, -1, :])).flatten()
 
             if task == 'mlm':
-                y_pred = self.prediction_head(x[:, 0, :]).flatten()
-                # y_pred = self.prediction_head(self.output_dropout(x[:, 0, :])).flatten()
+                # OLD: y_pred = self.prediction_head(x[:, 0, :]).flatten()
+                y_pred = self.prediction_head(self.output_dropout(x[:, 0, :])).flatten()
 
             supervised_loss = F.mse_loss(y_pred, target)
 
@@ -129,7 +131,7 @@ class Transformer(nn.Module):
             'embedding': x
         }
 
-    def configure_optimizers(self, weight_decay, learning_rate, betas, device_type):
+    def configure_optimizers(self, weight_decay, learning_rate, betas, device_type, correct_bias):
         # start with all of the candidate parameters
         param_dict = {pn: p for pn, p in self.named_parameters()}
         # filter out those that do not require grad
@@ -150,7 +152,10 @@ class Transformer(nn.Module):
         fused_available = 'fused' in inspect.signature(torch.optim.AdamW).parameters
         use_fused = fused_available and device_type == 'cuda'
         extra_args = dict(fused=True) if use_fused else dict()
-        optimizer = torch.optim.AdamW(optim_groups, lr=learning_rate, betas=betas, **extra_args)
+        if correct_bias:
+            optimizer = AdamW(optim_groups, lr=learning_rate, betas=betas, correct_bias=correct_bias, fused=use_fused)
+        else:
+            optimizer = torch.optim.AdamW(optim_groups, lr=learning_rate, betas=betas, **extra_args)
         print(f"using fused AdamW: {use_fused}")
 
         return optimizer
