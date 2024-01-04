@@ -15,9 +15,8 @@ from hybrid_transformer.utils.loggers.wandb import WandbLogger
 
 from hybrid_transformer.trainers.trainer import Trainer
 
-from scripts.pretrain.train import DEFAULT_CONFIG_FILES
-
 from hybrid_transformer.utils.objectives.guacamol.objective import GUACAMOL_TASKS
+from hybrid_transformer.utils.objectives.molecule_net.objective import MOLECULE_NET_REGRESSION_TASKS
 from hybrid_transformer.models.prediction import PREDICTION_MODEL_CONFIGS
 
 DEFAULT_CONFIG_FILES = {
@@ -29,6 +28,7 @@ DEFAULT_CONFIG_FILES = {
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--out_dir", type=str, required=True)
+    parser.add_argument("--benchmark", type=str, required=True)
     parser.add_argument("-trainer", "--path_to_trainer_config", type=str, default=DEFAULT_CONFIG_FILES['trainer'])
     parser.add_argument("-logger", "--path_to_logger_config", type=str, default=DEFAULT_CONFIG_FILES['logger'])
     args = parser.parse_args()
@@ -41,9 +41,18 @@ def main():
     args = parse_args()
 
     # Load configs
-    task_config_path = lambda: f'./configs/tasks/guacamol/{guacamol_task}/config.json'
+    if args.benchmark == 'guacamol':
+        task_config_path = lambda: f'./configs/tasks/guacamol/{task}/config.json'
+        TASKS = GUACAMOL_TASKS
+    elif args.benchmark == 'molecule_net':
+        task_config_path = lambda: f'./configs/tasks/molecule_net/{task}/config.json'
+        TASKS = MOLECULE_NET_REGRESSION_TASKS
+        PREDICTION_MODEL_CONFIGS.pop('GPTForPrediction')
+        PREDICTION_MODEL_CONFIGS.pop('JointGPT')
+    else:
+        raise ValueError('Provide a correct benchmark name.')
 
-    for guacamol_task in GUACAMOL_TASKS:
+    for task in TASKS:
         task_config = TaskConfig.from_pretrained(task_config_path())
         train_dataset = AutoDataset.from_config(task_config, split='train')
         eval_dataset = AutoDataset.from_config(task_config, split='val')
@@ -56,12 +65,12 @@ def main():
             trainer_config = TrainerConfig.from_pretrained(args.path_to_trainer_config)
             logger_config = LoggerConfig.from_pretrained(args.path_to_logger_config)
 
-            run_dir = f'{model_name}/{guacamol_task}'
+            run_dir = f'{model_name}/{task}'
             out_dir = os.path.join(args.out_dir, run_dir)
             print(f"Setting output directory `out_dir` to {out_dir}")
             trainer_config.out_dir = out_dir
             logger_config.project = 'Joint Learning'
-            logger_config.name = model_name + '_' + guacamol_task
+            logger_config.name = model_name + '_' + task
 
             model = AutoModel.from_config(model_config)
             logger = WandbLogger(logger_config, [task_config, model_config, trainer_config])

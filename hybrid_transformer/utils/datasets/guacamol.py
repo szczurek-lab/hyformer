@@ -8,6 +8,7 @@ from typing import Tuple, List, Any
 from torch.utils.data.dataset import Dataset
 from urllib.request import urlretrieve
 from guacamol.utils.chemistry import is_valid
+from rdkit import Chem
 
 from hybrid_transformer.utils.datasets.utils import load_txt_into_list, save_list_into_txt
 from hybrid_transformer.utils.objectives.guacamol.objective import get_objective
@@ -43,6 +44,7 @@ class GuacamolSMILESDataset(Dataset):
         self.split = split
         self.target_label = target_label
         self.transforms = transforms
+        self.target_transforms = None
         self.path_to_data_dir = None
         self.num_samples = num_samples if self.split == 'train' else None  # subset only training data
 

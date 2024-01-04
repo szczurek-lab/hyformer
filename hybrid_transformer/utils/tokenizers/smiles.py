@@ -153,7 +153,7 @@ class SMILESTokenizer(DeepChemTokenizer):
             # Get labels of masked tokens
             indices_to_mask.masked_fill_(special_tokens_mask, value=0.0)
             indices_to_mask = torch.bernoulli(indices_to_mask).bool()
-            # labels[~indices_to_mask] = self.ignore_index
+            labels[~indices_to_mask] = self.ignore_index
 
             # 80% of the time, replace masked input tokens with tokenizer.mask_token ([MASK])
             indices_replaced = torch.bernoulli(torch.full(labels.shape, 0.8)).bool() & indices_to_mask
@@ -164,7 +164,7 @@ class SMILESTokenizer(DeepChemTokenizer):
             if mask_special_tokens:
                 indices_to_mask.masked_fill_(special_tokens_mask, value=1.0)
                 indices_to_mask = indices_to_mask.bool()
-                # labels[indices_to_mask] = self.ignore_index
+                labels[indices_to_mask] = self.ignore_index
 
         return inputs, labels
 

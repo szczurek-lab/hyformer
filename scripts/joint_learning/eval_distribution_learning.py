@@ -68,15 +68,15 @@ def main():
 
             print(f"Loading checkpoint from {trainer.out_dir}...")
             trainer.load_checkpoint()
-            results_prediction = trainer.test(dataset)
+            # prediction_results = trainer.test(dataset)
 
-            with open(os.path.join(trainer.out_dir, 'results_prediction.json'), 'w') as fp:
-                json.dump(results_prediction, fp)
+            # with open(os.path.join(trainer.out_dir, 'results_prediction.json'), 'w') as fp:
+            #     json.dump(prediction_results, fp)
 
-            # results = evaluate_distribution_learning(trainer, args.reference_file)
-            #
-            # if logger is not None:
-            #     wandb.log(results)
+            results = evaluate_distribution_learning(trainer, args.reference_file)
+
+            if logger is not None:
+                wandb.log(results)
 
             trainer.logger.finish()
 

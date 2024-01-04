@@ -12,6 +12,8 @@ from hybrid_transformer.configs.trainer import TrainerConfig
 from hybrid_transformer.utils.loggers.wandb import WandbLogger
 from hybrid_transformer.models.prediction import MLM_PREDICTION_MODELS, LM_PREDICTION_MODELS
 
+from hybrid_transformer.utils.runtime import set_seed
+
 
 class Trainer:
 
@@ -175,7 +177,7 @@ class Trainer:
 
     def _train_init(self):
 
-        torch.manual_seed(1337 + self.seed_offset)
+        set_seed(1337 + self.seed_offset)
 
         self.model.to(self.device)
 
@@ -327,7 +329,8 @@ class Trainer:
         self._train_init()
         self.logger.init_run()
         self.model.eval()
-        loss_l1 = torch.nn.L1Loss(reduction='sum')
+        loss_l1 = torch.nn.L1Loss(reduction='mean')
+        loss_mse = torch.nn.MSELoss(reduction='mean')
 
         idx = [i for i in range(len(dataset))]
         idx_batched = [idx[i: i + batch_size] for i in range(0, len(idx), batch_size)]
@@ -342,9 +345,8 @@ class Trainer:
             raise ValueError(f'Model {model_name} not in {MLM_PREDICTION_MODELS, LM_PREDICTION_MODELS}.')
 
         predictions = []
-        losses = torch.zeros(len(idx_batched))
-        losses_l1 = torch.zeros(len(idx_batched))
-        num_inputs = 0
+        targets = []
+
         for batch in range(len(idx_batched)):
             idx = torch.Tensor(idx_batched[batch]).to(torch.long)
             inputs = self.tokenizer.get_inputs(
@@ -353,15 +355,17 @@ class Trainer:
                 outputs = self.model(
                     task=task, input_ids=inputs['input_ids'], attention_mask=inputs['attention_mask'],
                     labels=inputs['labels'], target=inputs['target'], eos_mask=inputs['eos_mask'])
-            predictions.extend(outputs['prediction'].cpu())
-            losses[batch] = outputs['supervised_loss'].item() * len(inputs['input_ids'])
-            losses_l1[batch] = loss_l1(outputs['prediction'], inputs['target'])
-            num_inputs += len(inputs['input_ids'])
-        out['MSE'] = (losses.sum() / num_inputs).item()
-        out['MAE'] = (losses_l1.sum() / num_inputs).item()
+
+            predictions.extend(dataset.undo_target_transform(outputs['prediction'].cpu()))
+            targets.extend(dataset.undo_target_transform(inputs['target'].cpu()))
+
+        out['MSE'] = loss_mse(predictions, targets).item()
+        out['RMSE'] = torch.sqrt(loss_mse(predictions, targets)).item()
+        out['MAE'] = loss_l1(predictions, targets).item()
         out['y_pred'] = [item.item() for item in predictions]
+        out['y_true'] = [item.item() for item in targets]
         if self.master_process and self.logger is not None:
-            self.logger.log({"test/MSE": out['MSE'], "test/MAE": out['MAE']})
+            self.logger.log({"test/MSE": out['MSE'], "test/RMSE": out['RMSE'], "test/MAE": out['MAE']})
 
         return out
 

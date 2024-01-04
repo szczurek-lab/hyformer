@@ -23,7 +23,7 @@ class TaskConfig(PretrainedConfig):
         validate: bool = True,
         **kwargs,
     ):
-        if dataset_name not in ["guacamol",]:
+        if dataset_name not in ["guacamol", "molecule_net"]:
             raise ValueError(f"`dataset` must be 'guacamol', got {dataset_name}.")
         if molecular_representation not in ["SMILES"]:
             raise ValueError(f"`molecular_representation` must be 'SMILES, got {molecular_representation}.")

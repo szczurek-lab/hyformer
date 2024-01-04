@@ -17,7 +17,7 @@ from scripts.joint_learning.train import DEFAULT_CONFIG_FILES
 from scripts.pretrain.train import DEFAULT_CONFIG_FILES
 
 
-DEFAULT_REFERENCE_FILE = '../data/guacamol/train/smiles.txt'
+DEFAULT_REFERENCE_FILE = './data/guacamol/train/smiles.txt'
 BATCH_SIZE = 128
 
 

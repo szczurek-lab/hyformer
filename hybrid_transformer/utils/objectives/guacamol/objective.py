@@ -9,8 +9,8 @@ from hybrid_transformer.utils.objectives.guacamol.utils import smiles_to_desired
 DTYPE_OBJECTIVE = torch.float32
 
 GUACAMOL_TASKS = [
-    'zaleplon',
-    'osimertinib',
+    # 'lipo',
+    # 'osimertinib',
     'fexofenadine',
     'ranolazine',
     'perindopril',
