@@ -64,6 +64,8 @@ def main():
     # Load
     if trainer.resume and os.path.isfile(os.path.join(trainer.out_dir, 'ckpt.pt')):
         trainer.load_checkpoint()
+    else:
+        print("Initializing model from scratch")
     # Train
     trainer.train()
 

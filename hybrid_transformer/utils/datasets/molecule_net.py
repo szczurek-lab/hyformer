@@ -79,6 +79,21 @@ class MoleculeNetSMILESDataset(Dataset):
         if not os.path.exists(filename):
             self._download()
         self.data = load_txt_into_list(filename)
+
+        featurizer = RawFeaturizer(smiles=True)
+        splitter = 'random'
+        target_transforms = None
+
+        if self.target_label == 'esol':
+            _, _, target_transforms = dc.molnet.load_delaney(
+                featurizer=featurizer, splitter=splitter, data_dir=self.path_to_data_dir)
+        if self.target_label == 'freesolv':
+            _, _, target_transforms = dc.molnet.load_sampl(featurizer=featurizer, splitter=splitter)
+        if self.target_label == 'lipo':
+            _, _, target_transforms = dc.molnet.load_lipo(featurizer=featurizer, splitter=splitter)
+
+        self.target_transforms = target_transforms if target_transforms is not None else None
+
         return None
 
     def _load_target(self) -> None:
@@ -94,16 +109,14 @@ class MoleculeNetSMILESDataset(Dataset):
         set_seed(DATASET_SEED)
         featurizer = RawFeaturizer(smiles=True)
         splitter = 'random'
-        target_transforms = None
 
         if self.target_label == 'esol':
-            _, datasets, target_transforms = dc.molnet.load_delaney(
+            _, datasets, _ = dc.molnet.load_delaney(
                 featurizer=featurizer, splitter=splitter, data_dir=self.path_to_data_dir)
         if self.target_label == 'freesolv':
-            _, datasets, target_transforms = dc.molnet.load_sampl(featurizer=featurizer, splitter=splitter, data_dir=self.path_to_data_dir)
+            _, datasets, _ = dc.molnet.load_sampl(featurizer=featurizer, splitter=splitter, data_dir=self.path_to_data_dir)
         if self.target_label == 'lipo':
-            _, datasets, target_transforms = dc.molnet.load_lipo(featurizer=featurizer, splitter=splitter, data_dir=self.path_to_data_dir)
-        self.target_transforms = target_transforms if target_transforms is not None else None
+            _, datasets, _ = dc.molnet.load_lipo(featurizer=featurizer, splitter=splitter, data_dir=self.path_to_data_dir)
 
         split_names = ['train', 'val', 'test']
         for idx, split in enumerate(datasets):
@@ -134,7 +147,7 @@ class MoleculeNetSMILESDataset(Dataset):
         target_validated = []
 
         for idx, (x, y) in enumerate(zip(data, target)):
-            if is_valid(x) and not torch.isnan(y) and len(x) < 126:
+            if is_valid(x) and not torch.isnan(y):
                 data_validated.append(Chem.MolToSmiles(Chem.MolFromSmiles(x)))
                 target_validated.append(y)
 

@@ -179,6 +179,14 @@ class GuacamolSMILESDataset(Dataset):
             self.target = self.target[idx]
         return None
 
+    def undo_target_transform(self, y: torch.Tensor) -> torch.Tensor:
+        if self.target_transforms is None:
+            return y
+        y_undone = y.numpy()
+        for transform in reversed(self.target_transforms):
+            y_undone = transform.untransform(y_undone)
+        return torch.from_numpy(y_undone).view(-1, 1)
+
     @classmethod
     def from_config(cls, config):
         transforms = []

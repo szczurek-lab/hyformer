@@ -47,8 +47,7 @@ def main():
     elif args.benchmark == 'molecule_net':
         task_config_path = lambda: f'./configs/tasks/molecule_net/{task}/config.json'
         TASKS = MOLECULE_NET_REGRESSION_TASKS
-        PREDICTION_MODEL_CONFIGS.pop('GPTForPrediction')
-        PREDICTION_MODEL_CONFIGS.pop('JointGPT')
+
     else:
         raise ValueError('Provide a correct benchmark name.')
 
@@ -69,7 +68,7 @@ def main():
             out_dir = os.path.join(args.out_dir, run_dir)
             print(f"Setting output directory `out_dir` to {out_dir}")
             trainer_config.out_dir = out_dir
-            logger_config.project = 'Joint Learning'
+            logger_config.project = 'Joint Learning v2' + args.benchmark
             logger_config.name = model_name + '_' + task
 
             model = AutoModel.from_config(model_config)

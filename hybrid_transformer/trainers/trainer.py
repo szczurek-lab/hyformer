@@ -359,11 +359,15 @@ class Trainer:
             predictions.extend(dataset.undo_target_transform(outputs['prediction'].cpu()))
             targets.extend(dataset.undo_target_transform(inputs['target'].cpu()))
 
+        predictions = torch.Tensor(predictions)
+        targets = torch.Tensor(targets)
+
         out['MSE'] = loss_mse(predictions, targets).item()
         out['RMSE'] = torch.sqrt(loss_mse(predictions, targets)).item()
         out['MAE'] = loss_l1(predictions, targets).item()
         out['y_pred'] = [item.item() for item in predictions]
         out['y_true'] = [item.item() for item in targets]
+
         if self.master_process and self.logger is not None:
             self.logger.log({"test/MSE": out['MSE'], "test/RMSE": out['RMSE'], "test/MAE": out['MAE']})
 

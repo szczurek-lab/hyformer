@@ -60,7 +60,7 @@ class SMILESTokenizer(DeepChemTokenizer):
             mlm_probability = 0.0
 
         inputs = super().__call__(
-            inputs, return_special_tokens_mask=True, padding='max_length', truncation=False,
+            inputs, return_special_tokens_mask=True, padding='max_length', truncation=True,
             return_tensors='pt', max_length=128, return_token_type_ids=False)
         mask = torch.einsum('bi, bj -> bij', (inputs['attention_mask'], inputs['attention_mask'])).unsqueeze(1)
         mask = mask if self.use_pad_token_attention_mask else None
