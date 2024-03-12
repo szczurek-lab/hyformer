@@ -16,7 +16,8 @@ class HybridTransformerBlock(nn.Module):
 
     def forward(self, x, task, mask=None):
         x = self.ln_1(x)
-        x = x + self.attn_1(x=x, mask=mask, task=task)
+        attn, attn_weights = self.attn_1(x=x, mask=mask, task=task)
+        x = x + attn
         x = self.ln_2(x)
         x = x + self.mlp(x)
-        return x
+        return x, attn_weights

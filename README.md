@@ -6,7 +6,7 @@ To create an environment that satisfies all the necessary requirements use
 ```
  conda env create -f env.yml
 ```
-and install Hybrid Transformer within the environment, from the project directory, with 
+and install Hybrid Transformer, from the project directory, with 
 ```
 conda activate hybrid-transformer
 pip install -e .
@@ -22,26 +22,29 @@ conda config --set solver libmamba
 
 ## Tasks
 
-### Distribution Learning
+### Unsupervised Pre-Training 
 
-Distribution learning is an unsupervised pre-training task. Pre-train one of the three
-available models `gpt`, `bert`, or `hybrid_transformer` with 
+To pre-train a `${MODEL}` run 
 ```
-CUDA_VISIBLE_DEVICES={GPU_ID} python scripts/pretrain/train.py 
+CUDA_VISIBLE_DEVICES=${GPU_ID} python scripts/pretrain/train.py 
   --out_dir ./results/pretrain/{MODEL}
   --path_to_model_config ./configs/models/{MODEL}
+```
+to eval
+```
+CUDA_VISIBLE_DEVICES=${GPU_ID} python scripts/pretrain/eval.py --out_dir ./results/pretrain/{MODEL} --path_to_model_config ./configs/models/{MODEL}
 ```
 
 ### Joint Learning
 
-Joint learning takes a pre-trained model and fine-tunes it on a prediction task. 
+Joint learning takes a pre-trained model and trains it jointly on generation and prediction tasks 
 
 ```
-CUDA_VISIBLE_DEVICES={GPU_ID} python scripts/joint_learning/train.py 
+CUDA_VISIBLE_DEVICES=${GPU_ID} python scripts/joint_learning/train.py 
   --out_dir ./results/joint_learning/
 ```
 
-Evaluate the fine-tuned models with
+Evaluate with
 ```
 CUDA_VISIBLE_DEVICES={GPU_ID} python scripts/joint_learning/evaluate.py 
   --out_dir ./results/joint_learning
@@ -52,7 +55,11 @@ CUDA_VISIBLE_DEVICES={GPU_ID} python scripts/joint_learning/evaluate.py
 CUDA_VISIBLE_DEVICES=3 python scripts/joint_learning/eval.py --out_dir /raid/aizd/hybrid_transformer/results/table_1/ --data_reference_file ./data/guacamol/test/smiles.txt
 ```
 
+## TODOs
 
+  - scripts refer to names, which refer to benchmarks by a separate file linking configs to names
+  - no other parameters should be passed to scripts or set in scripts manually
+  - log console outputs and dump to file all the time 
 
 ## Results
 

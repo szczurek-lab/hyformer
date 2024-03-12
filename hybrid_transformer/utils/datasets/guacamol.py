@@ -35,8 +35,8 @@ TARGET_LABELS = {}
 class GuacamolSMILESDataset(Dataset):
 
     def __init__(
-            self, split: str, target_label: str, transforms: List[Any],
-            validate: bool = True, num_samples: int = None) -> None:
+            self, split: str = None, target_label: str = None, transforms: List[Any] = None,
+            validate: bool = True, num_samples: int = None, data_dir: str = None) -> None:
 
         super().__init__()
         self.data = None
@@ -49,8 +49,13 @@ class GuacamolSMILESDataset(Dataset):
         self.num_samples = num_samples if self.split == 'train' else None  # subset only training data
 
         self._check_args()
-        self._get_path_to_data_dir()
-        self._load_guacamol_data()
+        self._get_path_to_data_dir(data_dir)
+        if data_dir is not None:
+            self._load_data(os.path.join(data_dir, FILE_NAME))
+            if validate:
+                self._validate_data_only()
+        else:
+            self._load_guacamol_data()
         if target_label is not None:
             self._load_guacamol_target()
         if validate:
@@ -64,8 +69,9 @@ class GuacamolSMILESDataset(Dataset):
         x = self.data[idx]
 
         if self.target is not None:
-            for transform in self.transforms:
-                x = transform(x)
+            if self.transforms is not None:
+                for transform in self.transforms:
+                    x = transform(x)
 
         if self.target_label is None:
             return x
@@ -74,7 +80,7 @@ class GuacamolSMILESDataset(Dataset):
             return x, y
 
     def _check_args(self):
-        if self.split not in GUACAMOL_URL:
+        if self.split not in GUACAMOL_URL and self.split is not None:
             raise ValueError('Variable `dataset` must be one of "%s"' % (list(GUACAMOL_URL.keys())))
         if (self.target_label is not None) and (self.target_label not in GUACAMOL_TASK_NAMES):
             raise ValueError('Variable `target_label` must be one of "%s"' % GUACAMOL_TASK_NAMES)
@@ -97,30 +103,12 @@ class GuacamolSMILESDataset(Dataset):
             self.path_to_data_dir = path_to_subset_data_dir
             filename = subset_filename
 
-        self.data = load_txt_into_list(filename)
+        self._load_data(filename)
         return None
 
-    # def _get_guacamol_data_subset(self) -> None:
-    #
-    #     # Check if the split exists
-    #     filename = os.path.join(self.path_to_data_dir, FILE_NAME)
-    #     if not os.path.exists(filename):
-    #         self._download_guacamol_data()
-    #
-    #     # Load subset
-    #     self.path_to_subset_data_dir = self.path_to_data_dir + '_' + str(self.num_samples)
-    #     filename = os.path.join(self.path_to_subset_data_dir, FILE_NAME)
-    #
-    #         self._select_guacamol_subset()
-    #
-    #     self.data = load_txt_into_list(filename)
-    #     return None
-
-    # def _select_guacamol_subset(self) -> None:
-    #
-    #     if not os.path.isdir(self.path_to_subset_data_dir):
-    #         os.makedirs(self.path_to_subset_data_dir)
-    #     save_list_into_txt(os.path.join(self.path_to_subset_data_dir, 'smiles.txt'), data)
+    def _load_data(self, filename: str) -> None:
+        self.data = load_txt_into_list(filename)
+        return None
 
     def _load_guacamol_target(self):
 
@@ -139,8 +127,8 @@ class GuacamolSMILESDataset(Dataset):
         print(f"Guacamol {self.split} data downloaded into {self.path_to_data_dir}.")
         return None
 
-    def _get_path_to_data_dir(self) -> None:
-        self.path_to_data_dir = os.path.join(DATA_FOLDER, self.split)
+    def _get_path_to_data_dir(self, data_dir: str = None) -> None:
+        self.path_to_data_dir = os.path.join(DATA_FOLDER, self.split) if data_dir is None else data_dir
         return None
 
     def _validate(self):

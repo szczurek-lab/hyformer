@@ -105,14 +105,15 @@ class Trainer:
                 state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
 
         # load
-        self.model.load_state_dict(state_dict)
+        self.model.load_state_dict(state_dict, strict=False)
         # self.optimizer.load_state_dict(ckpt['optimizer'])
         self.optimizer_ckpt = ckpt['optimizer']
         if reset_iter_num:
             self.iter_num = 0
+            self.best_val_loss = 1e9
         else:
             self.iter_num = ckpt['iter_num']
-        self.best_val_loss = ckpt['best_val_loss']
+            self.best_val_loss = ckpt['best_val_loss']
 
         if 'run_id' in ckpt.keys() and self.logger is not None:
             self.logger.run_id = ckpt['run_id']
@@ -125,7 +126,7 @@ class Trainer:
         if self.enable_save_checkpoint:
             out_dir = checkpoint_dir if checkpoint_dir is not None else self.out_dir
             if not os.path.isdir(out_dir):
-                os.makedirs(out_dir, exist_ok=True)
+                os.makedirs(out_dir)
             run_id = None if self.logger is None else self.logger.run_id
             raw_model = self.model.module if self.is_ddp_run else self.model
             checkpoint = {
@@ -135,7 +136,7 @@ class Trainer:
                 'best_val_loss': self.best_val_loss,
                 'run_id': run_id,
             }
-            torch.save(checkpoint, os.path.join(self.out_dir, 'ckpt.pt'))
+            torch.save(checkpoint, os.path.join(out_dir, 'ckpt.pt'))
             print(f"Successfully saved to {self.out_dir}...")
 
     def _ddp_init(self) -> None:
@@ -165,8 +166,8 @@ class Trainer:
         print(f"tokens per iteration will be: {tokens_per_iter:,}")
 
     def _post_init(self):
-        if self.master_process:
-            os.makedirs(self.out_dir, exist_ok=True)
+        if self.master_process and not os.path.isdir(self.out_dir) and self.enable_save_checkpoint:
+            os.makedirs(self.out_dir)
         torch.backends.cuda.matmul.allow_tf32 = True  # allow tf32 on matmul
         torch.backends.cudnn.allow_tf32 = True  # allow tf32 on cudnn
         self.device_type = 'cuda' if 'cuda' in self.device else 'cpu'  # for later use in torch.autocast
@@ -262,7 +263,7 @@ class Trainer:
         ###
 
         valid = []
-        for k in range(2 * self.eval_iters):
+        for k in range(self.eval_iters):
             idx = torch.ones(size=(self.batch_size, 1), device=self.device) * self.tokenizer.generate_token_id
             idx = idx.long()
             samples = self.model.generate(idx=idx, max_new_tokens=self.tokenizer.max_molecule_length)

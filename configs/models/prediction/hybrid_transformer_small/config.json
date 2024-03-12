@@ -1,14 +1,14 @@
 {
-  "model_name": "GPTPreTrained",
+  "model_name": "HybridTransformer",
   "bias": false,
   "dropout": 0.1,
   "embedding_dim": 512,
   "layer_norm_eps": 1e-05,
   "max_seq_len": 128,
   "num_heads": 8,
-  "num_layers": 12,
+  "num_layers": 6,
   "transformers_version": "4.36.1",
   "vocab_size": 588,
-  "task_p": null,
-  "path_to_pretrained": "/raid/aizd/hybrid_transformer/results/pretrain/gpt/ckpt.pt"
+  "task_p": 0.1,
+  "path_to_pretrained": "/raid/aizd/hybrid_transformer/results/pre_train/hybrid_transformer_small/ckpt.pt"
 }

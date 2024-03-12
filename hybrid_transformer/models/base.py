@@ -73,7 +73,9 @@ class Transformer(nn.Module):
         elif isinstance(module, nn.Embedding):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
-    def forward(self, input_ids, task='lm', labels=None, target=None, eos_mask=None, attention_mask=None):
+    def forward(
+            self, input_ids, task='lm', labels=None, target=None,
+            eos_mask=None, attention_mask=None, return_attention=False):
 
         b, t = input_ids.size()
         assert t <= self.max_seq_len, f"Cannot forward sequence of length {t}, max_seq_length is only {self.max_seq_len}"
@@ -83,8 +85,10 @@ class Transformer(nn.Module):
         tok_emb = self.transformer.wte(input_ids)  # token embeddings of shape (b, t, n_embd)
         pos_emb = self.transformer.wpe(pos)  # position embeddings of shape (t, n_embd)
         x = self.transformer.drop(tok_emb + pos_emb)
+        attention_probs = []
         for block in self.transformer.h:
-            x = block(x, task=task, mask=attention_mask)
+            x, attn = block(x, task=task, mask=attention_mask)
+            attention_probs.append(attn.detach().cpu())
         x = self.transformer.ln_f(x)
 
         if labels is not None:
@@ -128,7 +132,8 @@ class Transformer(nn.Module):
             'supervised_loss': supervised_loss,
             'lm_logits': lm_logits,
             'prediction': y_pred,
-            'embedding': x
+            'embedding': x,
+            'attention_probabilities': torch.stack(attention_probs)
         }
 
     def configure_optimizers(self, weight_decay, learning_rate, betas, device_type, correct_bias):

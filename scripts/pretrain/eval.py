@@ -16,8 +16,8 @@ from scripts.joint_learning.train import DEFAULT_CONFIG_FILES
 
 from scripts.pretrain.train import DEFAULT_CONFIG_FILES
 
-
 DEFAULT_REFERENCE_FILE = './data/guacamol/train/smiles.txt'
+FINE_TUNE_REFERENCE_FILE = './data/guacamol/train_10000/smiles.txt'
 BATCH_SIZE = 128
 
 
@@ -32,23 +32,33 @@ def parse_args():
     return args
 
 
-def evaluate_distribution_learning(trainer, reference_file):
+def evaluate_distribution_learning(trainer, reference_file, filename):
     trainer._train_init()
-    assess_distribution_learning(
-        model=GuacamolModelWrapper(trainer.model, trainer.tokenizer, BATCH_SIZE, trainer.device),
-        chembl_training_file=reference_file,
-        json_output_file=os.path.join(trainer.out_dir, "distribution_learning_results.json"),
-        benchmark_version='v2')
+    try:
+        assess_distribution_learning(
+            model=GuacamolModelWrapper(trainer.model, trainer.tokenizer, BATCH_SIZE, trainer.device),
+            chembl_training_file=reference_file,
+            json_output_file=os.path.join(trainer.out_dir, "distribution_learning_results.json"),
+            benchmark_version='v2',
+        )
 
-    with open(os.path.join(trainer.out_dir, "distribution_learning_results.json")) as json_data:
-        data = json.load(json_data)
-    results = {
-        "validity": data['results'][0]['score'],
-        "uniqueness": data['results'][1]['score'],
-        "novelty": data['results'][2]['score'],
-        "kl_div": data['results'][3]['score'],
-        "fcd": data['results'][4]['score'],
-    }
+        with open(filename) as json_data:
+            data = json.load(json_data)
+        results = {
+            "validity": data['results'][0]['score'],
+            "uniqueness": data['results'][1]['score'],
+            "novelty": data['results'][2]['score'],
+            "kl_div": data['results'][3]['score'],
+            "fcd": data['results'][4]['score'],
+        }
+    except:
+        results = {
+            "validity": 0.0,
+            "uniqueness": 0.0,
+            "novelty": 0.0,
+            "kl_div": 0.0,
+            "fcd": 0.0,
+        }
     return results
 
 
@@ -74,10 +84,9 @@ def main():
     # Load
     if os.path.isfile(os.path.join(trainer.out_dir, 'ckpt.pt')):
         trainer.load_checkpoint()
+        evaluate_distribution_learning(trainer=trainer, reference_file=args.reference_file)
     else:
-        print("No checkpoint file in {}".format(trainer.out_dir))
-
-    evaluate_distribution_learning(trainer=trainer, reference_file=args.reference_file)
+        raise FileNotFoundError("No checkpoint file in {}".format(trainer.out_dir))
 
 
 if __name__ == "__main__":

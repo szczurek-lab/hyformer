@@ -1,9 +1,11 @@
 #!/bin/bash
 
 python ./scripts/joint_learning/train.py \
-    --out_dir /raid/aizd/hybrid_transformer/results_v2/joint_learning/guacamol \
-    --benchmark guacamol
+    --out_dir /raid/aizd/hybrid_transformer/results_v4/joint_learning/guacamol \
+    --benchmark guacamol \
+    --model JointGPT JointGPTNonLikelihood HybridTransformer
 
 python ./scripts/joint_learning/eval.py \
-    --out_dir /raid/aizd/hybrid_transformer/results_v2/joint_learning/guacamol \
-    --benchmark guacamol
+    --out_dir /raid/aizd/hybrid_transformer/results_v4/joint_learning/guacamol \
+    --benchmark guacamol \
+    --model JointGPT JointGPTNonLikelihood HybridTransformer

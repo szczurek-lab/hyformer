@@ -5,15 +5,23 @@ from hybrid_transformer.models.pre_train import GPTPreTrained, BERTPreTrained, H
 
 
 PREDICTION_MODEL_CONFIGS = {
-    'GPTForPrediction': './configs/models/prediction/gpt_finetune/config.json',
-    'JointGPT': './configs/models/prediction/gpt_joint/config.json',
-    'JointGPTNonLikelihood': './configs/models/prediction/gpt_joint/config.json',
-    'HybridTransformerGPTInit': './configs/models/prediction/hybrid_transformer_gpt_init/config.json',
+    # 'GPTPreTrained': './configs/models/gpt/config.json',
+    # 'GPTForPrediction': './configs/models/prediction/gpt_finetune/config.json',
+    # 'JointGPTNonLikelihood': './configs/models/prediction/gpt_joint_non_likelihood/config.json',
+    # 'JointGPT': './configs/models/prediction/gpt_joint/config.json',
+    # 'HybridTransformerGPTInit': './configs/models/prediction/hybrid_transformer_gpt_init/config.json',
     'HybridTransformer': './configs/models/prediction/hybrid_transformer/config.json',
-    'HybridTransformerWithPenalty': './configs/models/prediction/hybrid_transformer_penalty/config.json'
+    # 'HybridTransformerWithPenalty': './configs/models/prediction/hybrid_transformer_penalty/config.json',
+    # 'HybridTransformerSmall': './configs/models/prediction/hybrid_transformer_small/config.json'
 }
 
-MLM_PREDICTION_MODELS = [model_key for model_key in PREDICTION_MODEL_CONFIGS.keys() if 'HybridTransformer' in model_key or 'BERT' in model_key]
+MLM_PREDICTION_MODELS = [
+    model_key for model_key in PREDICTION_MODEL_CONFIGS.keys() if
+    'HybridTransformer' in model_key or
+    'HybridTransformerBig' in model_key or
+    'HybridTransformerSmall' in model_key or
+    'BERT' in model_key
+]
 LM_PREDICTION_MODELS = [model_key for model_key in PREDICTION_MODEL_CONFIGS.keys() if model_key not in MLM_PREDICTION_MODELS]
 
 
@@ -88,9 +96,11 @@ class JointGPT(GPTPreTrained):
 
 class JointGPTNonLikelihood(GPTPreTrained):
     """ A GPT-like model, with a prediction head, used jointly for a language modeling and prediction task. """
-    def __init__(self, alpha: float, **kwargs):
+    def __init__(self, **kwargs):
+        alpha = kwargs.pop('alpha', None)
         super().__init__(**kwargs)
         self.alpha = torch.nn.Parameter(data=torch.Tensor([alpha]), requires_grad=False)
+        # self.alpha = torch.Tensor([alpha])
 
     def forward(self, **kwargs):
         outputs = super().forward(**kwargs)
