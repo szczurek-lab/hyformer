@@ -15,6 +15,14 @@ from rdkit.Chem.QED import qed
 from rdkit.Chem.Fingerprints import FingerprintMols
 from guacamol import standard_benchmarks
 
+from rdkit import Chem
+from rdkit.Chem import RDConfig
+import os
+import sys
+sys.path.append(os.path.join(RDConfig.RDContribDir, 'SA_Score'))
+# now you can import sascore!
+import sascorer
+
 from hybrid_transformer.utils.objectives.guacamol.sasscorer import calculateScore
 
 med1 = standard_benchmarks.median_camphor_menthol()  # 'Median molecules 1'
@@ -91,7 +99,7 @@ def smile_to_sa(smile):
     mol = Chem.MolFromSmiles(smile)
     if mol is None:
         return None
-    return calculateScore(mol)
+    return sascorer.calculateScore(mol)
 
 
 def smile_to_penalized_logP(smile):
@@ -102,7 +110,7 @@ def smile_to_penalized_logP(smile):
     if mol is None:
         return None
     logp = Crippen.MolLogP(mol)
-    sa = calculateScore(mol)
+    sa = sascorer.calculateScore(mol)
     cycle_length = _cycle_score(mol)
     """
     Calculate final adjusted score.

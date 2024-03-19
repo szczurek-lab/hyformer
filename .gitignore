@@ -162,4 +162,5 @@ test*.ipynb
 data/
 
 # Results
+results/
 wandb/
