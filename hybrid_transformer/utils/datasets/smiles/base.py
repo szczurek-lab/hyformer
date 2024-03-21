@@ -1,6 +1,9 @@
 """Defines a generic dataset for SMILES strings."""
 
+import torchvision.transforms as transforms
+
 from tqdm import tqdm
+from typing import List, Callable, Optional
 from torch.utils.data.dataset import Dataset
 from guacamol.utils.chemistry import is_valid
 
@@ -9,7 +12,13 @@ from hybrid_transformer.utils.datasets.smiles.utils import read_strings_from_fil
 
 class SMILESDataset(Dataset):
 
-    def __init__(self, file_path: str, transform=None, num_samples: int = None, validate: bool = False) -> None:
+    def __init__(
+            self,
+            file_path: str,
+            transform: Optional[Callable, List] = None,
+            num_samples: Optional[int] = None,
+            validate: Optional[bool] = False
+    ) -> None:
         """ Initializes the dataset.
 
         Args:
@@ -25,7 +34,7 @@ class SMILESDataset(Dataset):
 
         super().__init__()
         self.data = None
-        self.transform = transform
+        self.transform = transforms.Compose(transform) if isinstance(transform, list) else transform
         self.num_samples = num_samples
         self.validate = validate
         self._read_data(file_path)
