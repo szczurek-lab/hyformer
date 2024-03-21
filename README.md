@@ -55,6 +55,10 @@ CUDA_VISIBLE_DEVICES={GPU_ID} python scripts/joint_learning/evaluate.py
 CUDA_VISIBLE_DEVICES=3 python scripts/joint_learning/eval.py --out_dir /raid/aizd/hybrid_transformer/results/table_1/ --data_reference_file ./data/guacamol/test/smiles.txt
 ```
 
+## Downloads
+
+Download ZINC15 data from [here](https://az.box.com/s/7eci3nd9vy0xplqniitpk02rbg9q2zcq)
+
 ## TODOs
 
   - scripts refer to names, which refer to benchmarks by a separate file linking configs to names

@@ -2,7 +2,6 @@ import os
 import argparse
 import json
 
-import wandb
 from tqdm import tqdm
 from hybrid_transformer.configs.task import TaskConfig
 from hybrid_transformer.configs.model import ModelConfig
@@ -19,11 +18,11 @@ from scripts.joint_learning.train import DEFAULT_CONFIG_FILES
 
 from hybrid_transformer.utils.objectives.guacamol.objective import GUACAMOL_TASKS
 
-from hybrid_transformer.utils.datasets.guacamol import GuacamolSMILESDataset
+from hybrid_transformer.utils.datasets.smiles.guacamol import GuacamolSMILESDataset
 
-from scripts.pretrain.eval import DEFAULT_REFERENCE_FILE, evaluate_distribution_learning
+from scripts.pretrain.eval import DEFAULT_REFERENCE_FILE
 
-from hybrid_transformer.utils.datasets.utils import load_txt_into_list, save_list_into_txt
+from hybrid_transformer.utils.datasets.smiles.utils import save_list_into_txt
 
 PRETRAINED_MODEL_RESULTS_DIR = '/raid/aizd/hybrid_transformer/results/pretrain/gpt'
 

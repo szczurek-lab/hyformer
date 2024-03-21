@@ -1,11 +1,8 @@
 import os
 import torch
-import random
 
-from tqdm import tqdm
 from typing import Tuple, List, Any
 from torch.utils.data.dataset import Dataset
-from urllib.request import urlretrieve
 from guacamol.utils.chemistry import is_valid
 
 from rdkit import Chem
@@ -13,9 +10,8 @@ from rdkit import Chem
 import deepchem as dc
 from deepchem.feat.molecule_featurizers.raw_featurizer import RawFeaturizer
 
-from hybrid_transformer.utils.datasets.utils import load_txt_into_list, save_list_into_txt
+from hybrid_transformer.utils.datasets.smiles.utils import load_txt_into_list, save_list_into_txt
 from hybrid_transformer.utils.objectives.molecule_net.objective import MOLECULE_NET_REGRESSION_TASKS
-from hybrid_transformer.utils.utils import select_random_indices_from_length
 from hybrid_transformer.utils.transforms.augment import AugmentSMILES
 
 from hybrid_transformer.utils.objectives.molecule_net.objective import DTYPE_OBJECTIVE

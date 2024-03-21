@@ -1,6 +1,5 @@
 import os
 import torch
-import logging
 import random
 
 from tqdm import tqdm
@@ -8,9 +7,8 @@ from typing import Tuple, List, Any
 from torch.utils.data.dataset import Dataset
 from urllib.request import urlretrieve
 from guacamol.utils.chemistry import is_valid
-from rdkit import Chem
 
-from hybrid_transformer.utils.datasets.utils import load_txt_into_list, save_list_into_txt
+from hybrid_transformer.utils.datasets.smiles.utils import load_txt_into_list, save_list_into_txt
 from hybrid_transformer.utils.objectives.guacamol.objective import get_objective
 from hybrid_transformer.utils.objectives.guacamol.utils import GUACAMOL_TASK_NAMES
 from hybrid_transformer.utils.utils import select_random_indices_from_length

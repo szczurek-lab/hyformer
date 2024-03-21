@@ -1,9 +1,4 @@
-from transformers import PretrainedConfig, PreTrainedTokenizer
-from typing import List
-
-from hybrid_transformer.utils.datasets.guacamol import GuacamolSMILESDataset
-
-import importlib
+from transformers import PretrainedConfig
 
 
 class TaskConfig(PretrainedConfig):

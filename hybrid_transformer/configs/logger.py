@@ -1,9 +1,4 @@
 from transformers import PretrainedConfig
-from typing import List
-
-from hybrid_transformer.utils.datasets.guacamol import GuacamolSMILESDataset
-
-import importlib
 
 
 class LoggerConfig(PretrainedConfig):

@@ -2,6 +2,18 @@ import torch
 from collections.abc import MutableMapping
 
 
+def save_strings_to_file(strings, filename):
+    with open(filename, 'w') as f:
+        for s in strings:
+            f.write(s + '\n')
+
+
+def read_strings_from_file(filename):
+    with open(filename, 'r') as f:
+        strings = f.read().splitlines()
+    return strings
+
+
 def select_random_indices_from_length(length: int, num_indices_to_select: int) -> torch.Tensor:
     return torch.randperm(length)[:num_indices_to_select]
 

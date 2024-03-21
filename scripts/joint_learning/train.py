@@ -1,14 +1,12 @@
 import os
 import argparse
-import torch
-import wandb
 
 from hybrid_transformer.configs.task import TaskConfig
 from hybrid_transformer.configs.model import ModelConfig
 from hybrid_transformer.configs.trainer import TrainerConfig
 from hybrid_transformer.configs.logger import LoggerConfig
 
-from hybrid_transformer.utils.datasets.auto import AutoDataset
+from hybrid_transformer.utils.datasets.smiles.auto import AutoDataset
 from hybrid_transformer.utils.tokenizers.auto import AutoTokenizer
 from hybrid_transformer.models.auto import AutoModel
 from hybrid_transformer.utils.loggers.wandb import WandbLogger
