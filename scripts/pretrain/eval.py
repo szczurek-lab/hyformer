@@ -4,13 +4,13 @@ import argparse
 
 from guacamol.assess_distribution_learning import assess_distribution_learning
 
-from hybrid_transformer.configs.task import TaskConfig
-from hybrid_transformer.configs.model import ModelConfig
-from hybrid_transformer.configs.trainer import TrainerConfig
-from hybrid_transformer.models.auto import AutoModel
-from hybrid_transformer.models.utils import GuacamolModelWrapper
-from hybrid_transformer.trainers.trainer import Trainer
-from hybrid_transformer.utils.tokenizers.auto import AutoTokenizer
+from jointformer.configs.task import TaskConfig
+from jointformer.configs.model import ModelConfig
+from jointformer.configs.trainer import TrainerConfig
+from jointformer.models.auto import AutoModel
+from jointformer.models.utils import GuacamolModelWrapper
+from jointformer.trainers.trainer import Trainer
+from jointformer.utils.tokenizers.auto import AutoTokenizer
 
 from scripts.joint_learning.train import DEFAULT_CONFIG_FILES
 

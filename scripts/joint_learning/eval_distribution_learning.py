@@ -3,22 +3,22 @@ import argparse
 
 import wandb
 from tqdm import tqdm
-from hybrid_transformer.configs.task import TaskConfig
-from hybrid_transformer.configs.model import ModelConfig
-from hybrid_transformer.configs.trainer import TrainerConfig
-from hybrid_transformer.configs.logger import LoggerConfig
+from jointformer.configs.task import TaskConfig
+from jointformer.configs.model import ModelConfig
+from jointformer.configs.trainer import TrainerConfig
+from jointformer.configs.logger import LoggerConfig
 
-from hybrid_transformer.utils.datasets.smiles.auto import AutoDataset
-from hybrid_transformer.utils.tokenizers.auto import AutoTokenizer
-from hybrid_transformer.models.auto import AutoModel
-from hybrid_transformer.utils.loggers.wandb import WandbLogger
+from jointformer.utils.datasets.smiles.auto import AutoDataset
+from jointformer.utils.tokenizers.auto import AutoTokenizer
+from jointformer.models.auto import AutoModel
+from jointformer.utils.loggers.wandb import WandbLogger
 
-from hybrid_transformer.trainers.trainer import Trainer
+from jointformer.trainers.trainer import Trainer
 
 from scripts.joint_learning.train import DEFAULT_CONFIG_FILES
 
-from hybrid_transformer.utils.objectives.guacamol.objective import GUACAMOL_TASKS
-from hybrid_transformer.models.prediction import PREDICTION_MODEL_CONFIGS
+from jointformer.utils.objectives.guacamol.objective import GUACAMOL_TASKS
+from jointformer.models.prediction import PREDICTION_MODEL_CONFIGS
 
 
 from scripts.pretrain.eval import DEFAULT_REFERENCE_FILE, evaluate_distribution_learning

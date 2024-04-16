@@ -1,4 +1,4 @@
-# Hybrid Transformer
+# Jointformer
 
 ## Setup
 

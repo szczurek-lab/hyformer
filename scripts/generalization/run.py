@@ -3,32 +3,32 @@ import argparse
 import json
 
 from tqdm import tqdm
-from hybrid_transformer.configs.task import TaskConfig
-from hybrid_transformer.configs.model import ModelConfig
-from hybrid_transformer.configs.trainer import TrainerConfig
-from hybrid_transformer.configs.logger import LoggerConfig
+from jointformer.configs.task import TaskConfig
+from jointformer.configs.model import ModelConfig
+from jointformer.configs.trainer import TrainerConfig
+from jointformer.configs.logger import LoggerConfig
 
-from hybrid_transformer.utils.tokenizers.auto import AutoTokenizer
-from hybrid_transformer.models.auto import AutoModel
-from hybrid_transformer.utils.loggers.wandb import WandbLogger
+from jointformer.utils.tokenizers.auto import AutoTokenizer
+from jointformer.models.auto import AutoModel
+from jointformer.utils.loggers.wandb import WandbLogger
 
-from hybrid_transformer.trainers.trainer import Trainer
+from jointformer.trainers.trainer import Trainer
 
 from scripts.joint_learning.train import DEFAULT_CONFIG_FILES
 
-from hybrid_transformer.utils.objectives.guacamol.objective import GUACAMOL_TASKS
+from jointformer.utils.objectives.guacamol.objective import GUACAMOL_TASKS
 
-from hybrid_transformer.utils.datasets.smiles.guacamol import GuacamolSMILESDataset
+from jointformer.utils.datasets.smiles.guacamol import GuacamolSMILESDataset
 
 from scripts.pretrain.eval import DEFAULT_REFERENCE_FILE
 
-from hybrid_transformer.utils.datasets.smiles.utils import save_list_into_txt
+from jointformer.utils.datasets.smiles.utils import save_list_into_txt
 
-PRETRAINED_MODEL_RESULTS_DIR = '/raid/aizd/hybrid_transformer/results/pretrain/gpt'
+PRETRAINED_MODEL_RESULTS_DIR = '/raid/aizd/jointformer/results/pretrain/gpt'
 
 MODEL_CONFIGS = {
         'GPTForPrediction': './configs/models/prediction/gpt_finetune/config.json',
-        'HybridTransformer': './configs/models/prediction/hybrid_transformer/config.json'
+        'HybridTransformer': './configs/models/prediction/jointformer/config.json'
     }
 
 RESULTS_FILENAME = 'distribution_learning_results.json'
@@ -63,9 +63,9 @@ def main():
 
             run_dir = f'{model_name}/{task}'
             if model_name == 'GPTForPrediction':
-                out_dir = os.path.join('/raid/aizd/hybrid_transformer/results_v4/joint_learning/guacamol', run_dir)
+                out_dir = os.path.join('/raid/aizd/jointformer/results_v4/joint_learning/guacamol', run_dir)
             elif model_name == 'HybridTransformer':
-                out_dir = os.path.join('/raid/aizd/hybrid_transformer/results_v3/joint_learning/guacamol', run_dir)
+                out_dir = os.path.join('/raid/aizd/jointformer/results_v3/joint_learning/guacamol', run_dir)
             else:
                 raise NotImplementedError
             trainer_config.out_dir = out_dir
