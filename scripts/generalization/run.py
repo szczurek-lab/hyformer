@@ -22,7 +22,7 @@ from jointformer.utils.datasets.smiles.guacamol import GuacamolSMILESDataset
 
 from scripts.pretrain.eval import DEFAULT_REFERENCE_FILE
 
-from jointformer.utils.datasets.smiles.utils import save_list_into_txt
+from jointformer.utils.datasets.utils import save_list_into_txt
 
 PRETRAINED_MODEL_RESULTS_DIR = '/raid/aizd/jointformer/results/pretrain/gpt'
 

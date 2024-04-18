@@ -8,11 +8,11 @@ from torch.utils.data.dataset import Dataset
 from urllib.request import urlretrieve
 from guacamol.utils.chemistry import is_valid
 
-from jointformer.utils.datasets.smiles.utils import load_txt_into_list, save_list_into_txt
+from jointformer.utils.datasets.utils import load_txt_into_list, save_list_into_txt
 from jointformer.utils.objectives.guacamol.objective import get_objective
 from jointformer.utils.objectives.guacamol.utils import GUACAMOL_TASK_NAMES
 from jointformer.utils.utils import select_random_indices_from_length
-from jointformer.utils.transforms.augment import AugmentSMILES
+from jointformer.utils.transforms.permute import AugmentSMILES
 
 DATASET_SEED = 0
 

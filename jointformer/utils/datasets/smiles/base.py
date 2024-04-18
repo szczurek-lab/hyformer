@@ -1,21 +1,39 @@
-"""Defines a generic dataset for SMILES strings."""
+"""SMILES dataset.
+
+This module defines the SMILESDataset class, which is a PyTorch dataset for SMILES strings. The dataset requires
+a path to a .txt file containing the SMILES strings. The SMILES strings can be automatically validated and augmented.
+Additionally, SMILESDataset supports supervised learning tasks by providing basic labels for each SMILES string.
+
+Example:
+    >>> from jointformer.utils.datasets.smiles.base import SMILESDataset
+    >>> from jointformer.utils.datasets.smiles.utils import read_strings_from_file
+
+    >>> file_path = "data/smiles.txt"
+    >>> data = read_strings_from_file(file_path)
+
+    >>> dataset = SMILESDataset(file_path, num_samples=1000, validate=True)
+    >>> print(len(dataset))
+    >>> print(dataset[0])
+"""
 
 import torchvision.transforms as transforms
 
 from tqdm import tqdm
-from typing import List, Callable, Optional
+from typing import List, Callable, Optional, Union
 from torch.utils.data.dataset import Dataset
 from guacamol.utils.chemistry import is_valid
 
-from jointformer.utils.datasets.smiles.utils import read_strings_from_file
+from jointformer.utils.datasets.utils import read_strings_from_file
 
 
 class SMILESDataset(Dataset):
+    """A PyTorch dataset for SMILES strings and their basic physicochemical properties."""
 
     def __init__(
             self,
             file_path: str,
-            transform: Optional[Callable, List] = None,
+            transform: Optional[Union[Callable, List]] = None,
+            target_transform: Optional[Union[Callable, List]] = None,
             num_samples: Optional[int] = None,
             validate: Optional[bool] = False
     ) -> None:
@@ -26,6 +44,8 @@ class SMILESDataset(Dataset):
             The path to the .txt file containing the SMILES strings.
         transform: callable, optional
             A function/transform that takes in a SMILES string and returns a transformed version.
+        target_transform: callable, optional
+            A function/transform that takes in a target of a SMILES string and returns a transformed version.
         num_samples: int, optional
             The number of samples to use. If None, all samples are used.
         validate: bool, optional
@@ -34,7 +54,9 @@ class SMILESDataset(Dataset):
 
         super().__init__()
         self.data = None
+        self.target = None
         self.transform = transforms.Compose(transform) if isinstance(transform, list) else transform
+        self.target_transform = transforms.Compose(target_transform) if isinstance(target_transform, list) else target_transform
         self.num_samples = num_samples
         self.validate = validate
         self._read_data(file_path)

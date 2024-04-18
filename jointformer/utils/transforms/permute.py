@@ -6,10 +6,10 @@ from rdkit import Chem
 from guacamol.utils.chemistry import is_valid
 
 
-class AugmentSMILES:
+class PermuteSMILES:
 
-    def __init__(self, augmentation_prob: float = 0.8):
-        self.augmentation_prob = augmentation_prob
+    def __init__(self, permutation_prob: float = 0.8):
+        self.permutation_prob = permutation_prob
 
     @staticmethod
     def _get_random_smiles_from_molecule(mol: object) -> str:
@@ -24,7 +24,7 @@ class AugmentSMILES:
 
         smiles_initial = smiles
         p = np.random.uniform()
-        if p < self.augmentation_prob:
+        if p < self.permutation_prob:
             mol = Chem.MolFromSmiles(smiles)
             smiles_augmented = self._get_random_smiles_from_molecule(mol)
             if (smiles_augmented is not None) and (len(smiles_augmented) > 0) and (is_valid(smiles_augmented)):
