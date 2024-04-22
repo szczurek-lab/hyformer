@@ -8,10 +8,12 @@ from jointformer.configs.model import ModelConfig
 from jointformer.layers.layer_norm import LayerNorm
 from jointformer.layers.transformer import HybridTransformerBlock
 
-from jointformer.utils.tokenizers.smiles import IGNORE_INDEX
+# from jointformer.utils.tokenizers.smiles import IGNORE_INDEX
 
 from jointformer.utils.optimization import AdamW
 
+
+IGNORE_INDEX = -1
 
 class Transformer(nn.Module):
 

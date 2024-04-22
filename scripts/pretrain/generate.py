@@ -17,7 +17,7 @@ from scripts.joint_learning.train import DEFAULT_CONFIG_FILES
 
 from scripts.pretrain.train import DEFAULT_CONFIG_FILES
 
-FINE_TUNE_REFERENCE_FILE = './data/guacamol/train_10000/smiles.txt'
+FINE_TUNE_REFERENCE_FILE = './data/guacamol/train_10000/smiles_tokenizers.txt'
 BATCH_SIZE = 2 #  128
 
 

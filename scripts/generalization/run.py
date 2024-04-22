@@ -94,7 +94,7 @@ def main():
 
             if not os.path.isdir(sampled_data_dir):
                 os.makedirs(sampled_data_dir)
-            save_list_into_txt(os.path.join(sampled_data_dir, 'smiles.txt'), samples)
+            save_list_into_txt(os.path.join(sampled_data_dir, 'smiles_tokenizers.txt'), samples)
 
             # load data
             dataset = GuacamolSMILESDataset(target_label=task_config.target_label, data_dir=sampled_data_dir)

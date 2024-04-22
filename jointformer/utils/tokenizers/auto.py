@@ -14,7 +14,7 @@ class AutoTokenizer:
 
         if config.tokenizer == 'SMILESTokenizer':
             return getattr(importlib.import_module(
-                "jointformer.utils.tokenizers.smiles"),
+                "jointformer.utils.tokenizers.smiles_tokenizers"),
                 "SMILESTokenizer").from_config(config)
         else:
             raise ValueError(f"Invalid `tokenizer`.")

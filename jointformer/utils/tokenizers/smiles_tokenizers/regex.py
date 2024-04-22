@@ -4,7 +4,7 @@
 import re
 import torch
 import warnings
-from typing import List, Tuple
+from typing import List, Union
 
 from jointformer.utils.datasets.utils import read_strings_from_file
 
@@ -44,8 +44,13 @@ class SMILESTokenizer:
         self.index_to_token = {index: token for token, index in self.token_to_index.items()}
         self.num_tokens = len(self.vocabulary)
 
-    def __call__(self, smiles: str) -> List[int]:
-        return self.tokenize(smiles)
+    def __call__(self, x: Union[str, List[str]]) -> Union[torch.Tensor, List[torch.Tensor], ValueError]:
+        if isinstance(x, str):
+            return self.tokenize(x)
+        elif isinstance(x, List):
+            return [self.tokenize(e) for e in x]
+        else:
+            return ValueError("Not supported input.")
 
     @property
     def special_tokens(self) -> List[str]:
@@ -60,9 +65,12 @@ class SMILESTokenizer:
         return tokens + [self.token_to_index[self.eos_token]]
 
     def validate_string(self, smiles: str) -> None:
-        if not self.regex.fullmatch(smiles):
-            warnings.warn(f"Input string '{smiles}' contains not recognized characters.")
-        return None
+        if not self.regex.match(smiles):
+            raise ValueError(f"Input string '{smiles}' cannot be encoded by the tokenizer")
+
+        for char in smiles:
+            if char not in self.vocabulary:
+                raise ValueError(f"Character '{char}' in input string '{smiles}' is not in the vocabulary")
 
     def tokenize(self, smiles: str) -> torch.Tensor:
         self.validate_string(smiles)

@@ -120,7 +120,7 @@ def calculateScore(m):
 
 
 def processMols(mols):
-    print('smiles\tName\tsa_score')
+    print('smiles_tokenizers\tName\tsa_score')
     for m in mols:
         if m is None:
             continue

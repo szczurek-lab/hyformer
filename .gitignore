@@ -159,7 +159,8 @@ cython_debug/
 test*.ipynb
 
 # Data
-data/
+data/*
+!data/vocabularies/
 
 # Results
 results/

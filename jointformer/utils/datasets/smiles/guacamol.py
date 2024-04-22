@@ -25,7 +25,7 @@ GUACAMOL_URL = {
 }
 
 DATA_FOLDER = './data/guacamol'
-FILE_NAME = "smiles.txt"
+FILE_NAME = "smiles_tokenizers.txt"
 
 TARGET_LABELS = {}
 

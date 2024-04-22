@@ -22,7 +22,7 @@ DATASET_SEED = 0
 MAX_MOLECULES_LENGTH = 126
 
 DATA_FOLDER = './data/molecule_net'
-FILE_NAME = "smiles.txt"
+FILE_NAME = "smiles_tokenizers.txt"
 
 TARGET_LABELS = {}
 

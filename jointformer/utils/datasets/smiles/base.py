@@ -5,10 +5,10 @@ a path to a .txt file containing the SMILES strings. The SMILES strings can be a
 Additionally, SMILESDataset supports supervised learning tasks by providing basic labels for each SMILES string.
 
 Example:
-    >>> from jointformer.utils.datasets.smiles.base import SMILESDataset
-    >>> from jointformer.utils.datasets.smiles.utils import read_strings_from_file
+    >>> from jointformer.utils.datasets.smiles_tokenizers.base import SMILESDataset
+    >>> from jointformer.utils.datasets.smiles_tokenizers.utils import read_strings_from_file
 
-    >>> file_path = "data/smiles.txt"
+    >>> file_path = "data/smiles_tokenizers.txt"
     >>> data = read_strings_from_file(file_path)
 
     >>> dataset = SMILESDataset(file_path, num_samples=1000, validate=True)

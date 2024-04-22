@@ -103,7 +103,7 @@ def smile_to_sa(smile):
 
 
 def smile_to_penalized_logP(smile):
-    """ calculate penalized logP for a given smiles string """
+    """ calculate penalized logP for a given smiles_tokenizers string """
     if smile is None:
         return None
     mol = Chem.MolFromSmiles(smile)
@@ -186,7 +186,7 @@ def get_fingerprint_similarity(smile1, smile2):
     mol1 = Chem.MolFromSmiles(smile1)
     mol2 = Chem.MolFromSmiles(smile2)
     if (mol1 is None) or (mol2 is None):
-        print("one of the input smiles is not a valid molecule!")
+        print("one of the input smiles_tokenizers is not a valid molecule!")
         return None
     fp1 = FingerprintMols.FingerprintMol(mol1)
     fp2 = FingerprintMols.FingerprintMol(mol2)

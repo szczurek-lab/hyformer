@@ -1,6 +1,6 @@
 # """ Handling of ZINC datasets. """
 #
-# from jointformer.utils.datasets.smiles.base import SMILESDataset
+# from jointformer.utils.datasets.smiles_tokenizers.base import SMILESDataset
 #
 #
 # class ZINC250KDataset(SMILESDataset):
@@ -34,5 +34,5 @@
 #             df = pd.concat(dfs, ignore_index=True, copy=False)
 #         else:
 #             df = pd.read_csv(path)
-#         self._all_data = {"smiles": df["smiles"].tolist()}
+#         self._all_data = {"smiles_tokenizers": df["smiles_tokenizers"].tolist()}
 #         self._set_split_indices_from_dataframe(df)

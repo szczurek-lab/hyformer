@@ -40,7 +40,7 @@ class TaskConfig(PretrainedConfig):
         self.validate = validate
 
         # Tokenizer
-        self.path_to_vocab_file = './vocabularies/smiles.txt'
+        self.path_to_vocab_file = './vocabularies/smiles_tokenizers.txt'
         self.max_molecule_length = 128
 
         # Attention mask
