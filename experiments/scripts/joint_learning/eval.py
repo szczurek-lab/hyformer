@@ -23,7 +23,7 @@ from jointformer.models.prediction import PREDICTION_MODEL_CONFIGS
 from jointformer.utils.objectives.molecule_net.objective import MOLECULE_NET_REGRESSION_TASKS
 
 
-from scripts.pretrain.eval import DEFAULT_REFERENCE_FILE, evaluate_distribution_learning
+from experiments.scripts.pretrain.eval import DEFAULT_REFERENCE_FILE, evaluate_distribution_learning
 
 
 def parse_args():

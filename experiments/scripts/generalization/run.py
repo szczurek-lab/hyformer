@@ -20,7 +20,7 @@ from jointformer.utils.objectives.guacamol.objective import GUACAMOL_TASKS
 
 from jointformer.utils.datasets.smiles.guacamol import GuacamolSMILESDataset
 
-from scripts.pretrain.eval import DEFAULT_REFERENCE_FILE
+from experiments.scripts.pretrain.eval import DEFAULT_REFERENCE_FILE
 
 from jointformer.utils.datasets.utils import save_list_into_txt
 

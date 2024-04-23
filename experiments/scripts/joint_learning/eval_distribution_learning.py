@@ -21,7 +21,7 @@ from jointformer.utils.objectives.guacamol.objective import GUACAMOL_TASKS
 from jointformer.models.prediction import PREDICTION_MODEL_CONFIGS
 
 
-from scripts.pretrain.eval import DEFAULT_REFERENCE_FILE, evaluate_distribution_learning
+from experiments.scripts.pretrain.eval import DEFAULT_REFERENCE_FILE, evaluate_distribution_learning
 
 def parse_args():
     parser = argparse.ArgumentParser()

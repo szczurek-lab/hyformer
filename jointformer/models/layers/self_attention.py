@@ -6,11 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-class HybridSelfAttention(nn.Module):
-    """Hybrid Self-Attention.
-
-     Switches between a `bidirectional` and a `causal` masking patterns.
-     """
+class SelfAttention(nn.Module):
 
     def __init__(self, embed_dim, num_heads, bias, dropout, block_size):
         super().__init__()
@@ -32,16 +28,15 @@ class HybridSelfAttention(nn.Module):
             self.register_buffer("mask_causal", torch.tril(torch.ones(block_size, block_size))
                                  .view(1, 1, block_size, block_size))
 
-    def forward(self, x, task, mask=None):
+    def forward(self, x, is_causal: bool, mask: torch.Tensor):
         """ Parameters
             ----------
             x : torch.Tensor
                 The input tensor of shape `(batch_size, seq_len, embed_dim)`.
-            task : str
-                The task to perform. Either 'lm' for language modeling or 'mlm' for masked language modeling.
+            is_causal : bool
+                If True, the self-attention mechanism is modified to only attend to the left context.
             mask : torch.Tensor
                 A boolean mask where a value of True indicates that the element should take part in attention.
-                 Ignored, if `task` is 'lm'.
 
             Returns
             -------
@@ -49,6 +44,9 @@ class HybridSelfAttention(nn.Module):
                 The output tensor of shape `(batch_size, seq_len, embed_dim)`.
 
             """
+
+        if is_causal and mask is not None:
+            raise ValueError("You cannot provide a mask if the attention is causal.")
 
         att = None
         B, T, C = x.size()  # batch size, sequence length, embedding dimensionality (embed_dim)
@@ -62,17 +60,12 @@ class HybridSelfAttention(nn.Module):
         # Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
         if self.flash:
             dropout = self.dropout if self.training else 0.0
-            if task == 'lm':
-                y = F.scaled_dot_product_attention(q, k, v, dropout_p=dropout, is_causal=True)
-            elif task == 'mlm':
-                y = F.scaled_dot_product_attention(q, k, v, dropout_p=dropout, is_causal=False, attn_mask=mask)
-            else:
-                raise ValueError("Variable `task` must be either `lm` or `mlm`.")
+            y = F.scaled_dot_product_attention(q, k, v, dropout_p=dropout, is_causal=True)
         else:
             att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))
-            if task == 'lm':
+            if is_causal:
                 att = att.masked_fill(self.mask_causal[:, :, :T, :T] == 0, float('-inf'))
-            elif task == 'mlm' and mask is not None:
+            elif mask is not None:
                 att = att.masked_fill(mask == 0, float('-inf'))
             att = F.softmax(att, dim=-1)
             y = self.attn_dropout(att) @ v  # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)

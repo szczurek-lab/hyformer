@@ -3,17 +3,6 @@
 This module defines the SMILESDataset class, which is a PyTorch dataset for SMILES strings. The dataset requires
 a path to a .txt file containing the SMILES strings. The SMILES strings can be automatically validated and augmented.
 Additionally, SMILESDataset supports supervised learning tasks by providing basic labels for each SMILES string.
-
-Example:
-    >>> from jointformer.utils.datasets.smiles_tokenizers.base import SMILESDataset
-    >>> from jointformer.utils.datasets.smiles_tokenizers.utils import read_strings_from_file
-
-    >>> file_path = "data/smiles_tokenizers.txt"
-    >>> data = read_strings_from_file(file_path)
-
-    >>> dataset = SMILESDataset(file_path, num_samples=1000, validate=True)
-    >>> print(len(dataset))
-    >>> print(dataset[0])
 """
 
 import torchvision.transforms as transforms
@@ -26,7 +15,7 @@ from guacamol.utils.chemistry import is_valid
 from jointformer.utils.datasets.utils import read_strings_from_file
 
 
-class SMILESDataset(Dataset):
+class SmilesDataset(Dataset):
     """A PyTorch dataset for SMILES strings and their basic physicochemical properties."""
 
     def __init__(
