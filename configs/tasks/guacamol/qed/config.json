@@ -1,0 +1,12 @@
+{
+  "dataset_name": "guacamol",
+  "target_label": "qed",
+  "validate": true,
+  "num_samples": 100,
+  "split": null,
+  "transform": [{"name": "smiles_enumerator", "params": {"enumeration_probability": 0.8}}],
+  "target_transform": null,
+  "tokenizer": "SmilesTokenizer",
+  "path_to_vocabulary": "./data/vocabularies/deepchem.txt",
+  "max_molecule_length": 128
+}
