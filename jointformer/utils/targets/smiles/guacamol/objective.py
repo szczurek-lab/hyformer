@@ -4,7 +4,7 @@ import torch
 
 from typing import List
 
-from jointformer.utils.objectives.guacamol.utils import smiles_to_desired_scores
+from jointformer.utils.targets.smiles.guacamol.utils import smiles_to_desired_scores
 
 DTYPE_OBJECTIVE = torch.float32
 

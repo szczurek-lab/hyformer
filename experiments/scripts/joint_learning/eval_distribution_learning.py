@@ -8,7 +8,7 @@ from jointformer.configs.model import ModelConfig
 from jointformer.configs.trainer import TrainerConfig
 from jointformer.configs.logger import LoggerConfig
 
-from jointformer.utils.datasets.smiles.auto import AutoDataset
+from jointformer.utils.datasets.auto import AutoDataset
 from jointformer.utils.tokenizers.auto import AutoTokenizer
 from jointformer.models.auto import AutoModel
 from jointformer.utils.loggers.wandb import WandbLogger
@@ -17,7 +17,7 @@ from jointformer.trainers.trainer import Trainer
 
 from scripts.joint_learning.train import DEFAULT_CONFIG_FILES
 
-from jointformer.utils.objectives.guacamol.objective import GUACAMOL_TASKS
+from jointformer.utils.targets.smiles.guacamol import GUACAMOL_TASKS
 from jointformer.models.prediction import PREDICTION_MODEL_CONFIGS
 
 

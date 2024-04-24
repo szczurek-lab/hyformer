@@ -211,4 +211,4 @@ class SmilesTokenizer(DeepChemSmilesTokenizer):
 
     @classmethod
     def from_config(cls, config):
-        return cls(path_to_vocabulary=config.path_to_vocab_file,  max_molecule_length=config.max_molecule_length)
+        return cls(path_to_vocabulary=config.path_to_vocabulary,  max_molecule_length=config.max_molecule_length)

@@ -1,4 +1,4 @@
-""" Get Guacamol objectives.
+""" Get Guacamol targets.
 
 Source: https://github.com/BenevolentAI/guacamol/blob/master/guacamol/standard_benchmarks.py
 """
@@ -9,7 +9,7 @@ import numpy as np
 import networkx as nx
 from tqdm import tqdm
 
-from rdkit import Chem, DataStructs
+from rdkit import DataStructs
 from rdkit.Chem import Crippen, rdmolops
 from rdkit.Chem.QED import qed
 from rdkit.Chem.Fingerprints import FingerprintMols
@@ -22,8 +22,6 @@ import sys
 sys.path.append(os.path.join(RDConfig.RDContribDir, 'SA_Score'))
 # now you can import sascore!
 import sascorer
-
-from jointformer.utils.objectives.guacamol.sasscorer import calculateScore
 
 med1 = standard_benchmarks.median_camphor_menthol()  # 'Median molecules 1'
 med2 = standard_benchmarks.median_tadalafil_sildenafil()  # 'Median molecules 2',

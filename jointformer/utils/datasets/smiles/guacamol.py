@@ -1,18 +1,11 @@
 import os
-import torch
-import random
 
-from tqdm import tqdm
-from typing import Tuple, List, Any
-from torch.utils.data.dataset import Dataset
 from urllib.request import urlretrieve
-from guacamol.utils.chemistry import is_valid
+from typing import List, Optional, Union, Callable
 
-from jointformer.utils.datasets.utils import load_txt_into_list, save_list_into_txt
-from jointformer.utils.objectives.guacamol.objective import get_objective
-from jointformer.utils.objectives.guacamol.utils import GUACAMOL_TASK_NAMES
-from jointformer.utils.utils import select_random_indices_from_length
-from jointformer.utils.transforms.permute import AugmentSMILES
+from jointformer.configs.task import TaskConfig
+from jointformer.utils.datasets.smiles.base import SmilesDataset
+from jointformer.utils.targets.utils import save_floats_to_file
 
 DATASET_SEED = 0
 
@@ -25,160 +18,70 @@ GUACAMOL_URL = {
 }
 
 DATA_FOLDER = './data/guacamol'
-FILE_NAME = "smiles_tokenizers.txt"
-
-TARGET_LABELS = {}
+DATA_FILE_NAME = 'smiles.txt'
 
 
-class GuacamolSMILESDataset(Dataset):
+class Guacamol(SmilesDataset):
 
     def __init__(
-            self, split: str = None, target_label: str = None, transforms: List[Any] = None,
-            validate: bool = True, num_samples: int = None, data_dir: str = None) -> None:
+            self,
+            split: str,
+            target_label: Optional[str] = None,
+            transform: Optional[Union[Callable, List]] = None,
+            target_transform: Optional[Union[Callable, List]] = None,
+            num_samples: Optional[int] = None,
+            validate: Optional[bool] = False
+    ) -> None:
 
-        super().__init__()
-        self.data = None
-        self.target = None
         self.split = split
+        self.num_samples = num_samples
         self.target_label = target_label
-        self.transforms = transforms
-        self.target_transforms = None
-        self.path_to_data_dir = None
-        self.num_samples = num_samples if self.split == 'train' else None  # subset only training data
+        self._path_to_data_dir = None
+        self._target_filename = None
+        self._set_path_to_data_dir()
+        self._get_data()
+        self._get_targets()
+        super().__init__(
+            data_file_path=self._data_filename, target_file_path=self._target_filename, transform=transform,
+            target_transform=target_transform, num_samples=num_samples, validate=validate)
 
-        self._check_args()
-        self._get_path_to_data_dir(data_dir)
-        if data_dir is not None:
-            self._load_data(os.path.join(data_dir, FILE_NAME))
-            if validate:
-                self._validate_data_only()
-        else:
-            self._load_guacamol_data()
-        if target_label is not None:
-            self._load_guacamol_target()
-        if validate:
-            self._validate()
-
-    def __len__(self):
-        return len(self.data)
-
-    def __getitem__(self, idx: int) -> Tuple[str, torch.Tensor]:
-
-        x = self.data[idx]
-
-        if self.target is not None:
-            if self.transforms is not None:
-                for transform in self.transforms:
-                    x = transform(x)
-
-        if self.target_label is None:
-            return x
-        else:
-            y = self.target[idx]
-            return x, y
-
-    def _check_args(self):
-        if self.split not in GUACAMOL_URL and self.split is not None:
-            raise ValueError('Variable `dataset` must be one of "%s"' % (list(GUACAMOL_URL.keys())))
-        if (self.target_label is not None) and (self.target_label not in GUACAMOL_TASK_NAMES):
-            raise ValueError('Variable `target_label` must be one of "%s"' % GUACAMOL_TASK_NAMES)
-
-    def _load_guacamol_data(self) -> None:
-        filename = os.path.join(self.path_to_data_dir, FILE_NAME)
-        if not os.path.exists(filename):
-            self._download_guacamol_data()
-
+    def _set_path_to_data_dir(self) -> None:
+        self._path_to_data_dir = os.path.join(DATA_FOLDER, self.split)
         if self.num_samples is not None:
-            path_to_subset_data_dir = self.path_to_data_dir + '_' + str(self.num_samples)
-            subset_filename = os.path.join(path_to_subset_data_dir, FILE_NAME)
-            if not os.path.exists(subset_filename):
-                os.makedirs(path_to_subset_data_dir)
-                print("Creating dir '%s'" % path_to_subset_data_dir)
-                random.seed(DATASET_SEED)
-                data = load_txt_into_list(filename)
-                data = random.sample(data, self.num_samples)
-                save_list_into_txt(subset_filename, data)
-            self.path_to_data_dir = path_to_subset_data_dir
-            filename = subset_filename
-
-        self._load_data(filename)
+            self._path_to_data_dir = os.path.join(self._path_to_data_dir, str(self.num_samples))
         return None
 
-    def _load_data(self, filename: str) -> None:
-        self.data = load_txt_into_list(filename)
-        return None
-
-    def _load_guacamol_target(self):
-
-        filename = os.path.join(self.path_to_data_dir, f'{self.target_label}.pt')
-        if not os.path.exists(filename):
-            target = get_objective(self.data, self.target_label, verbose=True)
-            torch.save(target, filename)
-            print(f"Guacamol {self.split} {self.target_label} objective saved into {filename}.")
-        self.target = torch.load(filename)
-        return None
+    def _get_data(self) -> None:
+        self._data_filename = os.path.join(self._path_to_data_dir, DATA_FILE_NAME)
+        if not os.path.exists(self._data_filename):
+            self._download_guacamol_data()
+            return None
 
     def _download_guacamol_data(self) -> None:
-        print(f"Downloading Guacamol data...")
-        os.makedirs(self.path_to_data_dir, exist_ok=True)
-        urlretrieve(GUACAMOL_URL[self.split], os.path.join(self.path_to_data_dir, FILE_NAME))
-        print(f"Guacamol {self.split} data downloaded into {self.path_to_data_dir}.")
-        return None
+        print("Downloading Guacamol data...")
+        os.makedirs(self._path_to_data_dir, exist_ok=True)
+        urlretrieve(GUACAMOL_URL[self.split], self._data_filename)
+        print(f"Guacamol {self.split} data downloaded into {self._path_to_data_dir}.")
 
-    def _get_path_to_data_dir(self, data_dir: str = None) -> None:
-        self.path_to_data_dir = os.path.join(DATA_FOLDER, self.split) if data_dir is None else data_dir
-        return None
-
-    def _validate(self):
-        print("Validating Guacamol dataset...")
-        if self.target_label is None:
-            self._validate_data_only()
-        else:
-            self._validate_data_and_target()
-        print(f"Guacamol dataset loaded with {len(self.data)} valid examples!")
-        return None
-
-    def _validate_data_only(self):
-        data_safe = []
-        for idx, x in enumerate(tqdm(self.data)):
-            if is_valid(x):
-                data_safe.append(x)
-        self.data = data_safe
-        return None
-
-    def _validate_data_and_target(self):
-        data_safe = []
-        target_safe = torch.ones(size=self.target.size(), dtype=self.target.dtype)
-
-        for idx, (x, y) in enumerate(tqdm(zip(self.data, self.target))):
-            if is_valid(x) and not torch.isnan(y):
-                data_safe.append(x)
-                target_safe[idx] = y
-        self.data = data_safe
-        self.target = target_safe
-        return None
-
-    def _subset_dataset(self):
-        idx = select_random_indices_from_length(len(self.data), self.num_samples)
-        self.data = [self.data[i] for i in idx]
+    def _get_targets(self):
         if self.target_label is not None:
-            self.target = self.target[idx]
+            self._target_filename = os.path.join(self._path_to_data_dir, f'{self.target_label}.txt')
+            if not os.path.exists(self._target_filename):
+                os.makedirs(self._path_to_data_dir, exist_ok=True)
+                target = super()._calculate_targets(
+                    target_label=self.target_label, data_file_path=self._data_filename, num_samples=self.num_samples)
+                save_floats_to_file(target, self._target_filename)
+                print(f"Guacamol {self.target_label} data obtained into {self._path_to_data_dir}.")
         return None
-
-    def undo_target_transform(self, y: torch.Tensor) -> torch.Tensor:
-        if self.target_transforms is None:
-            return y
-        y_undone = y.numpy()
-        for transform in reversed(self.target_transforms):
-            y_undone = transform.untransform(y_undone)
-        return torch.from_numpy(y_undone).view(-1, 1)
 
     @classmethod
-    def from_config(cls, config):
-        transforms = []
-        if config.augment_molecular_representation:
-            transforms.append(AugmentSMILES(augmentation_prob=config.augmentation_prob))
+    def from_config(cls, config: TaskConfig, split: str = None):
+
+        split = config.split if split is None else split
+
+        if split is None:
+            raise ValueError("split must be provided either in the config or as an argument.")
 
         return cls(
-            split=config.split, target_label=config.target_label, transforms=transforms,
-            validate=config.validate, num_samples=config.num_samples)
+            split=config.split, target_label=config.target_label, transform=config.transform,
+            target_transform=config.target_transform, validate=config.validate, num_samples=config.num_samples)

@@ -4,17 +4,13 @@ from jointformer.configs.task import TaskConfig
 
 
 class AutoTokenizer:
-    """Base Tokenizer. """
 
     @classmethod
     def from_config(cls, config: TaskConfig) -> "AutoTokenizer":
 
-        if config.tokenizer not in ["SMILESTokenizer"]:
-            raise ValueError(f"`config.tokenizer` must be 'SMILESTokenizer', got {config.tokenizer}.")
-
-        if config.tokenizer == 'SMILESTokenizer':
+        if config.tokenizer == 'SmilesTokenizer':
             return getattr(importlib.import_module(
-                "jointformer.utils.tokenizers.smiles_tokenizers"),
-                "SMILESTokenizer").from_config(config)
+                "jointformer.utils.tokenizers.smiles.smiles"),
+                "SmilesTokenizer").from_config(config)
         else:
-            raise ValueError(f"Invalid `tokenizer`.")
+            raise ValueError(f"Tokenizer {config.tokenizer} not available.")

@@ -16,7 +16,7 @@ from jointformer.trainers.trainer import Trainer
 
 from scripts.joint_learning.train import DEFAULT_CONFIG_FILES
 
-from jointformer.utils.objectives.guacamol.objective import GUACAMOL_TASKS
+from jointformer.utils.targets.smiles.guacamol import GUACAMOL_TASKS
 
 from jointformer.utils.datasets.smiles.guacamol import GuacamolSMILESDataset
 

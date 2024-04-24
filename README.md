@@ -1,18 +1,24 @@
 # Jointformer
 
-## Setup
+This is the official repository for the Jointformer model. 
 
-To create an environment that satisfies all the necessary requirements use
+Jointformer is a transformer-based generative model that can be jointly trained on generation and 
+prediction tasks. 
+
+## Getting Started
+
+### Installation
+To create an environment that satisfies the necessary requirements run
 ```
  conda env create -f env.yml
 ```
-and install Hybrid Transformer, from the project directory, with 
+Next, install Jointformer from the project directory with 
 ```
 conda activate hybrid-transformer
 pip install -e .
 ```
 
-Optionally, for a faster build, use [micromamba](https://mamba.readthedocs.io/en/latest/user_guide/micromamba.html) or
+Optionally, for a faster build use [micromamba](https://mamba.readthedocs.io/en/latest/user_guide/micromamba.html) or
 enable [conda-libmamba-solver](https://www.anaconda.com/blog/conda-is-fast-now) with 
 ``` 
 conda update -n base conda
@@ -20,13 +26,32 @@ conda install -n base conda-libmamba-solver
 conda config --set solver libmamba
 ```
 
-## Tasks
+### Data
 
-### Unsupervised Pre-Training 
+Data can be downloaded from ...
 
-To pre-train a `${MODEL}` run 
+### Pre-trained Models
+
+Pre-trained models can be downloaded from ...
+
+
+## Experiments
+
+### Model Training
+
+To train a model run 
 ```
-CUDA_VISIBLE_DEVICES=${GPU_ID} python scripts/pretrain/train.py 
+python experiments/joint_learning/train.py 
+  --out_dir ./results/joint_learning/{MODEL}
+  --path_to_model_config ./configs/models/{MODEL}
+  --path_to_trained_config ./configs/trainers/joint_learning
+```
+
+### Pre-Training 
+
+To pre-train a model run 
+```
+python scripts/pretrain/train.py 
   --out_dir ./results/pretrain/{MODEL}
   --path_to_model_config ./configs/models/{MODEL}
 ```

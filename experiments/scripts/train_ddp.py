@@ -11,7 +11,7 @@ from jointformer.configs.model import ModelConfig
 from jointformer.configs.trainer import TrainerConfig
 from jointformer.configs.logger import LoggerConfig
 
-from jointformer.utils.datasets.smiles.auto import AutoDataset
+from jointformer.utils.datasets.auto import AutoDataset
 from jointformer.utils.tokenizers.auto import AutoTokenizer
 from jointformer.models.auto import AutoModel
 

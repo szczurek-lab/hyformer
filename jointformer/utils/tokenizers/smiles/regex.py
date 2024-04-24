@@ -11,12 +11,13 @@ The tokenizer encodes SMILES strings using the tokenization SMILES regex develop
 """
 
 import re
+from typing import List
 
 SMILES_REGEX_PATTERN = r"""(\[[^\]]+]|Br?|Cl?|N|O|S|P|F|I|b|c|n|o|s|p|\(|\)|\.|=|
 #|-|\+|\\|\/|:|~|@|\?|>>?|\*|\$|\%[0-9]{2}|[0-9])"""
 
 
-class RegexSmilesTokenizer(object):
+class RegexSmilesTokenizer:
     """ Tokenization of SMILES strings based on a regex pattern developed by [1].
     """
 
@@ -27,3 +28,6 @@ class RegexSmilesTokenizer(object):
     def tokenize(self, text):
         tokens = [token for token in self.regex.findall(text)]
         return tokens
+
+    def _split_into_tokens(self, text: str) -> List[str]:
+        return self.regex.findall(text)
