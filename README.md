@@ -25,31 +25,52 @@ conda install -n base conda-libmamba-solver
 conda config --set solver libmamba
 ```
 
+### Repository Structure
+
+The repository is structured as follows:
+
+```
+.
+├── configs/              # Configuration files for tasks, models and trainers
+├── data/                 # Datasets and vocabularies
+├── experiments/          # Scripts to run experiments
+├── results/              # Directory to store results
+└── jointformer/          # Source code
+    ├── configs/          # Configuration classes
+    ├── models/           # Model classes
+    ├── trainers/         # Trainer classes
+    └── utils/            # Utility classes
+        ├── datasets/     # Dataset classes
+        ├── tokenizers/   # Tokenizer classes
+        └── ...           # Other utility classes
+
+```
+
 ## Basic Usage
 
-### Config Files
+### Hyperparameters & Config Files
 
-All hyperparameters are stored in the `configs` directory. In this way you can easily change
-the configuration of the dataset, tokenizer, model and the trainer being used, by
-modifying the corresponding config file. We ensure that no hyperparameters are set
-in the code implicitly fostering transparent and easy reproducibility of the result and
+All hyperparameters are stored in the `configs/` directory. In this way you can easily change
+the configuration of the dataset, tokenizer, model and the trainer being used, solely by
+modifying the corresponding config file. No hyperparameters are set
+in the code implicitly, fostering transparent and easy reproducibility of the result and
 transparent usage of the repository.
 
-### Data & Tokenization
+### Data & Datasets/Tokenizers
 
-Datasets are stored in the `data` directory. The `AutoDataset` class can be used to load
-any dataset by specifying an appropriate config file. Analogously, tokenizers are stored
-in the `jointformer/utils/tokenizers` directory and the `AutoTokenizer` class
+Data files are stored in the `data/` directory with corresponding vocabulary files stored
+in `data/vocabularies/`. The `AutoDataset` class can be used to load
+any dataset by specifying an appropriate config file. Analogously, the `AutoTokenizer` class
 can be used to load any tokenizer by specifying an appropriate config file. 
 
 While Datasets should handle downloading the data and preprocessing it automatically, 
-Tokenizers do require a vocabulary file containing all tokens used to tokenize an input.
-Default vocabularies are stored in the `data/vocabularies` directory and a new vocabulary
-can be built by extracting all tokens from a selected dataset with `experiments/vocabulary/build.py` script.
-Note that Datasets may additionally augment the input data under the hood. 
+Tokenizers do require a vocabulary file containing all tokens used to tokenize an input. 
+A new vocabulary can be built by extracting all tokens from a selected dataset 
+with `experiments/vocabulary/build.py` script. Note that Datasets may additionally
+augment the input data under the hood. 
 
-As an example, the following code loads the test split of the unsupervised
-GuacaMol dataset together with a SMILES tokenizer
+As an example, the following code downloads and loads the test split of the unsupervised
+GuacaMol dataset together with a default SMILES tokenizer
 
 ```python
 from jointformer.configs.task import TaskConfig
@@ -69,16 +90,16 @@ inputs = tokenizer(smiles)
 ```
 
 The tokenizer not only tokenizes the input, but also returns all the necessary inputs
-for the forward pass of the model.
+for the forward pass of the model i.e. attention masks etc.
 
 
 ### Pre-trained Models
 
-Pre-trained models can be downloaded from ... and initialized using the `AutoModel` class, given 
-a model config file.
+Pre-trained models can be downloaded from [here](https://drive.google.com/drive/folders/1t18MULGmZphpjEdPV2FYUYwshEo8W5Dw?usp=sharing)
+and initialized using the `AutoModel` class, given an appropriate model config file.
 
 As an example, the following code loads a pre-trained model and 
-generates a batch of SMILES strings. 
+generates a batch of SMILES 
 
 ```python
 from jointformer.configs.model import ModelConfig
@@ -106,10 +127,10 @@ with torch.no_grad:
     perplexity = model.get_perplexity(**inputs)
 ```
 
-However, a recommended way is to use a trainer to initialize the model. 
-
 ### Trainers & fine-tuning
-you can additionally fine-tune the model by running
+
+A recommended way to initialize the model is with a trainer, initialized using the `AutoTrainer` class and an
+appropriate config file. Trainers allow for easy fine-tune of your model
 
 ```python
 from jointformer.configs.trainer import TrainerConfig
@@ -124,7 +145,7 @@ trainer.train()
 
 ## Experiments
 
-The following code reproduces all experiments from the paper.
+The following code is used to reproduce all the experiments.
 
 ### Model Training
 
@@ -172,12 +193,6 @@ CUDA_VISIBLE_DEVICES=3 python scripts/joint_learning/eval.py --out_dir /raid/aiz
 ## Downloads
 
 Download ZINC15 data from [here](https://az.box.com/s/7eci3nd9vy0xplqniitpk02rbg9q2zcq)
-
-## TODOs
-
-  - scripts refer to names, which refer to benchmarks by a separate file linking configs to names
-  - no other parameters should be passed to scripts or set in scripts manually
-  - log console outputs and dump to file all the time 
 
 ## Results
 
