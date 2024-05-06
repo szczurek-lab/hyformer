@@ -1,0 +1,13 @@
+{
+  "compile": true,
+  "enable_ddp": true,
+  "gradient_accumulation_steps": 40,
+  "batch_size": 12,
+  "block_size": 128,
+  "dtype": "bfloat16",
+  "weight_decay": 1e-1,
+  "learning_rate": 6e-4,
+  "beta1": 0.9,
+  "beta2": 0.95,
+  "grad_clip": 1.0
+}

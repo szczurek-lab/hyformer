@@ -19,7 +19,7 @@ from jointformer.trainers.trainer import Trainer
 
 
 DEFAULT_CONFIG_FILES = {
-    'task': "./configs/tasks/distribution_learning/guacamol/",
+    'task': "./configs/tasks/unsupervised/guacamol/",
     'model': "./configs/models/gpt_finetune/",
     'trainer': "./configs/trainers/pretrain/",
     'logger': "./configs/loggers/wandb/"

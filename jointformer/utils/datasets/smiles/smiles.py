@@ -9,7 +9,7 @@ import torchvision.transforms as transforms
 
 from tqdm import tqdm
 from typing import List, Callable, Optional, Union
-from torch.utils.data.dataset import Dataset
+
 from guacamol.utils.chemistry import is_valid
 
 from jointformer.utils.transforms.auto import AutoTransform
@@ -17,11 +17,13 @@ from jointformer.utils.targets.auto import AutoTarget
 from jointformer.utils.datasets.utils import read_strings_from_file
 from jointformer.utils.targets.utils import save_floats_to_file, read_floats_from_file
 
+from jointformer.utils.datasets.base import BaseDataset
+
 
 AVAILABLE_TARGETS = ["qed"]
 
 
-class SmilesDataset(Dataset):
+class SmilesDataset(BaseDataset):
     """A PyTorch dataset for SMILES strings and their basic physicochemical properties. """
 
     def __init__(
@@ -61,35 +63,6 @@ class SmilesDataset(Dataset):
 
         self._init_data()
         self._init_target()
-
-        self._current = 0
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        self._current += 1
-        if self._current >= len(self.data):
-            self._current = 0
-            raise StopIteration
-        else:
-            idx = self._current - 1
-            return self.__getitem__(idx)
-
-    def __len__(self):
-        return len(self.data)
-
-    def __getitem__(self, idx: int):
-        x = self.data[idx]
-        if self.transform is not None:
-            x = self.transform(x)
-        if self.target is None:
-            return x
-        else:
-            y = self.target[idx]
-            if self.target_transform is not None:
-                y = self.target_transform(y)
-            return x, y
 
     def _init_data(self):
         self._read_data(self.data_file_path)

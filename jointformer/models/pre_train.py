@@ -1,4 +1,4 @@
-from jointformer.models.base import Transformer
+from jointformer.models.transformer import Transformer
 from jointformer.configs.model import ModelConfig
 
 

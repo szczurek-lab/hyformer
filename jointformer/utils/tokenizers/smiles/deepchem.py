@@ -52,7 +52,7 @@ class DeepChemSmilesTokenizer(BertTokenizer):
         vocabulary_file = path_to_vocabulary
         super().__init__(vocabulary_file, **kwargs)
         self.vocab = read_vocabulary(vocabulary_file)
-        self.highest_unused_index = max([i for i, v in enumerate(self.vocab.keys()) if v.startswith("[unused")])
+        # self.highest_unused_index = max([i for i, v in enumerate(self.vocab.keys()) if v.startswith("[unused")])
         self.ids_to_tokens = collections.OrderedDict([(ids, tok) for tok, ids in self.vocab.items()])
         self.basic_tokenizer = RegexSmilesTokenizer()
         # self.init_kwargs["max_len"] = self.max_len

@@ -1,12 +1,13 @@
 import importlib
 
 from jointformer.configs.task import TaskConfig
+from jointformer.utils.tokenizers.smiles.smiles import SmilesTokenizer
 
 
 class AutoTokenizer:
 
     @classmethod
-    def from_config(cls, config: TaskConfig) -> "AutoTokenizer":
+    def from_config(cls, config: TaskConfig) -> SmilesTokenizer:
 
         if config.tokenizer == 'SmilesTokenizer':
             return getattr(importlib.import_module(

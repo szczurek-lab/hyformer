@@ -17,55 +17,67 @@ from jointformer.models.auto import AutoModel
 
 from jointformer.trainers.trainer import Trainer
 
+from jointformer.utils.utils import set_seed
+
+DEFAULT_SEED_ARRAY = [1337]
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--out_dir", type=str, required=True)
-    parser.add_argument("-task", "--path_to_task_config", type=str, required=True)
-    parser.add_argument("-model", "--path_to_model_config", type=str, required=True)
-    parser.add_argument("-trainer", "--path_to_trainer_config", type=str, required=True)
-    parser.add_argument("-logger", "--path_to_logger_config", type=str, required=True)
+    parser.add_argument("--seed", type=int, nargs='*', default=DEFAULT_SEED_ARRAY)
+    parser.add_argument("--path_to_task_config", type=str, required=True)
+    parser.add_argument("--path_to_model_config", type=str, required=True)
+    parser.add_argument("--path_to_trainer_config", type=str, required=True)
+    # parser.add_argument("-logger", "--path_to_logger_config", type=str, required=True)
     args = parser.parse_args()
     return args
 
 
-@record
+def create_output_dir(out_dir):
+    # out_dir/dataset_name/target_label/num_samples/model_name/model_caption/task_p/seed_0
+    # make lowercase
+    os.makedirs(out_dir, exist_ok=True)
+
+
 def main():
 
-    # Args
     args = parse_args()
 
-    # Configs
-    task_config = TaskConfig.from_pretrained(args.path_to_task_config)
-    model_config = ModelConfig.from_pretrained(args.path_to_model_config)
-    trainer_config = TrainerConfig.from_pretrained(args.path_to_trainer_config)
-    logger_config = LoggerConfig.from_pretrained(args.path_to_logger_config)
+    for seed in args.seed:
+        set_seed(seed)
 
-    # Override
-    trainer_config.out_dir = args.out_dir
-    print("Out dir: {}".format(trainer_config.out_dir))
 
-    # Init
-    train_dataset = AutoDataset.from_config(task_config, split='train')
-    eval_dataset = AutoDataset.from_config(task_config, split='val')
-    tokenizer = AutoTokenizer.from_config(task_config)
-    model = AutoModel.from_config(model_config)
-    logger = WandbLogger(logger_config, [task_config, model_config, trainer_config])
-    trainer = Trainer(
-        config=trainer_config, model=model, train_dataset=train_dataset,
-        eval_dataset=eval_dataset, tokenizer=tokenizer, logger=logger)
 
-    # Load
-    if trainer.resume and os.path.isfile(os.path.join(trainer.out_dir, 'ckpt.pt')):
-        trainer.load_checkpoint()
-    else:
-        print("Initializing model from scratch")
-    # Train
-    trainer.train()
+    # Create output directory
+    # os.makedirs(args.out_dir, exist_ok=True)
+    #
+    # # Reproducibility
+    # set_seed()
 
-    # save last
-    trainer.save_checkpoint(os.path.join(trainer.out_dir, 'last'))
-    logger.finish()
+    #
+    # # Load task, model, trainer and logger configurations
+    # task_config = TaskConfig.from_json(args.path_to_task_config)
+    # model_config = ModelConfig.from_json(args.path_to_model_config)
+    # trainer_config = TrainerConfig.from_json(args.path_to_trainer_config)
+    # logger_config = LoggerConfig.from_json(args.path_to_logger_config)
+    #
+    # # Initialize logger
+    # logger = WandbLogger(logger_config)
+    #
+    # # Initialize tokenizer
+    # tokenizer = AutoTokenizer(model_config)
+    #
+    # # Initialize dataset
+    # dataset = AutoDataset(task_config, tokenizer)
+    #
+    # # Initialize model
+    # model = AutoModel(model_config, dataset)
+    #
+    # # Initialize trainer
+    # trainer = Trainer(model, dataset, trainer_config, logger)
+    #
+    # # Train model
+    # trainer.train()
 
 
 if __name__ == "__main__":

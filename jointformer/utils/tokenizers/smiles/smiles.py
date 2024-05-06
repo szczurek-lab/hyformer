@@ -160,30 +160,6 @@ class SmilesTokenizer(DeepChemSmilesTokenizer):
             smiles_data.append(smiles)
         return smiles_data
 
-    @property
-    def generate_token_id(self):
-        return self.token_to_id['[GEN]']
-
-    @property
-    def predict_token_id(self):
-        return self.token_to_id['[PRED]']
-
-    @property
-    def eos_token_id(self):
-        return self.token_to_id['[EOS]']
-
-    @property
-    def mask_token_id(self):
-        return self.token_to_id['[MASK]']
-
-    @property
-    def unk_token_id(self):
-        return self.token_to_id['[UNK]']
-
-    @property
-    def pad_token_id(self):
-        return self.token_to_id['[PAD]']
-
     def set_generation_task_token(self, x):
         x[:, 0] = self.generate_token_id
         return x

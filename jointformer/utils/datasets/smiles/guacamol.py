@@ -4,7 +4,7 @@ from urllib.request import urlretrieve
 from typing import List, Optional, Union, Callable
 
 from jointformer.configs.task import TaskConfig
-from jointformer.utils.datasets.smiles.base import SmilesDataset
+from jointformer.utils.datasets.smiles.smiles import SmilesDataset
 from jointformer.utils.targets.utils import save_floats_to_file
 
 DATASET_SEED = 0

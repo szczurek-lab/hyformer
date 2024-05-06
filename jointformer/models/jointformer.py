@@ -4,7 +4,7 @@ import inspect
 import torch.nn as nn
 import torch.nn.functional as F
 
-from jointformer.models.base import Transformer
+from jointformer.models.transformer import Transformer
 
 from jointformer.utils.tokenizers.smiles.smiles import IGNORE_INDEX
 
@@ -86,3 +86,15 @@ class Jointformer(Transformer):
             'embedding': x,
             'attention_probabilities': torch.stack(attention_probs)
         }
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(
+            vocab_size=config.vocab_size,
+            max_seq_len=config.max_seq_len,
+            embedding_dim=config.embedding_dim,
+            dropout=config.dropout,
+            num_layers=config.num_layers,
+            bias=config.bias,
+            num_heads=config.num_heads
+        )
