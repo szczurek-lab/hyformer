@@ -33,6 +33,7 @@ class SmilesTokenizer(DeepChemSmilesTokenizer):
             mask_token="[MASK]",
             pad_token="[PAD]",
             unk_token="[UNK]",
+            bos_token="[BOS]",
             additional_special_tokens=[PREDICTION_TOKEN, RECONSTRUCTION_TOKEN, GENERATION_TOKEN])
 
         self.max_molecule_length = max_molecule_length

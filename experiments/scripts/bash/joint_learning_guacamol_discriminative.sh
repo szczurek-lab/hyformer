@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#python ./scripts/joint_learning/train.py \
+#python ./scripts/joint_learning/train_old.py \
 #    --out_dir /raid/aizd/jointformer/results_v4/joint_learning/guacamol \
 #    --benchmark guacamol \
 #    --model GPTForPrediction

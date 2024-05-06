@@ -37,12 +37,25 @@ class Trainer:
             val_dataset: Optional[BaseDataset] = None,
             tokenizer: Optional[Any] = None
     ):
+        """ Initialize the Trainer class.
 
-        # out dir
+        The trainer class is responsible for training the model.
+
+        Upon initialization, the trainer will automatically resume training from a snapshot file if it exists.
+
+        Otherwise, the trainer will resume training from the init_from file if it exists.
+        """
+
+        # set args
         self.out_dir = out_dir
         self.init_from = init_from
         self.seed = seed
+        self.train_dataset = train_dataset
+        self.val_dataset = val_dataset
+        self.tokenizer = tokenizer
+        self.model = model
 
+        # set config args
         self.compile = config.compile
         self.enable_ddp = config.enable_ddp
         self.gradient_accumulation_steps = config.gradient_accumulation_steps
@@ -55,22 +68,18 @@ class Trainer:
         self.beta2 = config.beta2
         self.grad_clip = config.grad_clip
 
-        self.train_dataset = train_dataset
-        self.val_dataset = val_dataset
-        self.tokenizer = tokenizer
-        self.model = model
+        self._iter_num = 0
+        self._best_val_loss = 1e9
+        self._snapshot_filepath = os.path.join(self.out_dir, SNAPSHOT_FILE) if self.out_dir else None
 
-        self.iter_num = 0
-        self.best_val_loss = 1e9
-        self.snapshot_filepath = os.path.join(self.out_dir, SNAPSHOT_FILE) if self.out_dir else None
-
-        self._init_ddp()
+        self._get_ddp_config()
         self._init_run()
         self._resume()
         self._init_optimizer()
         self._post_init()
 
-    def _init_ddp(self):
+    def _get_ddp_config(self):
+        """ Get the DDP configuration."""
         ddp = int(os.environ.get('RANK', -1)) != -1  # is this a ddp run?
         if self.enable_ddp and ddp:
             self.is_ddp = True
@@ -117,11 +126,18 @@ class Trainer:
         self.scaler = torch.cuda.amp.GradScaler(enabled=(self.dtype == 'float16'))
 
     def _resume(self):
-        if self.snapshot_filepath:
-            if os.path.exists(self.snapshot_filepath):
-                self._resume_from_file(self.snapshot_filepath)
+        """ Resume training from a checkpoint/snapshot.
+
+        First, check if a snapshot file exists. If it does, resume training from the snapshot file. Otherwise, check if
+        the init_from argument is set. If it is, resume training from the init_from file. Otherwise, train from scratch.
+        """
+        if self._snapshot_filepath:
+            if os.path.exists(self._snapshot_filepath):
+                self._resume_from_file(self._snapshot_filepath)
         elif self.init_from:
-            self._resume_from_file(self.init_from)
+            if os.path.exists(self.init_from):
+                print(f"Resuming from {self.init_from}...")
+                self._resume_from_file(self.init_from)
         else:
             print("Training from scratch...")
         self.model.to(self.device)
@@ -140,19 +156,21 @@ class Trainer:
         checkpoint = None
 
     def _init_optimizer(self):
+        """ Initialize the optimizer."""
         self.optimizer = self.model.configure_optimizers(
             self.weight_decay, self.learning_rate, (self.beta1, self.beta2), self.device_type)
 
-        if self.snapshot_filepath:
-            if os.path.exists(self.snapshot_filepath):
-                self.optimizer.load_state_dict(torch.load(self.snapshot_filepath, map_location=self.device)["optimizer"])
+        if self._snapshot_filepath:
+            if os.path.exists(self._snapshot_filepath):
+                self.optimizer.load_state_dict(torch.load(self._snapshot_filepath, map_location=self.device)["optimizer"])
         elif self.init_from:
             self.optimizer.load_state_dict(torch.load(self.init_from, map_location=self.device)["optimizer"])
 
     def _post_init(self):
+        """ Compile the model and wrap the model in a DDP container. """
 
         if self.compile:
-            self.unoptimized_model = self.model  # todo: is this necessary?
+            self.unoptimized_model = self.model  # is this necessary?
             self.model = torch.compile(self.model)
 
         if self.is_ddp:
