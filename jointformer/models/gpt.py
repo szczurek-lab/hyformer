@@ -13,7 +13,7 @@ class GPT(Transformer):
 
     def __init__(
             self, vocab_size: int, max_seq_len: int, embedding_dim: int,
-            dropout: float, num_layers: int, bias: int, num_heads: int):
+            dropout: float, num_layers: int, bias: int, num_heads: int, init_weights: bool = True):
         super().__init__(
             vocab_size=vocab_size, max_seq_len=max_seq_len, embedding_dim=embedding_dim,
             dropout=dropout, num_layers=num_layers, bias=bias, num_heads=num_heads)
@@ -23,7 +23,8 @@ class GPT(Transformer):
 
         self.prediction_head = nn.Linear(self.embedding_dim, self.prediction_head_output_dim, bias=False)
         self.output_dropout = nn.Dropout(self.dropout)
-        self.initialize_parameters()
+        if init_weights:
+            self.initialize_parameters()
 
     def forward(self,
                 input_ids: Optional[torch.Tensor] = None,
@@ -39,8 +40,7 @@ class GPT(Transformer):
             input = outputs['logits'][:, :-1, :].contiguous()
             target = labels[:, 1:].contiguous()
             outputs["loss"] = F.cross_entropy(
-                input.view(-1, input.size(-1)), target.view(-1),
-                size_average=True, ignore_index=IGNORE_INDEX, reduction='mean')
+                input.view(-1, input.size(-1)), target.view(-1), ignore_index=IGNORE_INDEX, reduction='mean')
         else:
             outputs["logits"] = self.lm_head(outputs["embeddings"][:, [-1], :])
 
@@ -82,7 +82,6 @@ class GPT(Transformer):
             if eos_token_id not in sequence:
                 idx[sequence_idx, -1] = eos_token_id
         return idx
-
 
     @torch.no_grad()
     def generate_single_tokens(self, idx, max_new_tokens, temperature=1.0, top_k=None, eos_token_id=None, pad_token_id=None):

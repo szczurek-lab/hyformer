@@ -16,7 +16,9 @@ class BaseTarget:
     def __call__(self, examples: List[str], dtype='pt') -> Union[torch.Tensor, List[float]]:
         targets = self.get_targets(examples)
         if dtype == 'pt':
-            return torch.Tensor(targets).to(DTYPE_OBJECTIVE).unsqueeze(1)
+            if not isinstance(targets, torch.Tensor):
+                targets = torch.Tensor(targets)
+            return targets.to(DTYPE_OBJECTIVE).unsqueeze(1)
         else:
             return targets
 

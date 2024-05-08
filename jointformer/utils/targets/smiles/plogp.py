@@ -8,7 +8,7 @@ from jointformer.utils.targets.smiles.base import BaseTarget
 
 
 class PlogP(BaseTarget):
-    """ QED target. """
+    """ pLogP target. """
 
     def _get_target(self, example: str) -> float:
         try:
@@ -22,7 +22,7 @@ class PlogP(BaseTarget):
         return ["plogp"]
 
     def __repr__(self):
-        return "PlogP"
+        return "pLogP"
 
     def __str__(self):
-        return "PlogP"
+        return "pLogP"

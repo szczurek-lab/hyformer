@@ -15,7 +15,15 @@ GENERATION_TOKEN = '[BOS]'
 
 
 class SmilesTokenizer(DeepChemSmilesTokenizer):
-    """ A SMILES tokenizer and a data collator. """
+    """ A SMILES tokenizer and a data collator.
+
+     By default, when `set_separate_task_token` is set to `false`, the tokenizer uses the following special tokens:
+        - [CLS] - Beginning of SMILES: `tokenizer.cls_token`
+        - [EOS] - End of SMILES: `tokenizer.sep_token`
+        - [MASK] - Mask token: `tokenizer.mask_token`
+        - [PAD] - Padding token: `tokenizer.pad_token`
+
+     """
 
     def __init__(
         self,
@@ -23,7 +31,7 @@ class SmilesTokenizer(DeepChemSmilesTokenizer):
         max_molecule_length: int,
         mlm_probability: Optional[float] = 0.15,
         ignore_index: Optional[int] = IGNORE_INDEX,
-        set_separate_task_tokens: Optional[bool] = True,
+        set_separate_task_tokens: Optional[bool] = False
     ):
 
         super().__init__(
@@ -46,8 +54,8 @@ class SmilesTokenizer(DeepChemSmilesTokenizer):
 
     def _post_init(self):
 
-        # if self.set_separate_task_tokens:
-        #     self.add_tokens([PREDICTION_TOKEN, RECONSTRUCTION_TOKEN, GENERATION_TOKEN], special_tokens=True)
+        if self.set_separate_task_tokens:
+            self.add_tokens([PREDICTION_TOKEN, RECONSTRUCTION_TOKEN, GENERATION_TOKEN], special_tokens=True)
 
         self.id_to_token = {key: item for item, key in self.vocab.items()}
         for id, special_token in enumerate(self.additional_special_tokens):
@@ -76,29 +84,30 @@ class SmilesTokenizer(DeepChemSmilesTokenizer):
             examples, return_special_tokens_mask=True, padding='max_length', truncation=True,
             return_tensors='pt', max_length=self.max_molecule_length, return_token_type_ids=False)
         special_tokens_mask = batch.pop("special_tokens_mask", None)
+        batch["task"] = task
 
         if task == 'lm' or task == 'ae':
             labels = batch["input_ids"].clone()
             if self.pad_token_id is not None:
                 labels[labels == self.pad_token_id] = IGNORE_INDEX
             batch["labels"] = labels
-            # todo: set the token to mlm
 
         elif task == 'mlm':
             batch["input_ids"], batch["labels"] = self.mask_tokens(
                 batch["input_ids"], special_tokens_mask=special_tokens_mask)
-            # todo: set the token to mlm
 
         elif task == 'prediction':
             pass
-            # todo: set the token to mlm
 
         else:
             raise ValueError('Variable `task` must be either `lm`, `ae`, `prediction` or `mlm`.')
 
+        if self.set_separate_task_tokens:
+            batch = self.set_task_token(batch, task)
+
         return batch
 
-    def set_separate_task_tokens(self, x: dict, task: str) -> dict:
+    def set_task_token(self, batch: dict, task: str) -> dict:
         if task == 'prediction':
             task_token = self.predict_token_id
         elif task == 'lm':
@@ -109,14 +118,15 @@ class SmilesTokenizer(DeepChemSmilesTokenizer):
             task_token = self.reconstruct_token_id
         else:
             raise ValueError('Variable `task` must be either `lm`, `ae`, `prediction` or `mlm`.')
-        return self.set_task_token(x, task_token)
+        return self._set_task_token(batch, task_token)
 
-    def set_task_token(self, x: dict, task_token: int) -> dict:
-        for input in ['input_ids', 'labels']:
-            if input in x:
-                x[input][:, 0] = task_token
-                x[input] = x['input_ids'].contiguous()
-        return x
+    @staticmethod
+    def _set_task_token(batch: dict, task_token: int) -> dict:
+        for key in ['input_ids', 'labels']:
+            if key in batch:
+                batch[key][:, 0] = task_token
+                batch[key] = batch[key].contiguous()
+        return batch
 
     def mask_tokens(self, inputs: Any, special_tokens_mask: Optional[Any] = None) -> Tuple[Any, Any]:
         """
@@ -161,14 +171,6 @@ class SmilesTokenizer(DeepChemSmilesTokenizer):
             smiles_data.append(smiles)
         return smiles_data
 
-    def set_generation_task_token(self, x):
-        x[:, 0] = self.generate_token_id
-        return x
-
-    def set_prediction_task_token(self, x):
-        x[:, 0] = self.predict_token_id
-        return x
-
     def is_valid_smiles(self, x: Union[torch.Tensor, List[str], str]) -> List[bool]:
         if isinstance(x, str):
             return is_valid(x)
@@ -188,4 +190,8 @@ class SmilesTokenizer(DeepChemSmilesTokenizer):
 
     @classmethod
     def from_config(cls, config):
-        return cls(path_to_vocabulary=config.path_to_vocabulary,  max_molecule_length=config.max_molecule_length)
+        return cls(
+            path_to_vocabulary=config.path_to_vocabulary,
+            max_molecule_length=config.max_molecule_length,
+            set_separate_task_tokens=config.set_separate_task_tokens
+        )

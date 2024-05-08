@@ -17,6 +17,7 @@ class TaskConfig(Config):
             tokenizer: Optional[Union[Callable, List]],
             path_to_vocabulary: str,
             max_molecule_length: int,
+            set_separate_task_tokens: bool
     ):
         super().__init__()
         self.dataset_name = dataset_name
@@ -29,3 +30,4 @@ class TaskConfig(Config):
         self.tokenizer = tokenizer
         self.path_to_vocabulary = path_to_vocabulary
         self.max_molecule_length = max_molecule_length
+        self.set_separate_task_tokens = set_separate_task_tokens

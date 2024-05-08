@@ -20,7 +20,7 @@ from jointformer.utils.targets.utils import save_floats_to_file, read_floats_fro
 from jointformer.utils.datasets.base import BaseDataset
 
 
-AVAILABLE_TARGETS = ["qed"]
+AVAILABLE_TARGETS = ["qed", "physchem"]
 
 
 class SmilesDataset(BaseDataset):

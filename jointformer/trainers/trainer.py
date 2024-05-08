@@ -9,17 +9,17 @@ from typing import Optional, Any
 from contextlib import nullcontext
 
 from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.distributed import init_process_group, destroy_process_group
+from torch.distributions.categorical import Categorical
 
 from jointformer.configs.trainer import TrainerConfig
 from jointformer.utils.loggers.wandb import WandbLogger
-from jointformer.models.prediction import MLM_PREDICTION_MODELS, LM_PREDICTION_MODELS
 
-from jointformer.utils.utils import set_seed
 
 from jointformer.utils.datasets.base import BaseDataset
 
-from jointformer.models.base import Model
+from jointformer.models.transformer import Transformer
+from torch.utils.data._utils.collate import default_collate
+
 
 SNAPSHOT_FILE = 'snapshot.ckpt'
 
@@ -29,13 +29,15 @@ class Trainer:
     def __init__(
             self,
             config: TrainerConfig,
-            model: Model,
+            model: Transformer,
             out_dir: Optional[str] = None,
             init_from: Optional[str] = None,
             seed: Optional[int] = 0,
             train_dataset: Optional[BaseDataset] = None,
             val_dataset: Optional[BaseDataset] = None,
-            tokenizer: Optional[Any] = None
+            tokenizer: Optional[Any] = None,
+            tasks: Optional[dict] = None,
+            wandb_logger: Optional[WandbLogger] = None
     ):
         """ Initialize the Trainer class.
 
@@ -54,6 +56,7 @@ class Trainer:
         self.val_dataset = val_dataset
         self.tokenizer = tokenizer
         self.model = model
+        self.tasks = tasks
 
         # set config args
         self.compile = config.compile
@@ -67,10 +70,23 @@ class Trainer:
         self.beta1 = config.beta1
         self.beta2 = config.beta2
         self.grad_clip = config.grad_clip
+        self.eval_iters = config.eval_iters
+        self.learning_rate = config.learning_rate
+        self.warmup_iters = config.warmup_iters
+        self.lr_decay_iters = config.lr_decay_iters
+        self.min_lr = config.min_lr
+        self.decay_lr = config.decay_lr
+        self.always_save_checkpoint = config.always_save_checkpoint
+        self.eval_only = config.eval_only
+        self.eval_interval = config.eval_interval
+        self.max_iters = config.max_iters
+        self.log_interval = config.log_interval
+        self.tasks = config.tasks
 
         self._iter_num = 0
         self._best_val_loss = 1e9
         self._snapshot_filepath = os.path.join(self.out_dir, SNAPSHOT_FILE) if self.out_dir else None
+        self._learning_rate = None
 
         self._get_ddp_config()
         self._init_run()
@@ -124,6 +140,10 @@ class Trainer:
             device_type=self.device_type, dtype=self.ptdtype)
 
         self.scaler = torch.cuda.amp.GradScaler(enabled=(self.dtype == 'float16'))
+        self.task_distribution = Categorical(torch.Tensor(list(self.tasks.values())))
+
+    def _sample_task(self):
+        return list(self.tasks.keys())[self.task_distribution.sample().item()]
 
     def _resume(self):
         """ Resume training from a checkpoint/snapshot.
@@ -151,8 +171,8 @@ class Trainer:
             if k.startswith(unwanted_prefix):
                 state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
         self.model.load_state_dict(state_dict)
-        self.iter_num = checkpoint['iter_num']
-        self.best_val_loss = checkpoint['best_val_loss']
+        self._iter_num = checkpoint['iter_num']
+        self._best_val_loss = checkpoint['best_val_loss']
         checkpoint = None
 
     def _init_optimizer(self):
@@ -170,23 +190,29 @@ class Trainer:
         """ Compile the model and wrap the model in a DDP container. """
 
         if self.compile:
-            self.unoptimized_model = self.model  # is this necessary?
+            if self.master_process:
+                print("Compiling model..")
+            # self.unoptimized_model = self.model  # is this necessary? No, not really
             self.model = torch.compile(self.model)
 
         if self.is_ddp:
             self.model = DDP(self.model, device_ids=[self.ddp_local_rank])
 
-    def _get_batch(self, split, task):
+    def get_batch(self, split, task=None):
+
+        if task is None:
+            task = self._sample_task()
 
         batch = self._sample(self.train_dataset, task) if split == 'train' else self._sample(self.val_dataset, task)
+
         if self.device_type != 'cpu':
             for key, value in batch.items():
-                if value is not None:
+                if value is not None and not isinstance(value, str):
                     batch[key] = value.pin_memory().to(self.device, non_blocking=True)
         return batch
 
     def _sample(self, dataset, task):
-
+        """Acts as a data loader / collate_fn for the dataset."""
         idx = [idx for idx in range(len(dataset))]
         idx = random.sample(idx, self.batch_size)
         sampled = [dataset[i] for i in idx]
@@ -195,11 +221,149 @@ class Trainer:
             x = [item[0] for item in sampled]
             y = [item[1] for item in sampled]
             inputs = self.tokenizer(x, task)
-            inputs['targets'] = torch.Tensor(y)
+            inputs['targets'] = default_collate(y)
         else:
             inputs = self.tokenizer(sampled, task)
             inputs['targets'] = None
         return inputs
+
+    import torch
+
+    @torch.no_grad()
+    def estimate_loss(self):
+        task = 'lm'
+        out = {}
+        self.model.eval()
+        splits = []
+        if self.train_dataset:
+            splits.append('train')
+        if self.val_dataset:
+            splits.append('val')
+        for split in splits:
+            losses = torch.zeros(self.eval_iters)
+            for k in range(self.eval_iters):
+                inputs = self.get_batch(split, task)
+                with self.ctx:
+                    outputs = self.model(**inputs)
+                losses[k] = outputs["loss"].item() if outputs["loss"] is not None else torch.nan
+            out[split] = losses.mean().item() if torch.nan not in losses else torch.nan
+        self.model.train()
+        return out
+
+    def _get_lr(self):
+        # 1) linear warmup for warmup_iters steps
+        if self._iter_num < self.warmup_iters:
+            return self.learning_rate * self._iter_num / self.warmup_iters
+        # 2) if it > lr_decay_iters, return min learning rate
+        if self._iter_num > self.lr_decay_iters:
+            return self.min_lr
+        # 3) in between, use cosine decay down to min learning rate
+        decay_ratio = (self._iter_num - self.warmup_iters) / (self.lr_decay_iters - self.warmup_iters)
+        assert 0 <= decay_ratio <= 1
+        coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))  # coeff ranges 0..1
+        return self.min_lr + coeff * (self.learning_rate - self.min_lr)
+
+    def _set_lr(self) -> None:
+        self._learning_rate = self._get_lr() if self.decay_lr else self.learning_rate
+        for param_group in self.optimizer.param_groups:
+            param_group['lr'] = self._learning_rate
+
+    def evaluate(self):
+        if self._iter_num % self.eval_interval == 0 and self.master_process:
+            losses = self.estimate_loss()
+            info = f"step {self._iter_num}"
+            if 'train' in losses:
+                info += f": train loss {losses['train']:.4f}"
+            if 'val' in losses:
+                info += f", val loss {losses['val']:.4f}"
+            print(info)
+            # if self.wandb_log:
+            #     wandb.log({
+            #         "iter": iter_num,
+            #         "train/loss": losses['train'],
+            #         "val/loss": losses['val'],
+            #         "lr": lr,
+            #         "mfu": running_mfu * 100,  # convert to percentage
+            #     })
+            if 'val' in losses:
+                if losses['val'] < self._best_val_loss or self.always_save_checkpoint:
+                    self._best_val_loss = losses['val']
+                    if self._iter_num > 0 and self.out_dir:
+                        checkpoint = {
+                            'model': self.raw_model.state_dict(),
+                            'optimizer': self.optimizer.state_dict(),
+                            # 'model_args': model_args,
+                            'iter_num': self._iter_num,
+                            'best_val_loss': self._best_val_loss,
+                            # 'config': config,
+                        }
+                        torch.save(checkpoint, os.path.join(self.out_dir, 'ckpt.pt'))
+
+    def train(self):
+
+        # training loop
+        split = 'train'
+        task = 'lm'
+        inputs = self._get_batch(split=split, task=task)
+        t0 = time.time()
+        local_iter_num = 0  # number of iterations in the lifetime of this process
+        self.raw_model = self.model.module if self.is_ddp else self.model  # unwrap DDP container if needed
+        running_mfu = -1.0
+        while True:
+
+            # termination conditions
+            if self._iter_num > self.max_iters:
+                break
+
+            # determine and set the learning rate for this iteration
+            self._set_lr()
+
+            # evaluate the loss on train/val sets and write checkpoints
+            self.evaluate()
+            if self._iter_num == 0 and self.eval_only:
+                break
+
+            # forward backward update, with optional gradient accumulation to simulate larger batch size
+            # and using the GradScaler if data type is float16
+            for micro_step in range(self.gradient_accumulation_steps):
+                if self.is_ddp:
+                    # in DDP training we only need to sync gradients at the last micro step.
+                    # the official way to do this is with model.no_sync() context manager, but
+                    # I really dislike that this bloats the code and forces us to repeat code
+                    # looking at the source of that context manager, it just toggles this variable
+                    self.model.require_backward_grad_sync = (micro_step == self.gradient_accumulation_steps - 1)
+                with self.ctx:
+                    outputs = self.model(**inputs)
+                    loss = outputs["loss"] / self.gradient_accumulation_steps  # scale the loss to account for gradient accumulation
+                # immediately async prefetch next batch while model is doing the forward pass on the GPU
+                inputs = self._get_batch(split, task)
+                # backward pass, with gradient scaling if training in fp16
+                self.scaler.scale(loss).backward()
+            # clip the gradient
+            if self.grad_clip != 0.0:
+                self.scaler.unscale_(self.optimizer)
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
+            # step the optimizer and scaler if training in fp16
+            self.scaler.step(self.optimizer)
+            self.scaler.update()
+            # flush the gradients as soon as we can, no need for this memory anymore
+            self.optimizer.zero_grad(set_to_none=True)
+
+            # timing and logging
+            t1 = time.time()
+            dt = t1 - t0
+            t0 = t1
+            if self._iter_num % self.log_interval == 0 and self.master_process:
+                # get loss as float. note: this is a CPU-GPU sync point
+                # scale up to undo the division above, approximating the true total loss (exact would have been a sum)
+                lossf = loss.item() * self.gradient_accumulation_steps
+                if local_iter_num >= 5:  # let the training loop settle a bit
+                    mfu = self.raw_model.estimate_mfu(self.batch_size * self.gradient_accumulation_steps, dt)
+                    running_mfu = mfu if running_mfu == -1.0 else 0.9 * running_mfu + 0.1 * mfu
+                print(f"iter {self._iter_num}: loss {lossf:.6f}, lr {self._learning_rate:.6f},"
+                      f" time {dt * 1000:.2f}ms, mfu {running_mfu * 100:.2f}%")
+            self._iter_num += 1
+            local_iter_num += 1
 
     #     # eval
     #     self.eval_interval = config.eval_interval
@@ -386,25 +550,6 @@ class Trainer:
     #     if self.is_ddp_run:
     #         self.model = DDP(self.model, device_ids=[self.ddp_local_rank])
     #
-    # # learning rate decay scheduler (cosine with warmup)
-    # def _get_lr(self, it: int) -> float:
-    #     # 1) linear warmup for warmup_iters steps
-    #     if it < self.warmup_iters:
-    #         return self.learning_rate * it / self.warmup_iters
-    #     # 2) if it > lr_decay_iters, return min learning rate
-    #     if it > self.lr_decay_iters:
-    #         return self.min_lr
-    #     # 3) in between, use cosine decay down to min learning rate
-    #     decay_ratio = (it - self.warmup_iters) / (self.lr_decay_iters - self.warmup_iters)
-    #     assert 0 <= decay_ratio <= 1
-    #     coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))  # coeff ranges 0..1
-    #     return self.min_lr + coeff * (self.learning_rate - self.min_lr)
-    #
-    # def _set_lr(self, iter_num: int) -> None:
-    #     self.current_learning_rate = self._get_lr(iter_num) if self.decay_lr else self.learning_rate
-    #     for param_group in self.optimizer.param_groups:
-    #         param_group['lr'] = self.current_learning_rate
-    #
     # @torch.no_grad()
     # def estimate_loss(self):
     #     out = {}
@@ -561,63 +706,3 @@ class Trainer:
     #         return 'mlm'
     #     else:
     #         raise ValueError("Wrong task!")
-    #
-    # def train(self):
-    #     self._train_init()
-    #     self.logger.init_run()
-    #     self.model.train()
-    #
-    #     task = 'lm'
-    #     inputs = self.get_batch(split='train', task=task)  # fetch the very first batch
-    #
-    #     t0 = time.time()
-    #     local_iter_num = 0  # number of iterations in the lifetime of this process
-    #
-    #     while True:
-    #         self.set_lr(self.iter_num)
-    #
-    #         if self.iter_num % self.eval_interval == 0 and self.master_process:
-    #             self.evaluate()
-    #
-    #         if self.iter_num == 0 and self.eval_only:
-    #             break
-    #
-    #         for micro_step in range(self.gradient_accumulation_steps):
-    #             if self.is_ddp_run:
-    #                 self.model.require_backward_grad_sync = (micro_step == self.gradient_accumulation_steps - 1)
-    #             with self.ctx:
-    #                 outputs = self.model(
-    #                     task=task, input_ids=inputs['input_ids'], attention_mask=inputs['attention_mask'],
-    #                     labels=inputs['labels'], target=inputs['target'], eos_mask=inputs['eos_mask'])
-    #                 loss = outputs['loss'] / self.gradient_accumulation_steps
-    #             task = self.get_task(task_p=self.model.task_p)
-    #             inputs = self.get_batch(split='train', task=task)
-    #             self.scaler.scale(loss).backward()
-    #
-    #         if self.grad_clip != 0.0:
-    #             self.scaler.unscale_(self.optimizer)
-    #             torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
-    #         self.scaler.step(self.optimizer)
-    #         self.scaler.update()
-    #         self.optimizer.zero_grad(set_to_none=True)
-    #
-    #         t1 = time.time()
-    #         dt = t1 - t0
-    #         t0 = t1
-    #         if self.iter_num % self.log_interval == 0 and self.master_process:
-    #             lossf = loss.item() * self.gradient_accumulation_steps
-    #             print(f"iter {self.iter_num}: loss {lossf:.4f}, time {dt * 1000:.2f}ms.", end="\r")
-    #         self.iter_num += 1
-    #         local_iter_num += 1
-    #
-    #         # termination conditions
-    #         if self.iter_num > self.max_iters:
-    #             break
-    #
-    #     if self.is_ddp_run:
-    #         destroy_process_group()
-    #
-    #     print("Training finished.")
-    #
-    # def _run_batch(self):
-    #

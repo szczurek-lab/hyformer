@@ -74,6 +74,16 @@ def init_ddp():
     # torch.cuda.set_device(int(os.environ["LOCAL_RANK"])) // to be set by the trainer
 
 
+class HiddenPrints:
+    def __enter__(self):
+        self._original_stdout = sys.stdout
+        sys.stdout = open(os.devnull, 'w')
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        sys.stdout.close()
+        sys.stdout = self._original_stdout
+
+
 @record
 def main(args):
 
