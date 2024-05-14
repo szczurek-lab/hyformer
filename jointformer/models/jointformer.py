@@ -52,11 +52,13 @@ class Jointformer(Transformer):
             self,
             input_ids: Optional[torch.Tensor] = None,
             labels: Optional[torch.Tensor] = None,
+            attention_mask: Optional[torch.Tensor] = None,
+            is_causal: bool = True,
+            next_token_only: bool = False,
             **kwargs):
-        """ Perform a forward pass through the generative part of the model."""
-        outputs = super().forward(input_ids=input_ids, attention_mask=None, is_causal=True)
+        outputs = super().forward(input_ids=input_ids, attention_mask=attention_mask, is_causal=is_causal)
         outputs["loss"] = None
-        if labels is not None:
+        if not next_token_only:
             outputs["logits"] = self.lm_head(outputs['embeddings'])
         else:
             outputs["logits"] = self.lm_head(outputs["embeddings"][:, [-1], :])
@@ -162,8 +164,7 @@ class Jointformer(Transformer):
 
         Reference: https://github.com/ETHmodlab/CLM_perplexity/blob/main/src/python/helper.py
         """
-        outputs = super().forward(input_ids=input_ids, attention_mask=None, is_causal=True)
-        outputs["logits"] = self.lm_head(outputs['embeddings'])
+        outputs = self(input_ids=input_ids, attention_mask=None, is_causal=True)
         log_probs = F.log_softmax(outputs["logits"], dim=-1).max(dim=-1).values
         perplexity = torch.zeros(size=(input_ids.size(0),))
 
@@ -210,7 +211,7 @@ class Jointformer(Transformer):
             # if the sequence context is growing too long we must crop it at block_size
             idx_cond = idx if idx.size(1) <= self.max_seq_len else idx[:, -self.max_seq_len:]
             # forward the model to get the logits for the index in the sequence
-            outputs = self(input_ids=idx_cond, attention_mask=None, task='lm')
+            outputs = self(input_ids=idx_cond, attention_mask=None, is_causal=True, next_token_only=True)
             logits = outputs['logits']
 
             # pluck the logits at the final step and scale by desired temperature

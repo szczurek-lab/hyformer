@@ -1,0 +1,73 @@
+{
+    "taskconfig": {
+        "dataset_name": "guacamol",
+        "target_label": "physchem",
+        "validate": false,
+        "num_samples": 100,
+        "split": "train",
+        "transform": [
+            {
+                "name": "smiles_enumerator",
+                "params": {
+                    "enumeration_probability": 0.8
+                }
+            }
+        ],
+        "target_transform": null,
+        "tokenizer": "SmilesTokenizer",
+        "path_to_vocabulary": "./data/vocabularies/guacamol.txt",
+        "max_molecule_length": 128,
+        "set_separate_task_tokens": false,
+        "num_train_samples": 2
+    },
+    "modelconfig": {
+        "model_name": "Jointformer",
+        "embedding_dim": 16,
+        "num_heads": 1,
+        "num_layers": 1,
+        "bias": false,
+        "dropout": 0.1,
+        "layer_norm_eps": 1e-05,
+        "vocab_size": 588,
+        "max_seq_len": 128,
+        "task_p": 0.95,
+        "prediction_task": "regression",
+        "num_prediction_tasks": 1
+    },
+    "trainerconfig": {
+        "compile": true,
+        "enable_ddp": true,
+        "dtype": "bfloat16",
+        "eval_only": false,
+        "max_iters": 60000,
+        "batch_size": 2,
+        "learning_rate": 0.0006,
+        "weight_decay": 0.1,
+        "beta1": 0.9,
+        "beta2": 0.95,
+        "gradient_accumulation_steps": 40,
+        "grad_clip": 1.0,
+        "decay_lr": true,
+        "warmup_iters": 10,
+        "lr_decay_iters": 100,
+        "min_lr": 1e-06,
+        "eval_iters": 10,
+        "eval_interval": 1000,
+        "log_interval": 100,
+        "always_save_checkpoint": false,
+        "block_size": 128,
+        "tasks": {
+            "lm": 0.5,
+            "physchem": 0.5
+        }
+    },
+    "loggerconfig": {
+        "logger_name": "wandb",
+        "log": true,
+        "user": "adam-izdebski1",
+        "project": "jointformer",
+        "resume": "auto",
+        "display_name": null,
+        "config": null
+    }
+}

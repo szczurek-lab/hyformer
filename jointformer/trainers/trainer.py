@@ -34,6 +34,7 @@ class Trainer:
             seed: Optional[int] = 0,
             train_dataset: Optional[BaseDataset] = None,
             val_dataset: Optional[BaseDataset] = None,
+            test_dataset: Optional[BaseDataset] = None,
             tokenizer: Optional[Any] = None,
             tasks: Optional[dict] = None,
             logger: Optional[WandbLogger] = None
@@ -53,6 +54,7 @@ class Trainer:
         self.seed = seed
         self.train_dataset = train_dataset
         self.val_dataset = val_dataset
+        self.test_dataset = test_dataset
         self.tokenizer = tokenizer
         self.model = model
         self.tasks = tasks
@@ -87,6 +89,7 @@ class Trainer:
         self._best_val_loss = 1e9
         self._snapshot_filepath = os.path.join(self.out_dir, SNAPSHOT_FILE) if self.out_dir else None
         self._learning_rate = None
+        self._running_mfu = 0.0
 
         self._get_ddp_config()
         self._init_run()
@@ -241,7 +244,11 @@ class Trainer:
 
     def test(self):
         # todo: run evaluate with test dataset
-        pass
+        for idx, inputs in enumerate(self.test_dataset):
+            inputs = self.tokenizer(inputs)
+            with self.ctx:
+                outputs = self.model.get_loss(**inputs)
+            print(f"Test loss {outputs['loss'].item()}")
 
     @torch.no_grad()
     def estimate_loss(self):
@@ -257,46 +264,41 @@ class Trainer:
             splits.append('val')
         tasks = list(self.tasks.keys())
 
-        for task in tasks:
-            out[task] = {}
-            for split in splits:
+        for split in splits:
+            out[split] = {}
+            for task in tasks:
                 losses = torch.zeros(self.eval_iters)
                 for k in range(self.eval_iters):
                     inputs = self.get_batch(split, task)
                     with self.ctx:
                         outputs = self.model.get_loss(**inputs)
                     losses[k] = outputs["loss"].item() if outputs["loss"] is not None else torch.nan
-                out[task][split] = losses.mean().item() if torch.nan not in losses else torch.nan
+                out[split][task] = losses.mean().item() if torch.nan not in losses else torch.nan
 
-        out['combined'] = {}
         for split in splits:
             for task in tasks:
-                if out[task][split] is not None:
-                    if out['combined'].get(split) is None:
-                        out['combined'][split] = out[task][split]
-                    else:
-                        out['combined'][split] += out[task][split]
+                if 'combined' in out[split]:
+                    out[split]['combined'] += out[split][task]
+                else:
+                    out[split]['combined'] = out[split][task]
 
-        out['perplexity'] = {}
         for split in splits:
+            out[split]['perplexity'] = {}
             losses = torch.zeros(self.eval_iters)
             for k in range(self.eval_iters):
                 inputs = self.get_batch(split)
                 with self.ctx:
                     perplexity = self.model.calculate_perplexity(**inputs)
                 losses[k] = perplexity.mean()
-            out['perplexity'][split] = losses.mean().item() if torch.nan not in losses else torch.nan
+            out[split]['perplexity'] = losses.mean().item() if torch.nan not in losses else torch.nan
 
         for _ in range(self.eval_iters):
             samples = []
             samples.extend(self.generate())
         is_valid = [self.tokenizer.is_valid_smiles(sample) for sample in samples]
-        out["validity"] = {}
-        out["validity"]["val"] = sum(is_valid) / len(is_valid)
-        out["uniqueness"] = {}
-        out["uniqueness"]["val"] = len(set(samples)) / len(samples)
-        out["novelty"] = {}
-        out["novelty"]["val"] = len(set(samples) - set(self.train_dataset.data)) / len(samples)
+        out["val"]["validity"] = sum(is_valid) / len(is_valid)
+        out["val"]["uniqueness"] = len(set(samples)) / len(samples)
+        out["val"]["novelty"] = len(set(samples) - set(self.train_dataset.data)) / len(samples)
         self.model.train()
         return out
 
@@ -323,23 +325,23 @@ class Trainer:
             losses = self.estimate_loss()
             info = f"step {self._iter_num}"
             if 'train' in losses:
-                info += f": train loss {losses['train']:.4f}"
+                info += f": train loss {losses['train']['combined']:.4f}"
             if 'val' in losses:
-                info += f", val loss {losses['val']:.4f}"
+                info += f", val loss {losses['val']['combined']:.4f}"
             print(info)
+
             if self.logger:
                 log_dict = {}
+                for split in losses.keys():
+                    for task in losses[split].keys():
+                        log_dict[f'{split}/{task}'] = losses[split][task]
+                log_dict['iter'] = self._iter_num
+                log_dict['lr'] = self._learning_rate
+                log_dict['mfu'] = self._running_mfu * 100
                 self.logger.log(log_dict)
-            # if self.wandb_log:
-            #     wandb.log({
-            #         "iter": iter_num,
-            #         "train/loss": losses['train'],
-            #         "val/loss": losses['val'],
-            #         "lr": lr,
-            #         "mfu": running_mfu * 100,  # convert to percentage
-            #     })
+
             if 'val' in losses:
-                if losses['val'] < self._best_val_loss or self.always_save_checkpoint:
+                if losses['val']['combined'] < self._best_val_loss or self.always_save_checkpoint:
                     self._best_val_loss = losses['val']
                     if self._iter_num > 0 and self.out_dir:
                         checkpoint = {
@@ -378,7 +380,7 @@ class Trainer:
         t0 = time.time()
         local_iter_num = 0  # number of iterations in the lifetime of this process
         self.raw_model = self.model.module if self.is_ddp else self.model  # unwrap DDP container if needed
-        running_mfu = -1.0
+        self._running_mfu = -1.0
 
         while True:
             if self._terminate():
@@ -424,8 +426,8 @@ class Trainer:
                 lossf = loss.item() * self.gradient_accumulation_steps
                 if local_iter_num >= 5:  # let the training loop settle a bit
                     mfu = self.raw_model.estimate_mfu(self.batch_size * self.gradient_accumulation_steps, dt)
-                    running_mfu = mfu if running_mfu == -1.0 else 0.9 * running_mfu + 0.1 * mfu
+                    self._running_mfu = mfu if self._running_mfu == -1.0 else 0.9 * self._running_mfu + 0.1 * mfu
                 print(f"iter {self._iter_num}: loss {lossf:.6f}, lr {self._learning_rate:.6f},"
-                      f" time {dt * 1000:.2f}ms, mfu {running_mfu * 100:.2f}%")
+                      f" time {dt * 1000:.2f}ms, mfu {self._running_mfu * 100:.2f}%")
             self._iter_num += 1
             local_iter_num += 1

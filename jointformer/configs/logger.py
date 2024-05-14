@@ -6,7 +6,8 @@ class LoggerConfig(Config):
 
     def __init__(
         self,
-        log,
+        logger_name: str,
+        enable_logging: bool,
         user,
         project,
         resume,
@@ -15,7 +16,8 @@ class LoggerConfig(Config):
     ):
 
         super().__init__()
-        self.log = log
+        self.logger_name = logger_name
+        self.enable_logging = enable_logging
         self.user = user
         self.project = project
         self.resume = resume
