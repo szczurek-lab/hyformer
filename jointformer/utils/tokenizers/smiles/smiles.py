@@ -96,8 +96,8 @@ class SmilesTokenizer(DeepChemSmilesTokenizer):
             batch["input_ids"], batch["labels"] = self.mask_tokens(
                 batch["input_ids"], special_tokens_mask=special_tokens_mask)
 
-        elif task == 'prediction':
-            pass
+        elif task == 'prediction' or task == 'physchem':
+            pass # do nothing
 
         else:
             raise ValueError('Variable `task` must be either `lm`, `ae`, `prediction` or `mlm`.')

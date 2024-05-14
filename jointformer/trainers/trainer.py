@@ -5,27 +5,26 @@ import torch
 import random
 
 from typing import Optional, Any
-
 from contextlib import nullcontext
-
-from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributions.categorical import Categorical
-
-from jointformer.configs.trainer import TrainerConfig
-from jointformer.utils.loggers.wandb import WandbLogger
-
-
-from jointformer.utils.datasets.base import BaseDataset
-
-from jointformer.models.transformer import Transformer
 from torch.utils.data._utils.collate import default_collate
 
+from torch.nn.parallel import DistributedDataParallel as DDP
+
+from jointformer.configs.trainer import TrainerConfig
+from jointformer.models.transformer import Transformer
+from jointformer.utils.loggers.wandb import WandbLogger
+from jointformer.utils.datasets.base import BaseDataset
 
 SNAPSHOT_FILE = 'snapshot.ckpt'
 
 
 class Trainer:
+    """Trainer for a Transformer model.
 
+    Adapted from: https://github.com/karpathy/nanoGPT/blob/master/train.py
+
+    """
     def __init__(
             self,
             config: TrainerConfig,
@@ -37,15 +36,15 @@ class Trainer:
             val_dataset: Optional[BaseDataset] = None,
             tokenizer: Optional[Any] = None,
             tasks: Optional[dict] = None,
-            wandb_logger: Optional[WandbLogger] = None
+            logger: Optional[WandbLogger] = None
     ):
         """ Initialize the Trainer class.
 
         The trainer class is responsible for training the model.
 
-        Upon initialization, the trainer will automatically resume training from a snapshot file if it exists.
+        Upon initialization, the trainer will automatically resume training from a snapshot file, if it exists.
 
-        Otherwise, the trainer will resume training from the init_from file if it exists.
+        Otherwise, the trainer will resume training from the `init_from` file, if it exists.
         """
 
         # set args
@@ -57,6 +56,7 @@ class Trainer:
         self.tokenizer = tokenizer
         self.model = model
         self.tasks = tasks
+        self.logger = logger
 
         # set config args
         self.compile = config.compile
@@ -141,6 +141,8 @@ class Trainer:
 
         self.scaler = torch.cuda.amp.GradScaler(enabled=(self.dtype == 'float16'))
         self.task_distribution = Categorical(torch.Tensor(list(self.tasks.values())))
+        if self.logger:
+            self.logger.init_run()
 
     def _sample_task(self):
         return list(self.tasks.keys())[self.task_distribution.sample().item()]
@@ -185,6 +187,8 @@ class Trainer:
                 self.optimizer.load_state_dict(torch.load(self._snapshot_filepath, map_location=self.device)["optimizer"])
         elif self.init_from:
             self.optimizer.load_state_dict(torch.load(self.init_from, map_location=self.device)["optimizer"])
+        else:
+            print("No optimizer state found, initializing from scratch...")
 
     def _post_init(self):
         """ Compile the model and wrap the model in a DDP container. """
@@ -193,10 +197,16 @@ class Trainer:
             if self.master_process:
                 print("Compiling model..")
             # self.unoptimized_model = self.model  # is this necessary? No, not really
-            self.model = torch.compile(self.model)
+            self.model = torch.compile(self.model, mode='reduce-overhead')
 
         if self.is_ddp:
             self.model = DDP(self.model, device_ids=[self.ddp_local_rank])
+
+    def get_training_batch(self):
+        return self.get_batch(split='train')
+
+    def get_validation_batch(self):
+        return self.get_batch(split='val')
 
     def get_batch(self, split, task=None):
 
@@ -229,24 +239,64 @@ class Trainer:
 
     import torch
 
+    def test(self):
+        # todo: run evaluate with test dataset
+        pass
+
     @torch.no_grad()
     def estimate_loss(self):
-        task = 'lm'
-        out = {}
+
+        #todo: log as train/task and val/task, and later test/task
+
         self.model.eval()
+        out = {}
         splits = []
         if self.train_dataset:
             splits.append('train')
         if self.val_dataset:
             splits.append('val')
+        tasks = list(self.tasks.keys())
+
+        for task in tasks:
+            out[task] = {}
+            for split in splits:
+                losses = torch.zeros(self.eval_iters)
+                for k in range(self.eval_iters):
+                    inputs = self.get_batch(split, task)
+                    with self.ctx:
+                        outputs = self.model.get_loss(**inputs)
+                    losses[k] = outputs["loss"].item() if outputs["loss"] is not None else torch.nan
+                out[task][split] = losses.mean().item() if torch.nan not in losses else torch.nan
+
+        out['combined'] = {}
+        for split in splits:
+            for task in tasks:
+                if out[task][split] is not None:
+                    if out['combined'].get(split) is None:
+                        out['combined'][split] = out[task][split]
+                    else:
+                        out['combined'][split] += out[task][split]
+
+        out['perplexity'] = {}
         for split in splits:
             losses = torch.zeros(self.eval_iters)
             for k in range(self.eval_iters):
-                inputs = self.get_batch(split, task)
+                inputs = self.get_batch(split)
                 with self.ctx:
-                    outputs = self.model(**inputs)
-                losses[k] = outputs["loss"].item() if outputs["loss"] is not None else torch.nan
-            out[split] = losses.mean().item() if torch.nan not in losses else torch.nan
+                    perplexity = self.model.calculate_perplexity(**inputs)
+                losses[k] = perplexity.mean()
+            out['perplexity'][split] = losses.mean().item() if torch.nan not in losses else torch.nan
+
+        for _ in range(self.eval_iters):
+            samples = []
+            samples.extend(self.generate())
+        is_valid = [self.tokenizer.is_valid_smiles(sample) for sample in samples]
+        out["validity"] = {}
+        out["validity"]["val"] = sum(is_valid) / len(is_valid)
+        out["uniqueness"] = {}
+        out["uniqueness"]["val"] = len(set(samples)) / len(samples)
+        out["novelty"] = {}
+        out["novelty"]["val"] = len(set(samples) - set(self.train_dataset.data)) / len(samples)
         self.model.train()
         return out
 
@@ -277,6 +327,9 @@ class Trainer:
             if 'val' in losses:
                 info += f", val loss {losses['val']:.4f}"
             print(info)
+            if self.logger:
+                log_dict = {}
+                self.logger.log(log_dict)
             # if self.wandb_log:
             #     wandb.log({
             #         "iter": iter_num,
@@ -299,26 +352,38 @@ class Trainer:
                         }
                         torch.save(checkpoint, os.path.join(self.out_dir, 'ckpt.pt'))
 
+    def _terminate(self):
+        if self._iter_num > self.max_iters:
+            return True
+        return False
+
+    @torch.no_grad()
+    def generate(self, temperature=0.8, top_k=10):
+        samples = self.model.generate(
+            bos_token_id=self.tokenizer.cls_token_id,
+            eos_token_id=self.tokenizer.sep_token_id,
+            pad_token_id=self.tokenizer.pad_token_id,
+            input_length=self.model.max_seq_len,
+            batch_size=self.batch_size,
+            temperature = temperature,
+            top_k = top_k,
+            device = self.device)
+        samples = self.tokenizer.decode(samples)
+        return samples
+
     def train(self):
 
         # training loop
-        split = 'train'
-        task = 'lm'
-        inputs = self._get_batch(split=split, task=task)
+        inputs = self.get_training_batch()
         t0 = time.time()
         local_iter_num = 0  # number of iterations in the lifetime of this process
         self.raw_model = self.model.module if self.is_ddp else self.model  # unwrap DDP container if needed
         running_mfu = -1.0
+
         while True:
-
-            # termination conditions
-            if self._iter_num > self.max_iters:
+            if self._terminate():
                 break
-
-            # determine and set the learning rate for this iteration
             self._set_lr()
-
-            # evaluate the loss on train/val sets and write checkpoints
             self.evaluate()
             if self._iter_num == 0 and self.eval_only:
                 break
@@ -333,10 +398,10 @@ class Trainer:
                     # looking at the source of that context manager, it just toggles this variable
                     self.model.require_backward_grad_sync = (micro_step == self.gradient_accumulation_steps - 1)
                 with self.ctx:
-                    outputs = self.model(**inputs)
+                    outputs = self.model.get_loss(**inputs)
                     loss = outputs["loss"] / self.gradient_accumulation_steps  # scale the loss to account for gradient accumulation
                 # immediately async prefetch next batch while model is doing the forward pass on the GPU
-                inputs = self._get_batch(split, task)
+                inputs = self.get_training_batch()
                 # backward pass, with gradient scaling if training in fp16
                 self.scaler.scale(loss).backward()
             # clip the gradient
@@ -364,345 +429,3 @@ class Trainer:
                       f" time {dt * 1000:.2f}ms, mfu {running_mfu * 100:.2f}%")
             self._iter_num += 1
             local_iter_num += 1
-
-    #     # eval
-    #     self.eval_interval = config.eval_interval
-    #     self.log_interval = config.log_interval
-    #     self.eval_iters = config.eval_iters
-    #     self.eval_only = config.eval_only  # if True, script exits right after the first eval
-    #     self.logger = logger
-    #
-    #     # load / save
-    #     self.enable_save_checkpoint = config.enable_save_checkpoint
-    #     self.always_save_checkpoint = config.always_save_checkpoint  # if True, always save a checkpoint after each eval
-    #     self.init_from = config.init_from  # 'scratch' or 'resume' or 'gpt2*'
-    #
-    #     # adamw optimizer
-    #     self.learning_rate = config.learning_rate  # max learning rate
-    #     self.max_iters = config.max_iters  # total number of training iterations
-    #     self.weight_decay = config.weight_decay
-    #     self.beta1 = config.beta1
-    #     self.beta2 = config.beta2
-    #     self.grad_clip = config.grad_clip  # clip gradients at this value, or disable if == 0.0
-    #
-    #     # learning rate decay settings
-    #     self.decay_lr = config.decay_lr  # whether to decay the learning rate
-    #     self.warmup_iters = config.warmup_iters  # how many steps to warm up for
-    #     self.lr_decay_iters = config.lr_decay_iters  # should be ~= max_iters per Chinchilla
-    #     self.min_lr = config.min_lr  # minimum learning rate, should be ~= learning_rate/10 per Chinchilla
-    #
-    #     # DDP settings
-    #     self.enable_ddp = config.enable_ddp
-    #
-    #
-    #     # runtime
-    #     self.gradient_accumulation_steps = config.gradient_accumulation_steps  # used to simulate larger batch sizes
-    #     self.batch_size = config.batch_size  # if gradient_accumulation_steps > 1, this is the micro-batch size
-    #     self.device = config.device  # examples: 'cpu', 'cuda', 'cuda:0', 'cuda:1' etc., or try 'mps' on macbooks
-    #     self.device_type = config.device
-    #     self.dtype = config.dtype  # 'float32', 'bfloat16', or 'float16', the latter will auto implement a GradScaler
-    #     self.compile = config.compile  # use PyTorch 2.0 to compile the model to be faster
-    #
-    #     # data
-    #     self.train_dataset = train_dataset
-    #     self.eval_dataset = eval_dataset
-    #     self.tokenizer = tokenizer
-    #
-    #     # eval
-    #     self.iter_num = 0
-    #     self.best_val_loss = 1e9
-    #     self.config = config
-    #
-    #     # model
-    #     self.model = model
-    #
-    #     # scaler
-    #     self.scaler = torch.cuda.amp.GradScaler(enabled=(self.dtype == 'float16'))
-    #
-    #     # optimizer
-    #     self.optimizer = None
-    #     self.correct_bias = config.correct_bias
-    #     self.optimizer_ckpt = None
-    #     self.current_learning_rate = None
-    #
-    #
-    #
-    #
-    #     self.master_process = True
-    #     self.seed_offset = 0
-    #     self.ddp_world_size = 1
-    #     self.device = 'cuda:0'
-    #
-    #     is_ddp = int(os.environ.get('RANK', -1)) != -1
-    #     if self.enable_ddp and is_ddp:
-    #         self.init_ddp()
-    #     self._post_init()
-    #
-    #
-    # def init_ddp(self):
-    #     ddp_rank = int(os.environ['RANK'])
-    #     ddp_local_rank = int(os.environ['LOCAL_RANK'])
-    #     self.ddp_world_size = int(os.environ['WORLD_SIZE'])
-    #     self.device = f'cuda:{ddp_local_rank}'
-    #     torch.cuda.set_device(self.device)
-    #     self.master_process = ddp_rank == 0  # this process will do logging, checkpointing etc.
-    #     self.seed_offset = ddp_rank  # each process gets a different seed
-    #     # world_size number of processes will be training simultaneously, so we can scale
-    #     # down the desired gradient accumulation iterations per process proportionally
-    #     assert self.gradient_accumulation_steps % self.ddp_world_size == 0
-    #     self.gradient_accumulation_steps //= self.ddp_world_size
-    #
-    # def _post_init(self):
-    #     if self.master_process and not os.path.isdir(self.out_dir) and self.enable_save_checkpoint:
-    #         os.makedirs(self.out_dir)
-    #     torch.backends.cuda.matmul.allow_tf32 = True  # allow tf32 on matmul
-    #     torch.backends.cudnn.allow_tf32 = True  # allow tf32 on cudnn
-    #     self.device_type = 'cuda' if 'cuda' in self.device else 'cpu'  # for later use in torch.autocast
-    #     # note: float16 data type will automatically use a GradScaler
-    #     self.ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[self.dtype]
-    #     self.ctx = nullcontext() if self.device_type == 'cpu' else torch.amp.autocast(device_type=self.device_type, dtype=self.ptdtype)
-    #     print(f"Using {self.device_type} device")
-    #
-    # def init_run(self):
-    #     if self.init_from == 'resume':
-    #         self.load_checkpoint()
-    #     elif self.init_from == 'scratch':
-    #         pass
-    #     else:
-    #         raise ValueError(f"Unknown init_from value {self.init_from}")
-    #
-    #
-    #
-    # def load_checkpoint(self, path_to_checkpoint: str = None, reset_iter_num: bool = False) -> None:
-    #
-    #     out_dir = path_to_checkpoint if path_to_checkpoint is not None else os.path.join(self.out_dir, 'ckpt.pt')
-    #     if not os.path.isfile(out_dir):
-    #         raise FileNotFoundError(f"Checkpoint file {out_dir} does not exist!")
-    #
-    #     ckpt = torch.load(out_dir, map_location=next(self.model.parameters()).device)
-    #
-    #     # clean ckpt
-    #     state_dict = ckpt['model']
-    #     unwanted_prefix = '_orig_mod.'
-    #     for k, v in list(state_dict.items()):
-    #         if k.startswith(unwanted_prefix):
-    #             state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
-    #
-    #     # load
-    #     self.model.load_state_dict(state_dict, strict=False)
-    #     # self.optimizer.load_state_dict(ckpt['optimizer'])
-    #     self.optimizer_ckpt = ckpt['optimizer']
-    #     if reset_iter_num:
-    #         self.iter_num = 0
-    #         self.best_val_loss = 1e9
-    #     else:
-    #         self.iter_num = ckpt['iter_num']
-    #         self.best_val_loss = ckpt['best_val_loss']
-    #
-    #     if 'run_id' in ckpt.keys() and self.logger is not None:
-    #         self.logger.run_id = ckpt['run_id']
-    #
-    #     print(f"Successfully loaded checkpoint from {out_dir}...")
-    #     return None
-    #
-    # def save_checkpoint(self, checkpoint_dir: str = None) -> None:
-    #
-    #     if self.enable_save_checkpoint:
-    #         out_dir = checkpoint_dir if checkpoint_dir is not None else self.out_dir
-    #         if not os.path.isdir(out_dir):
-    #             os.makedirs(out_dir)
-    #         run_id = None if self.logger is None else self.logger.run_id
-    #         raw_model = self.model.module if self.is_ddp_run else self.model
-    #         checkpoint = {
-    #             'model': raw_model.state_dict(),
-    #             'optimizer': self.optimizer.state_dict(),
-    #             'iter_num': self.iter_num,
-    #             'best_val_loss': self.best_val_loss,
-    #             'run_id': run_id,
-    #         }
-    #         torch.save(checkpoint, os.path.join(out_dir, 'ckpt.pt'))
-    #         print(f"Successfully saved to {self.out_dir}...")
-    #
-    #
-    #
-    #
-    #
-    #
-    # def _train_init(self):
-    #
-    #     set_seed(1337 + self.seed_offset)
-    #
-    #     self.model.to(self.device)
-    #
-    #     self.optimizer = self.model.configure_optimizers(
-    #         self.weight_decay, self.learning_rate, (self.beta1, self.beta2), self.device_type, self.correct_bias)
-    #
-    #     if self.optimizer_ckpt:
-    #         self.optimizer.load_state_dict(self.optimizer_ckpt)
-    #         self.optimizer_ckpt = None
-    #
-    #     if self.compile and not type(self.model).__name__ == 'OptimizedModule':
-    #         print("Compiling model..")
-    #         self.unoptimized_model = self.model
-    #         self.model = torch.compile(self.model)
-    #
-    #     # wrap model into DDP container
-    #     if self.is_ddp_run:
-    #         self.model = DDP(self.model, device_ids=[self.ddp_local_rank])
-    #
-    # @torch.no_grad()
-    # def estimate_loss(self):
-    #     out = {}
-    #     self.model.eval()
-    #
-    #     ###
-    #     # log the loss of the model->used for model selection // double the num of iters to equal for two type of tasks
-    #     # in a supervised setting some models may have None loss for some tasks
-    #     ###
-    #
-    #     for split in ['train', 'val']:
-    #         losses = torch.zeros(2 * self.eval_iters)
-    #
-    #         for k in range(self.eval_iters):
-    #             inputs = self.get_batch(split, 'lm')
-    #             with self.ctx:
-    #                 outputs = self.model(
-    #                     task='lm', input_ids=inputs['input_ids'], attention_mask=inputs['attention_mask'],
-    #                     labels=inputs['labels'], target=inputs['target'], eos_mask=inputs['eos_mask'])
-    #             losses[k] = torch.Tensor([0.]) if outputs['loss'] is None else outputs['loss'].item()
-    #
-    #         for k in range(self.eval_iters, 2 * self.eval_iters):
-    #             inputs = self.get_batch(split, 'mlm')
-    #             with self.ctx:
-    #                 outputs = self.model(
-    #                     task='mlm', input_ids=inputs['input_ids'], attention_mask=inputs['attention_mask'],
-    #                     labels=inputs['labels'], target=inputs['target'], eos_mask=inputs['eos_mask'])
-    #             losses[k] = torch.Tensor([0.]) if outputs['loss'] is None else outputs['loss'].item()
-    #
-    #         out[split] = losses[losses != 0.].mean()
-    #
-    #     ###
-    #     # Log percent of valid molecules sampled
-    #     ###
-    #
-    #     valid = []
-    #     for k in range(self.eval_iters):
-    #         idx = torch.ones(size=(self.batch_size, 1), device=self.device) * self.tokenizer.generate_token_id
-    #         idx = idx.long()
-    #         samples = self.model.generate(idx=idx, max_new_tokens=self.tokenizer.max_molecule_length)
-    #         valid.extend(self.tokenizer.is_valid_smiles(samples))
-    #     out['valid'] = sum(valid) / len(valid)
-    #
-    #     ###
-    #     # Log supervised loss for fine-tuning purposes
-    #     ###
-    #
-    #     model_name = type(self.model._orig_mod).__name__
-    #
-    #     if model_name in MLM_PREDICTION_MODELS:
-    #         task = 'mlm'
-    #     elif model_name in LM_PREDICTION_MODELS:
-    #         task = 'lm'
-    #     else:
-    #         out['train_prediction'] = 0.
-    #         out['val_prediction'] = 0.
-    #         return out
-    #
-    #     for split in ['train', 'val']:
-    #         losses = torch.zeros(2 * self.eval_iters)
-    #         for k in range(2 * self.eval_iters):
-    #             inputs = self.get_batch(split, task)
-    #             with self.ctx:
-    #                 outputs = self.model(
-    #                     task=task, input_ids=inputs['input_ids'], attention_mask=inputs['attention_mask'],
-    #                     labels=inputs['labels'], target=inputs['target'], eos_mask=inputs['eos_mask'])
-    #             losses[k] = torch.Tensor([0.]) if outputs['supervised_loss'] is None else outputs['supervised_loss'].item()
-    #
-    #         out[split + '_prediction'] = losses[losses != 0.].mean()
-    #
-    #     self.model.train()
-    #     return out
-    #
-    # def evaluate(self):
-    #     losses = self.estimate_loss()
-    #
-    #     print(
-    #         f"Evaluation at iter {self.iter_num}: train loss {losses['train']:.4f},"
-    #         f" val loss {losses['val']:.4f},"
-    #         f" percent {losses['valid']:.4f}")
-    #
-    #     if self.master_process and self.logger is not None:
-    #         self.logger.log({
-    #                 "iter": self.iter_num,
-    #                 "train/loss": losses['train'],
-    #                 "val/loss": losses['val'],
-    #                 "train/loss_prediction": losses['train_prediction'],
-    #                 "val/loss_prediction": losses['val_prediction'],
-    #                 "val/valid": losses['valid'],
-    #                 "lr": self.current_learning_rate,})
-    #
-    #     if losses['val'] < self.best_val_loss or self.always_save_checkpoint:
-    #         self.best_val_loss = losses['val']
-    #         if self.iter_num > 0:
-    #             self.save_checkpoint()
-    #
-    # @torch.no_grad()
-    # def test(self, dataset):
-    #     batch_size = 64
-    #     out = {}
-    #     self._train_init()
-    #     self.logger.init_run()
-    #     self.model.eval()
-    #     loss_l1 = torch.nn.L1Loss(reduction='mean')
-    #     loss_mse = torch.nn.MSELoss(reduction='mean')
-    #
-    #     idx = [i for i in range(len(dataset))]
-    #     idx_batched = [idx[i: i + batch_size] for i in range(0, len(idx), batch_size)]
-    #
-    #     model_name = type(self.model._orig_mod).__name__
-    #
-    #     if model_name in MLM_PREDICTION_MODELS:
-    #         task = 'mlm'
-    #     elif model_name in LM_PREDICTION_MODELS:
-    #         task = 'lm'
-    #     else:
-    #         raise ValueError(f'Model {model_name} not in {MLM_PREDICTION_MODELS, LM_PREDICTION_MODELS}.')
-    #
-    #     predictions = []
-    #     targets = []
-    #
-    #     for batch in range(len(idx_batched)):
-    #         idx = torch.Tensor(idx_batched[batch]).to(torch.long)
-    #         inputs = self.tokenizer.get_inputs(
-    #             dataset=dataset, task=task, batch_size=self.batch_size, device=self.device, idx=idx)
-    #         with self.ctx:
-    #             outputs = self.model(
-    #                 task=task, input_ids=inputs['input_ids'], attention_mask=inputs['attention_mask'],
-    #                 labels=inputs['labels'], target=inputs['target'], eos_mask=inputs['eos_mask'])
-    #
-    #         predictions.extend(dataset.undo_target_transform(outputs['prediction'].cpu()))
-    #         targets.extend(dataset.undo_target_transform(inputs['target'].cpu()))
-    #
-    #     predictions = torch.Tensor(predictions)
-    #     targets = torch.Tensor(targets)
-    #
-    #     out['MSE'] = loss_mse(predictions, targets).item()
-    #     out['RMSE'] = torch.sqrt(loss_mse(predictions, targets)).item()
-    #     out['MAE'] = loss_l1(predictions, targets).item()
-    #     out['y_pred'] = [item.item() for item in predictions]
-    #     out['y_true'] = [item.item() for item in targets]
-    #
-    #     if self.master_process and self.logger is not None:
-    #         self.logger.log({"test/MSE": out['MSE'], "test/RMSE": out['RMSE'], "test/MAE": out['MAE']})
-    #
-    #     return out
-    #
-    # @staticmethod
-    # def get_task(task_p: float):
-    #     p = torch.bernoulli(torch.Tensor([task_p]))
-    #     if p == 1:
-    #         return 'lm'
-    #     elif p == 0:
-    #         return 'mlm'
-    #     else:
-    #         raise ValueError("Wrong task!")

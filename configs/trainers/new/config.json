@@ -23,7 +23,6 @@
   "tasks":
     {
       "lm":  1,
-      "mlm": 1,
-      "prediction": 1
+      "physchem": 1
     }
 }

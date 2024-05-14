@@ -1,3 +1,4 @@
+from typing import Optional, List
 from jointformer.configs.base import Config
 
 
@@ -5,12 +6,18 @@ class LoggerConfig(Config):
 
     def __init__(
         self,
-        wandb_log,
-        wandb_project,
-        wandb_run_name
+        log,
+        user,
+        project,
+        resume,
+        display_name: Optional[str] = None,
+        config: Optional[List[Config]] = None,
     ):
 
         super().__init__()
-        self.wandb_log = wandb_log
-        self.wandb_project = wandb_project
-        self.wandb_run_name = wandb_run_name
+        self.log = log
+        self.user = user
+        self.project = project
+        self.resume = resume
+        self.display_name = display_name
+        self.config = config

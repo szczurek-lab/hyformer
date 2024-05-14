@@ -3,49 +3,53 @@ import json
 import wandb
 
 from datetime import datetime
+from typing import Optional, List
+from jointformer.configs.base import Config
+from jointformer.configs.logger import LoggerConfig
 
 
 class WandbLogger:
 
-    def __init__(self, logger_config, configs_to_store):
+    def __init__(
+            self,
+            log,
+            user,
+            project,
+            resume,
+            display_name: Optional[str] = None,
+            config: Optional[List[Config]] = None
+    ):
+        self.log = log
+        self.user = user
+        self.project = project
+        self.resume = resume
+        self.display_name = display_name
+        self.config = config
 
-        self.enable_logging = logger_config.wandb_log
-        self.project = logger_config.project
-        self.name = logger_config.name
-        self.configs_to_store = configs_to_store
-        self._prepare_config_to_store()
-        self.run_id = None
+    def set_display_name(self, display_name: str):
+        self.display_name = display_name
 
-    def init_run(self, run_id=None, resume=False):
+    def store_config(self, config_list: List[Config]):
+        if self.config:
+            self.config = {}
+            for config in config_list:
+                config_name = config.__class__.__name__.lower()
+                self.config[config_name] = config.to_dict()
 
-        if self.enable_logging:
-            if self.run_id and resume:
-                print("Resuming run", self.run_id, "...")
-                wandb.init(id=self.run_id, resume="must")
-            else:
-                if self.name is None:
-                    self.name = self.configs_to_store['ModelConfig']['model_name']
-                self.run = wandb.init(
-                    project=self.project,
-                    name=self.name,
-                    config=self.configs_to_store)
-                self.run_id = self.run._run_id
+    def save_config(self, out_dir: str):
+        if self.config:
+            with open(os.path.join(out_dir, 'config.json'), 'w') as fp:
+                json.dump(self.config, fp)
 
-    def log(self, ckpt_log: dict):
-        if self.enable_logging:
-            wandb.log(ckpt_log)
+    def init_run(self):
+        if self.log:
+            wandb.init(
+                entity=self.user, project=self.project, resume=self.resume, name=self.display_name, config=self.config)
 
-    def finish(self):
-        if self.enable_logging:
-            self.run.finish()
+    def log(self, log: dict):
+        if self.log:
+            wandb.log(log)
 
-    def store_configs(self, out_dir: str):
-        with open(os.path.join(out_dir, 'data.json'), 'w') as fp:
-            json.dump(self.configs_to_store, fp)
-
-    def _prepare_config_to_store(self):
-        output_config = {}
-        for config_to_store in self.configs_to_store:
-            output_config[str(config_to_store.__class__.__name__)] = config_to_store.to_dict()
-        self.configs_to_store = output_config
-        return None
+    @classmethod
+    def from_config(cls, logger_config: LoggerConfig):
+        return cls(**logger_config.to_dict())
