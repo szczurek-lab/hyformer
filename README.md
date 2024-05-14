@@ -27,11 +27,9 @@ conda config --set solver libmamba
 
 ### Repository Structure
 
-The repository is structured as follows:
-
 ```
 .
-├── configs/              # Configuration files for tasks, models and trainers
+├── configs/              # Configuration files
 ├── data/                 # Datasets and vocabularies
 ├── experiments/          # Scripts to run experiments
 ├── results/              # Directory to store results
@@ -39,7 +37,7 @@ The repository is structured as follows:
     ├── configs/          # Configuration classes
     ├── models/           # Model classes
     ├── trainers/         # Trainer classes
-    └── utils/            # Utility classes
+    └── utils/           
         ├── datasets/     # Dataset classes
         ├── tokenizers/   # Tokenizer classes
         └── ...           # Other utility classes
@@ -142,7 +140,7 @@ trainer_config = TrainerConfig.from_pretrained(PATH_TO_TRAINER_CONFIG)
 trainer = Trainer(config=trainer_config, model=model, train_dataset=dataset, tokenizer=tokenizer)
 trainer.train()
 ```
-
+----
 ## Experiments
 
 The following code is used to reproduce all the experiments.
@@ -151,49 +149,13 @@ The following code is used to reproduce all the experiments.
 
 To train a model run 
 ```
-python experiments/joint_learning/train.py 
-  --out_dir ./results/joint_learning/{MODEL}
-  --path_to_model_config ./configs/models/{MODEL}
-  --path_to_trained_config ./configs/trainers/joint_learning
+bash experiments/joint_learning/train.sh
 ```
 
-### Pre-Training 
-
-To pre-train a model run 
-```
-python scripts/pretrain/train.py 
-  --out_dir ./results/pretrain/{MODEL}
-  --path_to_model_config ./configs/models/{MODEL}
-```
-to eval
-```
-CUDA_VISIBLE_DEVICES=${GPU_ID} python scripts/pretrain/eval.py --out_dir ./results/pretrain/{MODEL} --path_to_model_config ./configs/models/{MODEL}
-```
-
-### Joint Learning
-
-Joint learning takes a pre-trained model and trains it jointly on generation and prediction tasks 
-
-```
-CUDA_VISIBLE_DEVICES=${GPU_ID} python scripts/joint_learning/train.py 
-  --out_dir ./results/joint_learning/
-```
-
-Evaluate with
-```
-CUDA_VISIBLE_DEVICES={GPU_ID} python scripts/joint_learning/evaluate.py 
-  --out_dir ./results/joint_learning
-  --data_reference_file ./data/guacamol/test/smiles.txt
-```
-
-```
-CUDA_VISIBLE_DEVICES=3 python scripts/joint_learning/eval.py --out_dir /raid/aizd/hybrid_transformer/results/table_1/ --data_reference_file ./data/guacamol/test/smiles.txt
-```
-
+----
 ## Downloads
 
 Download ZINC15 data from [here](https://az.box.com/s/7eci3nd9vy0xplqniitpk02rbg9q2zcq)
 
-## Results
-
+----
 ## References

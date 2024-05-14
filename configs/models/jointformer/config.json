@@ -10,5 +10,6 @@
   "vocab_size": 588,
   "task_p": 0.95,
   "prediction_task": "regression",
-  "num_prediction_tasks": 1
+  "num_prediction_tasks": 1,
+  "num_physchem_tasks": 1
 }

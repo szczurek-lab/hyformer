@@ -47,7 +47,7 @@ def set_to_dev_mode(**kwargs):
 
     if task_config:
         if hasattr(task_config, "num_samples"):
-            task_config.num_samples = 2
+            task_config.num_samples = 4
     if model_config:
         if hasattr(model_config, "num_layers"):
             model_config.num_layers = 1

@@ -8,6 +8,8 @@ from typing import Optional
 from jointformer.models.transformer import Transformer
 from jointformer.utils.tokenizers.smiles.smiles import IGNORE_INDEX
 
+DEFAULT_NUM_PHYCHEM_TASKS = 200
+
 
 class Jointformer(Transformer):
 
@@ -21,8 +23,10 @@ class Jointformer(Transformer):
             bias: int,
             num_heads: int,
             num_prediction_tasks: int,
+            num_physchem_tasks: Optional[int] = DEFAULT_NUM_PHYCHEM_TASKS,
             init_weights: bool = True,
-            tie_weights: bool = True):
+            tie_weights: bool = True,
+    ):
 
         super().__init__(
             vocab_size=vocab_size, max_seq_len=max_seq_len, embedding_dim=embedding_dim,
@@ -35,7 +39,7 @@ class Jointformer(Transformer):
             nn.Dropout(self.dropout),
             nn.Linear(self.embedding_dim, self.embedding_dim),
             nn.ReLU(),
-            nn.Linear(self.embedding_dim, 200),
+            nn.Linear(self.embedding_dim, num_physchem_tasks),
         )
         self.prediction_head = nn.Linear(self.embedding_dim, num_prediction_tasks, bias=False)
 
@@ -243,5 +247,6 @@ class Jointformer(Transformer):
             num_layers=config.num_layers,
             bias=config.bias,
             num_heads=config.num_heads,
-            num_prediction_tasks=config.num_prediction_tasks
+            num_prediction_tasks=config.num_prediction_tasks,
+            num_physchem_tasks=config.num_physchem_tasks,
         )

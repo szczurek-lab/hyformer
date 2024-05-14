@@ -18,7 +18,8 @@ class ModelConfig(Config):
         max_seq_len: int,
         task_p: Optional[float] = None,
         prediction_task: Optional[str] = None,
-        num_prediction_tasks: Optional[int] = None
+        num_prediction_tasks: Optional[int] = None,
+        num_physchem_tasks: Optional[int] = None
     ):
         super().__init__()
         self.model_name = model_name
@@ -33,3 +34,4 @@ class ModelConfig(Config):
         self.task_p = task_p
         self.prediction_task = prediction_task
         self.num_prediction_tasks = num_prediction_tasks
+        self.num_physchem_tasks = num_physchem_tasks

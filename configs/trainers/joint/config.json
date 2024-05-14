@@ -22,7 +22,6 @@
   "block_size": 128,
   "tasks":
     {
-      "lm":  1,
-      "physchem": 1
+      "lm":  1
     }
 }

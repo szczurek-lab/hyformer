@@ -227,7 +227,7 @@ class Trainer:
     def _sample(self, dataset, task):
         """Acts as a data loader / collate_fn for the dataset."""
         idx = [idx for idx in range(len(dataset))]
-        idx = random.sample(idx, self.batch_size)
+        idx = random.sample(idx, min(self.batch_size, len(idx)))
         sampled = [dataset[i] for i in idx]
 
         if isinstance(sampled[0], tuple):
