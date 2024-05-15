@@ -9,9 +9,11 @@ from guacamol.utils.chemistry import is_valid
 from jointformer.utils.tokenizers.smiles.deepchem import DeepChemSmilesTokenizer
 
 IGNORE_INDEX = -100  # same as in transformers library
-PREDICTION_TOKEN = '[PRED]'
-RECONSTRUCTION_TOKEN = '[REC]'
-GENERATION_TOKEN = '[BOS]'
+CLS_TOKEN = '[BOS]'
+SEP_TOKEN = '[EOS]'
+MASK_TOKEN = '[MASK]'
+PAD_TOKEN = '[PAD]'
+UNK_TOKEN = '[UNK]'
 
 
 class SmilesTokenizer(DeepChemSmilesTokenizer):
@@ -34,15 +36,17 @@ class SmilesTokenizer(DeepChemSmilesTokenizer):
         set_separate_task_tokens: Optional[bool] = False
     ):
 
+        if set_separate_task_tokens:
+            raise NotImplementedError("Setting separate task tokens is not implemented")
+
         super().__init__(
             path_to_vocabulary=path_to_vocabulary,
-            cls_token='[GEN]',
-            sep_token='[EOS]',
-            mask_token="[MASK]",
-            pad_token="[PAD]",
-            unk_token="[UNK]",
-            bos_token="[BOS]",
-            additional_special_tokens=[PREDICTION_TOKEN, RECONSTRUCTION_TOKEN, GENERATION_TOKEN])
+            cls_token=CLS_TOKEN,
+            sep_token=SEP_TOKEN,
+            mask_token=MASK_TOKEN,
+            pad_token=PAD_TOKEN,
+            unk_token=UNK_TOKEN,
+            additional_special_tokens=None)
 
         self.max_molecule_length = max_molecule_length
         self.mlm_probability = mlm_probability
@@ -54,8 +58,8 @@ class SmilesTokenizer(DeepChemSmilesTokenizer):
 
     def _post_init(self):
 
-        if self.set_separate_task_tokens:
-            self.add_tokens([PREDICTION_TOKEN, RECONSTRUCTION_TOKEN, GENERATION_TOKEN], special_tokens=True)
+        # if self.set_separate_task_tokens:
+        #     self.add_tokens([PREDICTION_TOKEN, RECONSTRUCTION_TOKEN, GENERATION_TOKEN], special_tokens=True)
 
         self.id_to_token = {key: item for item, key in self.vocab.items()}
         for id, special_token in enumerate(self.additional_special_tokens):

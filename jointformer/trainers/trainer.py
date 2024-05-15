@@ -79,6 +79,7 @@ class Trainer:
         self.min_lr = config.min_lr
         self.decay_lr = config.decay_lr
         self.always_save_checkpoint = config.always_save_checkpoint
+        self.save_checkpoint_every = config.save_checkpoint_every
         self.eval_only = config.eval_only
         self.eval_interval = config.eval_interval
         self.max_iters = config.max_iters
@@ -146,6 +147,9 @@ class Trainer:
         self.task_distribution = Categorical(torch.Tensor(list(self.tasks.values())))
         if self.logger:
             self.logger.init_run()
+
+        if len(self.tokenizer) != self.model.vocab_size:
+            raise ValueError("Tokenizer and model not compatible")
 
     def _sample_task(self):
         return list(self.tasks.keys())[self.task_distribution.sample().item()]
@@ -253,8 +257,6 @@ class Trainer:
     @torch.no_grad()
     def estimate_loss(self):
 
-        #todo: log as train/task and val/task, and later test/task
-
         self.model.eval()
         out = {}
         splits = []
@@ -341,18 +343,24 @@ class Trainer:
                 self.logger.log(log_dict)
 
             if 'val' in losses:
+                # print(losses['val']['combined'])
+                # print(self._best_val_loss)
                 if losses['val']['combined'] < self._best_val_loss or self.always_save_checkpoint:
-                    self._best_val_loss = losses['val']
+                    self._best_val_loss = losses['val']['combined']
                     if self._iter_num > 0 and self.out_dir:
-                        checkpoint = {
-                            'model': self.raw_model.state_dict(),
-                            'optimizer': self.optimizer.state_dict(),
-                            # 'model_args': model_args,
-                            'iter_num': self._iter_num,
-                            'best_val_loss': self._best_val_loss,
-                            # 'config': config,
-                        }
-                        torch.save(checkpoint, os.path.join(self.out_dir, 'ckpt.pt'))
+                        self._save_ckpt()
+                if self._iter_num % self.save_checkpoint_every == 0 and self.out_dir:
+                    self._save_ckpt(iter_num=self._iter_num)
+
+    def _save_ckpt(self, iter_num: Optional[int] = None):
+        filename = 'ckpt.pt' if iter_num is None else f'ckpt_{iter_num}.pt'
+        checkpoint = {
+            'model': self.raw_model.state_dict(),
+            'optimizer': self.optimizer.state_dict(),
+            'iter_num': self._iter_num,
+            'best_val_loss': self._best_val_loss,
+        }
+        torch.save(checkpoint, os.path.join(self.out_dir, filename))
 
     def _terminate(self):
         if self._iter_num > self.max_iters:
@@ -375,7 +383,6 @@ class Trainer:
 
     def train(self):
 
-        # training loop
         inputs = self.get_training_batch()
         t0 = time.time()
         local_iter_num = 0  # number of iterations in the lifetime of this process
@@ -428,6 +435,6 @@ class Trainer:
                     mfu = self.raw_model.estimate_mfu(self.batch_size * self.gradient_accumulation_steps, dt)
                     self._running_mfu = mfu if self._running_mfu == -1.0 else 0.9 * self._running_mfu + 0.1 * mfu
                 print(f"iter {self._iter_num}: loss {lossf:.6f}, lr {self._learning_rate:.6f},"
-                      f" time {dt * 1000:.2f}ms, mfu {self._running_mfu * 100:.2f}%")
+                      f" time {dt * 1000:.2f}ms, mfu {self._running_mfu * 100:.2f}%", end='\r')
             self._iter_num += 1
             local_iter_num += 1

@@ -23,14 +23,15 @@ class Jointformer(Transformer):
             bias: int,
             num_heads: int,
             num_prediction_tasks: int,
+            layer_norm_eps: float,
             num_physchem_tasks: Optional[int] = DEFAULT_NUM_PHYCHEM_TASKS,
             init_weights: bool = True,
-            tie_weights: bool = True,
+            tie_weights: bool = True
     ):
 
         super().__init__(
             vocab_size=vocab_size, max_seq_len=max_seq_len, embedding_dim=embedding_dim,
-            dropout=dropout, num_layers=num_layers, bias=bias, num_heads=num_heads)
+            dropout=dropout, num_layers=num_layers, bias=bias, num_heads=num_heads, layer_norm_eps=layer_norm_eps)
 
         # Hardcoding all tasks into the model definition for easier serialization
         self.lm_head = nn.Linear(self.embedding_dim, self.vocab_size, bias=False)
@@ -249,4 +250,5 @@ class Jointformer(Transformer):
             num_heads=config.num_heads,
             num_prediction_tasks=config.num_prediction_tasks,
             num_physchem_tasks=config.num_physchem_tasks,
+            layer_norm_eps=config.layer_norm_eps
         )

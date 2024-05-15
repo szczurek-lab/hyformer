@@ -7,11 +7,11 @@ from jointformer.models.layers.mlp import MLP
 
 class TransformerBlock(nn.Module):
 
-    def __init__(self, embed_dim, bias, dropout, num_heads, block_size):
+    def __init__(self, embed_dim, bias, dropout, num_heads, block_size, layer_norm_eps):
         super().__init__()
-        self.ln_1 = LayerNorm(embed_dim, bias)
+        self.ln_1 = LayerNorm(embed_dim, bias, layer_norm_eps)
         self.attn_1 = SelfAttention(embed_dim, num_heads, bias, dropout, block_size)
-        self.ln_2 = LayerNorm(embed_dim, bias)
+        self.ln_2 = LayerNorm(embed_dim, bias, layer_norm_eps)
         self.mlp = MLP(embed_dim, bias, dropout)
 
     def forward(self, x, is_causal, mask=None):

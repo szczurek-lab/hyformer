@@ -22,6 +22,7 @@ class TrainerConfig(Config):
         min_lr,
         decay_lr,
         always_save_checkpoint,
+        save_checkpoint_every,
         eval_only,
         eval_interval,
         log_interval,
@@ -57,6 +58,7 @@ class TrainerConfig(Config):
         self.eval_interval = eval_interval
         self.log_interval = log_interval
         self.always_save_checkpoint = always_save_checkpoint
+        self.save_checkpoint_every = save_checkpoint_every
 
         # others
         self.block_size = block_size

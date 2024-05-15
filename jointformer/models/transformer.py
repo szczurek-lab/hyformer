@@ -13,7 +13,7 @@ class Transformer(nn.Module):
 
     def __init__(
             self, vocab_size: int, max_seq_len: int, embedding_dim: int,
-            dropout: float, num_layers: int, bias: int, num_heads: int,):
+            dropout: float, num_layers: int, bias: int, num_heads: int, layer_norm_eps: float):
         super().__init__()
         self.vocab_size = vocab_size
         self.max_seq_len = max_seq_len
@@ -23,6 +23,7 @@ class Transformer(nn.Module):
         self.bias = bias
         self.num_heads = num_heads
         self.prediction_head_output_dim = 1
+        self.layer_norm_eps = layer_norm_eps
 
         self.transformer = nn.ModuleDict(dict(
             wte  = nn.Embedding(self.vocab_size, self.embedding_dim),
@@ -31,8 +32,8 @@ class Transformer(nn.Module):
             h    = nn.ModuleList(
                 [TransformerBlock(
                     self.embedding_dim, self.bias, self.dropout, self.num_heads,
-                    self.max_seq_len) for _ in range(self.num_layers)]),
-            ln_f = LayerNorm(self.embedding_dim, bias=self.bias),
+                    self.max_seq_len, self.layer_norm_eps) for _ in range(self.num_layers)]),
+            ln_f = LayerNorm(self.embedding_dim, bias=self.bias, eps=self.layer_norm_eps),
         ))
 
     def forward(
