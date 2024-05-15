@@ -10,8 +10,6 @@ import torchvision.transforms as transforms
 from tqdm import tqdm
 from typing import List, Callable, Optional, Union
 
-from guacamol.utils.chemistry import is_valid
-
 from jointformer.utils.transforms.auto import AutoTransform
 from jointformer.utils.targets.auto import AutoTarget
 from jointformer.utils.datasets.utils import read_strings_from_file
@@ -19,6 +17,7 @@ from jointformer.utils.targets.utils import save_floats_to_file, read_floats_fro
 
 from jointformer.utils.datasets.base import BaseDataset
 
+from jointformer.utils.datasets.smiles.utils import is_valid
 
 AVAILABLE_TARGETS = ["qed", "physchem"]
 
