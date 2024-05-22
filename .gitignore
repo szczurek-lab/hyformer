@@ -165,3 +165,6 @@ data/*
 # Results
 results/
 wandb/
+
+# github
+.github/

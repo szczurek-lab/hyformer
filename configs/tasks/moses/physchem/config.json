@@ -1,6 +1,6 @@
 {
   "dataset_name": "guacamol",
-  "target_label": "qed",
+  "target_label": "physchem",
   "validate": false,
   "num_samples": 100,
   "split": null,

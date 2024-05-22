@@ -1,13 +1,12 @@
 {
   "dataset_name": "guacamol",
-  "target_label": "qed",
+  "target_label": null,
   "validate": false,
-  "num_samples": 100,
-  "split": null,
+  "num_samples": null,
+  "split": "all",
   "transform": [{"name": "smiles_enumerator", "params": {"enumeration_probability": 0.8}}],
   "target_transform": null,
   "tokenizer": "SmilesTokenizer",
   "path_to_vocabulary": "./data/vocabularies/guacamol.txt",
-  "max_molecule_length": 128,
-  "set_separate_task_tokens": false
+  "max_molecule_length": 128
 }

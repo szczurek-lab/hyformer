@@ -4,7 +4,7 @@ from urllib.request import urlretrieve
 from typing import List, Optional, Union, Callable
 
 from jointformer.configs.task import TaskConfig
-from jointformer.utils.datasets.smiles.smiles import SmilesDataset
+from jointformer.utils.datasets.smiles.base import SmilesDataset
 from jointformer.utils.targets.utils import save_floats_to_file
 
 DATASET_SEED = 0
@@ -45,19 +45,13 @@ class Guacamol(SmilesDataset):
             data_file_path=self._data_filename, target_file_path=self._target_filename, transform=transform,
             target_transform=target_transform, num_samples=num_samples, validate=validate)
 
-    def _set_path_to_data_dir(self) -> None:
-        self._path_to_data_dir = os.path.join(DATA_FOLDER, self.split)
-        if self.num_samples is not None:
-            self._path_to_data_dir = os.path.join(self._path_to_data_dir, str(self.num_samples))
-        return None
-
-    def _get_data(self) -> None:
+    def _download(self) -> None:
         self._data_filename = os.path.join(self._path_to_data_dir, DATA_FILE_NAME)
         if not os.path.exists(self._data_filename):
-            self._download_guacamol_data()
+            self._download_data()
             return None
 
-    def _download_guacamol_data(self) -> None:
+    def _download_data(self) -> None:
         print("Downloading Guacamol data...")
         os.makedirs(self._path_to_data_dir, exist_ok=True)
         urlretrieve(GUACAMOL_URL[self.split], self._data_filename)

@@ -13,7 +13,11 @@ class AutoDataset:
         if split is not None:
             config.split = split
 
-        if config.dataset_name == 'guacamol':
+        if config.dataset_name == 'moses':
+            return getattr(importlib.import_module(
+                "jointformer.utils.datasets.smiles.moses"),
+                "MOSES").from_config(config)
+        elif config.dataset_name == 'guacamol':
             return getattr(importlib.import_module(
                 "jointformer.utils.datasets.smiles.guacamol"),
                 "Guacamol").from_config(config)

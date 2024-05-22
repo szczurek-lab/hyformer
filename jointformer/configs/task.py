@@ -8,7 +8,7 @@ class TaskConfig(Config):
     def __init__(
             self,
             dataset_name: str,
-            target_label: str,
+            target: str,
             validate: bool,
             num_samples: int,
             split: str,
@@ -21,7 +21,7 @@ class TaskConfig(Config):
     ):
         super().__init__()
         self.dataset_name = dataset_name
-        self.target_label = target_label
+        self.target = target
         self.validate = validate
         self.num_samples = num_samples
         self.split = split

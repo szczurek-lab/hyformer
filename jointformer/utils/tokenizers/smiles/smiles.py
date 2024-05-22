@@ -65,7 +65,7 @@ class SmilesTokenizer(DeepChemSmilesTokenizer):
             self.id_to_token[self.additional_special_tokens_ids[id]] = self.additional_special_tokens[id]
         self.token_to_id = {item: key for item, key in self.vocab.items()}
 
-    def __call__(self, examples: str or List[str], task: str = 'lm') -> dict:
+    def __call__(self, examples: str or List[str], targets: Optional[Any] = None, task: str = 'lm') -> dict:
         """ Tokenize a SMILES string or a list of SMILES strings.
 
         Parameters
@@ -107,6 +107,9 @@ class SmilesTokenizer(DeepChemSmilesTokenizer):
 
         if self.set_separate_task_tokens:
             batch = self.set_task_token(batch, task)
+
+        if targets is not None:
+            batch["targets"] = targets
 
         return batch
 
