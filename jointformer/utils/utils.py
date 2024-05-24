@@ -1,11 +1,14 @@
+import os, sys
 import torch
-from collections.abc import MutableMapping
-
-import os
+import logging
 import random
-import torch
 
 import numpy as np
+
+from collections.abc import MutableMapping
+
+
+logger = logging.getLogger(__name__)
 
 
 def set_seed(seed: int = 42) -> None:
@@ -22,7 +25,7 @@ def set_seed(seed: int = 42) -> None:
     torch.backends.cudnn.benchmark = False
     # Set a fixed value for the hash seed
     os.environ["PYTHONHASHSEED"] = str(seed)
-    print(f"Random seed set to {seed}")
+    logger.info(f"Random seed set to {seed}")
     return None
 
 
@@ -55,8 +58,6 @@ def flatten(dictionary, parent_key='', separator='_'):
         else:
             items.append((new_key, value))
     return dict(items)
-
-import os, sys
 
 class HiddenPrints:
     def __enter__(self):

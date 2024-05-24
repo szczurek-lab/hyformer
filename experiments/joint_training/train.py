@@ -30,6 +30,7 @@ logging.basicConfig(
     format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
     datefmt='%H:%M:%S',
 )
+logging.captureWarnings(True)
 
 DEFAULT_SEED_ARRAY = [1337]
 DDP_BACKEND = "nccl"
