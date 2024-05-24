@@ -5,6 +5,7 @@ import numpy as np
 
 
 from tqdm import tqdm
+from rdkit import Chem
 from typing import List, Callable, Optional, Union
 
 from jointformer.utils.datasets.utils import read_strings_from_file
@@ -44,7 +45,9 @@ class SmilesDataset(BaseDataset):
     def _validate_data(self):
         if self.validate and self.data:
             self.data = [x for x in tqdm(self.data, desc="Validating SMILES data") if is_valid(x)]
-            self.data = [x for x in self.data if len(x) > 0]
+            # self.data = [x for x in self.data if len(x) > 0]
+            self.data = [Chem.MolToSmiles(Chem.MolFromSmiles(smiles), canonical=False, isomericSmiles=True)
+                         for smiles in tqdm(self.data, desc="Standardizing SMILES data")]
 
     def _validate_target(self):
         if self.validate and self.data and self.target:

@@ -11,6 +11,8 @@ class LoggerConfig(Config):
         user,
         project,
         resume,
+        watch,
+        watch_freq,
         display_name: Optional[str] = None,
         config: Optional[List[Config]] = None,
     ):
@@ -21,5 +23,7 @@ class LoggerConfig(Config):
         self.user = user
         self.project = project
         self.resume = resume
+        self.watch = watch
+        self.watch_freq = watch_freq
         self.display_name = display_name
         self.config = config

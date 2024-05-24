@@ -13,21 +13,20 @@ The tokenizer encodes SMILES strings using the tokenization SMILES regex develop
 import re
 from typing import List
 
-SMILES_REGEX_PATTERN = r"""(\[[^\]]+]|Br?|Cl?|N|O|S|P|F|I|b|c|n|o|s|p|\(|\)|\.|=|
-#|-|\+|\\|\/|:|~|@|\?|>>?|\*|\$|\%[0-9]{2}|[0-9])"""
+REGEX_PATTERN = r"""(\[[^\]]+]|Br?|Cl?|N|O|S|P|F|I|b|c|n|o|s|p|\(|\)|\.|=|#|-|\+|\\|\/|:|~|@|\?|>>?|\*|\$|\%[0-9]{2}|[0-9])"""
 
 
 class RegexSmilesTokenizer:
     """ Tokenization of SMILES strings based on a regex pattern developed by [1].
     """
 
-    def __init__(self, regex_pattern: str = SMILES_REGEX_PATTERN):
+    def __init__(self, regex_pattern: str = REGEX_PATTERN):
         self.regex_pattern = regex_pattern
         self.regex = re.compile(self.regex_pattern)
 
     def tokenize(self, text):
-        tokens = [token for token in self.regex.findall(text)]
+        tokens = list(self.regex.findall(text))
+        reconstructed = "".join(tokens)
+        if reconstructed != text:
+            raise ValueError(f"Tokenization failed. Original: {tokens}, Reconstructed: {reconstructed}")
         return tokens
-
-    def _split_into_tokens(self, text: str) -> List[str]:
-        return self.regex.findall(text)

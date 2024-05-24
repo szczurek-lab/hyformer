@@ -167,4 +167,8 @@ results/
 wandb/
 
 # github
+.github
 .github/
+
+# logs
+.log

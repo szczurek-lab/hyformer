@@ -4,7 +4,7 @@ import torch
 
 from typing import List, Tuple, Any, Optional, Union
 
-from jointformer.utils.datasets.smiles.utils import is_valid
+from jointformer.utils.datasets.smiles.utils import is_valid, canonicalize
 from jointformer.utils.tokenizers.smiles.deepchem import DeepChemSmilesTokenizer
 
 IGNORE_INDEX = -100  # same as in transformers library

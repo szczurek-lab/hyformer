@@ -3,6 +3,8 @@ import time
 import math
 import torch
 import random
+import json
+import logging
 
 from typing import Optional, Any
 from contextlib import nullcontext
@@ -16,8 +18,9 @@ from jointformer.models.transformer import Transformer
 from jointformer.utils.loggers.wandb import WandbLogger
 from jointformer.utils.datasets.base import BaseDataset
 
-SNAPSHOT_FILE = 'snapshot.ckpt'
-
+logger = logging.getLogger(__name__)
+SNAPSHOT_FILENAME = 'snap.ckpt'
+MODEL_FILENAME = 'ckpt.pt'
 
 class Trainer:
     """Trainer for a Transformer model.
@@ -37,7 +40,8 @@ class Trainer:
             test_dataset: Optional[BaseDataset] = None,
             tokenizer: Optional[Any] = None,
             tasks: Optional[dict] = None,
-            logger: Optional[WandbLogger] = None
+            logger: Optional[WandbLogger] = None,
+            device_type: Optional[str] = 'cuda'
     ):
         """ Initialize the Trainer class.
 
@@ -59,6 +63,8 @@ class Trainer:
         self.model = model
         self.tasks = tasks
         self.logger = logger
+        self.device_type = 'cuda' if torch.cuda.is_available() and device_type == 'cuda' else 'cpu'
+        self._loss_dict = {}
 
         # set config args
         self.compile = config.compile
@@ -67,6 +73,7 @@ class Trainer:
         self.batch_size = config.batch_size
         self.block_size = config.block_size
         self.dtype = config.dtype
+        self.ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[self.dtype]
         self.weight_decay = config.weight_decay
         self.learning_rate = config.learning_rate
         self.beta1 = config.beta1
@@ -88,11 +95,12 @@ class Trainer:
 
         self._iter_num = 0
         self._best_val_loss = 1e9
-        self._snapshot_filepath = os.path.join(self.out_dir, SNAPSHOT_FILE) if self.out_dir else None
+        self._snapshot_filepath = os.path.join(self.out_dir, SNAPSHOT_FILENAME) if self.out_dir else None
         self._learning_rate = None
         self._running_mfu = 0.0
 
         self._get_ddp_config()
+        self._check_dtype()
         self._init_run()
         self._resume()
         self._init_optimizer()
@@ -107,9 +115,8 @@ class Trainer:
             self.ddp_local_rank = int(os.environ['LOCAL_RANK'])
             self.ddp_world_size = int(os.environ['WORLD_SIZE'])
             self.device = f'cuda:{self.ddp_local_rank}'
-            torch.cuda.set_device(self.device)
             self.master_process = self.ddp_rank == 0  # this process will do logging, checkpointing etc.
-            self.seed_offset = self.ddp_rank  # each process gets a different seed
+            self.seed_offset = self.ddp_rank * 1234  # each process gets a different torch seed
             # world_size number of processes will be training simultaneously, so we can scale
             # down the desired gradient accumulation iterations per process proportionally
             assert self.gradient_accumulation_steps % self.ddp_world_size == 0
@@ -122,34 +129,27 @@ class Trainer:
             self.ddp_world_size = 1
             self.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
-    def _init_run(self):
-
-        tokens_per_iter = self.gradient_accumulation_steps * self.ddp_world_size * self.batch_size * self.block_size
-        print(f"tokens per iteration set to: {tokens_per_iter:,}")
-
-        if self.master_process and self.out_dir:
-            os.makedirs(self.out_dir, exist_ok=True)
-
-        torch.manual_seed(self.seed + self.seed_offset)
-        self.device_type = 'cuda' if torch.cuda.is_available() else 'cpu'
-        torch.backends.cuda.matmul.allow_tf32 = True  # allow tf32 on matmul
-        torch.backends.cudnn.allow_tf32 = True  # allow tf32 on cudnn
-
+    def _check_dtype(self):
         # note: float16 data type will automatically use a GradScaler
         if self.dtype == 'bfloat16':
             if not torch.cuda.is_available() or not torch.cuda.is_bf16_supported():
                 self.dtype = 'float16'
-        self.ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[self.dtype]
-        self.ctx = nullcontext() if self.device_type == 'cpu' else torch.amp.autocast(
-            device_type=self.device_type, dtype=self.ptdtype)
 
-        self.scaler = torch.cuda.amp.GradScaler(enabled=(self.dtype == 'float16'))
+    def _init_run(self):
+        torch.cuda.set_device(self.device)
+        torch.manual_seed(self.seed + self.seed_offset)
+        torch.backends.cuda.matmul.allow_tf32 = True  # allow tf32 on matmul
+        torch.backends.cudnn.allow_tf32 = True  # allow tf32 on cudnn
+
         self.task_distribution = Categorical(torch.Tensor(list(self.tasks.values())))
-        if self.logger:
-            self.logger.init_run()
+        self.tokens_per_iter = self.gradient_accumulation_steps * self.ddp_world_size * self.batch_size * self.block_size
 
         if len(self.tokenizer) != self.model.vocab_size:
-            raise ValueError("Tokenizer and model not compatible")
+            raise ValueError(f"Tokenizer and model not compatible. Tokenizer is of length {len(self.tokenizer)} while"
+                             f" model expects vocab size {self.model.vocab_size}")
+        if self.master_process:
+            print(f"tokens per iteration set to: {self.tokens_per_iter:,}")
+            logging.info(f"tokens per iteration set to: {self.tokens_per_iter:,}")
 
     def _sample_task(self):
         return list(self.tasks.keys())[self.task_distribution.sample().item()]
@@ -166,11 +166,15 @@ class Trainer:
         elif self.init_from:
             if os.path.exists(self.init_from):
                 print(f"Resuming from {self.init_from}...")
+                logging.info(f"Resuming from {self.init_from}...")
                 self._resume_from_file(self.init_from)
         else:
             print("Training from scratch...")
+            logging.info("Training from scratch...")
         self.model.to(self.device)
-        print(f"Model device: {self.device}")
+        if self.master_process:
+            print(f"Model device: {self.device}")
+            logging.info(f"Model device: {self.device}")
 
     def _resume_from_file(self, filepath):
         checkpoint = torch.load(filepath, map_location=self.device)
@@ -182,7 +186,18 @@ class Trainer:
         self.model.load_state_dict(state_dict)
         self._iter_num = checkpoint['iter_num']
         self._best_val_loss = checkpoint['best_val_loss']
+        self._loss_dict = checkpoint['loss_dict']
         checkpoint = None
+
+    def _save_ckpt(self, filename: str):
+        checkpoint = {
+            'model': self.raw_model.state_dict(),
+            'optimizer': self.optimizer.state_dict(),
+            'iter_num': self._iter_num,
+            'best_val_loss': self._best_val_loss,
+            'loss_dict': self._loss_dict
+        }
+        torch.save(checkpoint, os.path.join(self.out_dir, filename))
 
     def _init_optimizer(self):
         """ Initialize the optimizer."""
@@ -200,6 +215,10 @@ class Trainer:
     def _post_init(self):
         """ Compile the model and wrap the model in a DDP container. """
 
+        self.ctx = nullcontext() if self.device_type == 'cpu' else torch.amp.autocast(
+            device_type=self.device_type, dtype=self.ptdtype)
+        self.scaler = torch.cuda.amp.GradScaler(enabled=(self.dtype == 'float16'))
+
         if self.compile:
             if self.master_process:
                 print("Compiling model..")
@@ -216,6 +235,7 @@ class Trainer:
         return self.get_batch(split='val')
 
     def get_batch(self, split, task=None):
+        """Acts as a data loader / collate_fn for the dataset."""
 
         if task is None:
             task = self._sample_task()
@@ -229,7 +249,7 @@ class Trainer:
         return batch
 
     def _sample(self, dataset, task):
-        """Acts as a data loader / collate_fn for the dataset."""
+
         idx = [idx for idx in range(len(dataset))]
         idx = random.sample(idx, min(self.batch_size, len(idx)))
         sampled = [dataset[i] for i in idx]
@@ -237,7 +257,9 @@ class Trainer:
         if isinstance(sampled[0], tuple):
             x = [item[0] for item in sampled]
             y = [item[1] for item in sampled]
+            print("here")
             inputs = self.tokenizer(x, task)
+            print("hereee")
             inputs['targets'] = default_collate(y)
         else:
             inputs = self.tokenizer(sampled, task)
@@ -247,6 +269,10 @@ class Trainer:
     import torch
 
     def test(self):
+
+        if self.logger:
+            self.logger.init_run()
+
         # todo: run evaluate with test dataset
         for idx, inputs in enumerate(self.test_dataset):
             inputs = self.tokenizer(inputs)
@@ -297,6 +323,8 @@ class Trainer:
         for _ in range(self.eval_iters):
             samples = []
             samples.extend(self.generate())
+        if self.logger:
+            self.logger.log_molecule_data(samples)
         is_valid = [self.tokenizer.is_valid_smiles(sample) for sample in samples]
         out["val"]["validity"] = sum(is_valid) / len(is_valid)
         out["val"]["uniqueness"] = len(set(samples)) / len(samples)
@@ -325,12 +353,16 @@ class Trainer:
     def evaluate(self):
         if self._iter_num % self.eval_interval == 0 and self.master_process:
             losses = self.estimate_loss()
+            self._loss_dict[self._iter_num] = losses
             info = f"step {self._iter_num}"
             if 'train' in losses:
                 info += f": train loss {losses['train']['combined']:.4f}"
             if 'val' in losses:
                 info += f", val loss {losses['val']['combined']:.4f}"
             print(info)
+            if self.out_dir:
+                with open(os.path.join(self.out_dir, 'loss_dict.json'), 'w') as fp:
+                    json.dump(self._loss_dict, fp, indent=4)
 
             if self.logger:
                 log_dict = {}
@@ -343,24 +375,12 @@ class Trainer:
                 self.logger.log(log_dict)
 
             if 'val' in losses:
-                # print(losses['val']['combined'])
-                # print(self._best_val_loss)
                 if losses['val']['combined'] < self._best_val_loss or self.always_save_checkpoint:
                     self._best_val_loss = losses['val']['combined']
                     if self._iter_num > 0 and self.out_dir:
-                        self._save_ckpt()
-                if self._iter_num % self.save_checkpoint_every == 0 and self.out_dir:
-                    self._save_ckpt(iter_num=self._iter_num)
-
-    def _save_ckpt(self, iter_num: Optional[int] = None):
-        filename = 'ckpt.pt' if iter_num is None else f'ckpt_{iter_num}.pt'
-        checkpoint = {
-            'model': self.raw_model.state_dict(),
-            'optimizer': self.optimizer.state_dict(),
-            'iter_num': self._iter_num,
-            'best_val_loss': self._best_val_loss,
-        }
-        torch.save(checkpoint, os.path.join(self.out_dir, filename))
+                        self._save_ckpt("ckpt.pt")
+            if self._iter_num % self.save_checkpoint_every == 0 and self.out_dir:
+                self._save_ckpt(f"ckpt_{self._iter_num}.pt")
 
     def _terminate(self):
         if self._iter_num > self.max_iters:
@@ -382,6 +402,10 @@ class Trainer:
         return samples
 
     def train(self):
+
+        if self.logger and self.master_process:
+            self.logger.init_run()
+            # self.logger.watch_model(self.model)
 
         inputs = self.get_training_batch()
         t0 = time.time()
@@ -434,7 +458,10 @@ class Trainer:
                 if local_iter_num >= 5:  # let the training loop settle a bit
                     mfu = self.raw_model.estimate_mfu(self.batch_size * self.gradient_accumulation_steps, dt)
                     self._running_mfu = mfu if self._running_mfu == -1.0 else 0.9 * self._running_mfu + 0.1 * mfu
-                print(f"iter {self._iter_num}: loss {lossf:.6f}, lr {self._learning_rate:.6f},"
-                      f" time {dt * 1000:.2f}ms, mfu {self._running_mfu * 100:.2f}%", end='\r')
+                    msg = (f"iter {self._iter_num}: loss {lossf:.6f}, lr {self._learning_rate:.6f}," +
+                           f" time {dt * 1000:.2f}ms, mfu {self._running_mfu * 100:.2f}%")
+                    print(msg)
+                    logging.info(msg)
+                    self._save_ckpt("snapshot.ckpt")
             self._iter_num += 1
             local_iter_num += 1

@@ -8,7 +8,7 @@ from jointformer.utils.targets.smiles.molbert.featurizer import PhysChemFeaturiz
 from jointformer.utils.targets.smiles.base import BaseTarget
 
 
-NORMALIZE = False
+NORMALIZE = True
 
 
 class PhysChem(BaseTarget):
@@ -19,7 +19,7 @@ class PhysChem(BaseTarget):
         self.descriptor_set = 'all'
         self.num_physchem = 200
         self.descriptor_list = PhysChemFeaturizer.get_descriptor_subset(self.descriptor_set, self.num_physchem)
-        self.physchem_featurizer = PhysChemFeaturizer(descriptors=self.descriptor_list, normalise=NORMALIZE)
+        self.physchem_featurizer = PhysChemFeaturizer(descriptors=self.descriptor_list, normalise=True)
 
     def _get_target(self, example: str) -> float:
         physchem, valid = self.physchem_featurizer.transform_single(example)

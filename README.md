@@ -46,29 +46,21 @@ conda config --set solver libmamba
 
 ## Basic Usage
 
-### Hyperparameters & Config Files
+### Hyperparameters
 
-All hyperparameters are stored in the `configs/` directory. In this way you can easily change
-the configuration of the dataset, tokenizer, model and the trainer being used, solely by
-modifying the corresponding config file. No hyperparameters are set
-in the code implicitly, fostering transparent and easy reproducibility of the result and
-transparent usage of the repository.
+All hyperparameters used for tasks, models, trainers and loggers are stored in `configs/`.
 
-### Data & Datasets/Tokenizers
+### Vocabularies
 
-Data files are stored in the `data/` directory with corresponding vocabulary files stored
-in `data/vocabularies/`. The `AutoDataset` class can be used to load
-any dataset by specifying an appropriate config file. Analogously, the `AutoTokenizer` class
-can be used to load any tokenizer by specifying an appropriate config file. 
+Vocabularies are stored in `data/vocabularies/` and can be built with
+```python
+python experiments/vocabulary/build.py --path_to_task_config <PATH_TO_TASK_CONFIG>
+```
 
-While Datasets should handle downloading the data and preprocessing it automatically, 
-Tokenizers do require a vocabulary file containing all tokens used to tokenize an input. 
-A new vocabulary can be built by extracting all tokens from a selected dataset 
-with `experiments/vocabulary/build.py` script. Note that Datasets may additionally
-augment the input data under the hood. 
+### Datasets & Tokenizers
 
-As an example, the following code downloads and loads the test split of the unsupervised
-GuacaMol dataset together with a default SMILES tokenizer
+Each task specifies a dataset and tokenizer configuration. As an example, one can download and
+load the test split of the unsupervised GuacaMol dataset together with a SMILES tokenizer with
 
 ```python
 from jointformer.configs.task import TaskConfig
@@ -82,22 +74,19 @@ task_config = TaskConfig.from_pretrained(PATH_TO_TASK_CONFIG)
 dataset = AutoDataset.from_config(task_config, split='test')
 tokenizer = AutoTokenizer.from_config(task_config)
 
-example_id = 0
-smiles = dataset[example_id]
+smiles = next(iter(dataset))
 inputs = tokenizer(smiles)
 ```
 
-The tokenizer not only tokenizes the input, but also returns all the necessary inputs
+The tokenizer not only tokenizes the input, but returns all the necessary inputs
 for the forward pass of the model i.e. attention masks etc.
 
 
-### Pre-trained Models
+### Models
 
 Pre-trained models can be downloaded from [here](https://drive.google.com/drive/folders/1t18MULGmZphpjEdPV2FYUYwshEo8W5Dw?usp=sharing)
-and initialized using the `AutoModel` class, given an appropriate model config file.
-
-As an example, the following code loads a pre-trained model and 
-generates a batch of SMILES 
+and initialized with the `AutoModel` class using a model config file. As an example, the following code
+loads a pre-trained model and generates a batch of SMILES strings. 
 
 ```python
 from jointformer.configs.model import ModelConfig
@@ -108,27 +97,38 @@ PATH_TO_PRETRAINED_MODEL = './results/pretrain/jointformer/'
 
 model_config = ModelConfig.from_pretrained(PATH_TO_MODEL_CONFIG)
 model = AutoModel.from_config(model_config)
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
 model.load_pretrained(PATH_TO_PRETRAINED_MODEL)
 model.eval()
-model.to('cuda' if torch.cpu.is_available() else 'cpu')
+model.to(device)
 model = torch.compile(model)
 
 with torch.no_grad():
-    outputs = model.generate(**inputs)
+    samples = model.generate(
+        bos_token_id = '[CLS]',
+        eos_token_id = '[SEP]',
+        pad_token_id = '[PAD]',
+        input_length = 128,
+        batch_size = 8,
+        temperature=1.0,
+        top_k=None,
+        device=device
+    )
 ```
 
-Additionally, one can evaluate the perplexity of a selected molecule, using the dataset and tokenizer
-from the previous example
+Additionally, one can evaluate the perplexity of selected molecule using the dataset and tokenizer
+from the example
 
 ```python
 with torch.no_grad:
     perplexity = model.get_perplexity(**inputs)
 ```
 
-### Trainers & fine-tuning
+### Trainers (under construction)
 
-A recommended way to initialize the model is with a trainer, initialized using the `AutoTrainer` class and an
-appropriate config file. Trainers allow for easy fine-tune of your model
+Trainers are used to handle models. A recommended way to initialize the model is with a trainer, initialized using the `AutoTrainer` class and an
+appropriate config file. 
 
 ```python
 from jointformer.configs.trainer import TrainerConfig

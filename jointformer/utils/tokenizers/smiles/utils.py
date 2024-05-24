@@ -10,3 +10,4 @@ def read_vocabulary(vocabulary_file: str):
         token = token.rstrip("\n")
         vocab[token] = index
     return vocab
+

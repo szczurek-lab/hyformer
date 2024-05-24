@@ -1,12 +1,13 @@
 {
-  "dataset_name": "guacamol",
+  "dataset_name": "moses",
   "target_label": null,
   "validate": false,
   "num_samples": null,
-  "split": "all",
-  "transform": [{"name": "smiles_enumerator", "params": {"enumeration_probability": 0.8}}],
+  "split": null,
+  "transform": null,
   "target_transform": null,
   "tokenizer": "SmilesTokenizer",
-  "path_to_vocabulary": "./data/vocabularies/guacamol.txt",
-  "max_molecule_length": 128
+  "path_to_vocabulary": "./data/vocabularies/moses.txt",
+  "max_molecule_length": 128,
+  "set_separate_task_tokens": false
 }

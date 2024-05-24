@@ -1,8 +1,8 @@
 {
   "dataset_name": "moses",
-  "target": "qed",
+  "target_label": "qed",
   "validate": false,
-  "num_samples": 4,
+  "num_samples": null,
   "split": null,
   "transform": [{"name": "smiles_enumerator", "params": {"enumeration_probability": 0.0}}],
   "target_transform": null,

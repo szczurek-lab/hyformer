@@ -1,5 +1,7 @@
-import os, sys
+import os
+import logging
 import argparse
+import time
 
 from torch.distributed.elastic.multiprocessing.errors import record
 from torch.distributed import init_process_group, destroy_process_group
@@ -19,6 +21,17 @@ from jointformer.trainers.trainer import Trainer
 
 from jointformer.utils.utils import set_seed
 
+process_timestamp = time.strftime("%Y%m%d-%H%M%S")
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO,
+    filename=f"process-{process_timestamp}.log",
+    filemode='a',
+    format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
+    datefmt='%H:%M:%S',
+)
+
+#f_handler = logging.FileHandler('file.log')
 DEFAULT_SEED_ARRAY = [1337]
 DDP_BACKEND = "nccl"
 TORCHELASTIC_ERROR_FILE = "torchelastic_error_file.txt"
@@ -27,15 +40,22 @@ TORCHELASTIC_ERROR_FILE = "torchelastic_error_file.txt"
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--out_dir", type=str, required=True)
+    parser.add_argument("--logger_display_name", nargs='?', type=str)
     parser.add_argument("--seed", type=int, nargs='*', default=DEFAULT_SEED_ARRAY)
-    parser.add_argument("--dev_mode", nargs='*', default=False)
+    parser.add_argument("--dev_mode", nargs='?', default=False, type=bool)
     parser.add_argument("--path_to_task_config", type=str, required=True)
     parser.add_argument("--path_to_model_config", type=str, required=True)
     parser.add_argument("--path_to_trainer_config", type=str, required=True)
     parser.add_argument("--path_to_logger_config", type=str, required=True)
     parser.add_argument("--path_to_pretrained", type=str)
     args = parser.parse_args()
+    log_args(args)
     return args
+
+
+def log_args(args):
+    for arg, value in sorted(vars(args).items()):
+        logging.info("Argument %s: %r", arg, value)
 
 
 def set_to_dev_mode(**kwargs):
@@ -58,8 +78,8 @@ def set_to_dev_mode(**kwargs):
     if trainer_config and hasattr(trainer_config, "batch_size"):
         trainer_config.batch_size = 2
         trainer_config.max_iters = 1000
-        trainer_config.eval_every = 500
-        trainer_config.eval_iters = 2
+        trainer_config.eval_every = 100
+        trainer_config.eval_iters = 10
     if logger_config and hasattr(logger_config, "enable_wandb"):
         logger_config.display_name = 'test'
 
@@ -84,9 +104,13 @@ def main(args):
     task_config = TaskConfig.from_pretrained(args.path_to_task_config)
     model_config = ModelConfig.from_pretrained(args.path_to_model_config)
     trainer_config = TrainerConfig.from_pretrained(args.path_to_trainer_config)
-    if args.dev_mode:
-        set_to_dev_mode(task_config=task_config, model_config=model_config)
     logger_config = LoggerConfig.from_pretrained(args.path_to_logger_config)
+
+    # Dev mode
+    if args.dev_mode:
+        set_to_dev_mode(
+            task_config=task_config, model_config=model_config,
+            trainer_config=trainer_config, logger_config=logger_config)
 
     # Initialize DDP
     is_ddp_run = int(os.environ.get('RANK', -1)) != -1 and trainer_config.enable_ddp
@@ -102,10 +126,11 @@ def main(args):
     val_dataset = AutoDataset.from_config(task_config, split='val')
     tokenizer = AutoTokenizer.from_config(task_config)
     model = AutoModel.from_config(model_config)
-    logger = AutoLogger.from_config(logger_config, display_name='test')
-
-    logger.store_config(task_config, model_config, trainer_config, logger_config)
-    logger.save_config(args.out_dir)
+    logger = AutoLogger.from_config(logger_config)
+    logger.store_configs(task_config, model_config, trainer_config, logger_config)
+    logger.save_configs(args.out_dir)
+    if args.logger_display_name is not None:
+        logger.set_display_name(args.logger_display_name)
 
     trainer = Trainer(
         out_dir=args.out_dir,
@@ -118,6 +143,9 @@ def main(args):
         tokenizer=tokenizer,
         logger=logger
     )
+
+    # resume
+
     trainer.train()
 
     if is_ddp_run:

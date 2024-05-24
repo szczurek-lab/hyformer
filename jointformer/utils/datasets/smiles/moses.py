@@ -32,7 +32,7 @@ class MosesDataset(SmilesDataset):
         data_filename = os.path.join(data_dir, DATA_FILE_NAME)
         if not os.path.isfile(data_filename):
             self._download_data(data_dir=data_dir, split=split, num_samples=num_samples)
-        target_filename = os.path.join(data_dir, f'{target_label}.pt')
+        target_filename = os.path.join(data_dir, f'{target_label}.pt') if target_label else None
         if target_label and not os.path.isfile(target_filename):
             self._download_target(data_filename=data_filename, target_filename=target_filename, target_label=target_label)
 
@@ -86,8 +86,15 @@ class MosesDataset(SmilesDataset):
         split = config.split if split is None else split
 
         if split is None:
-            raise ValueError("split must be provided either in the config or as an argument.")
+            split = 'all'
+        if split == 'val':
+            split = 'test' # MOSES does not have a validation set
 
         return cls(
-            split=config.split, target_label=config.target_label, transform=config.transform,
-            target_transform=config.target_transform, validate=config.validate, num_samples=config.num_samples)
+            split=split,
+            target_label=config.target_label,
+            transform=config.transform,
+            target_transform=config.target_transform,
+            validate=config.validate,
+            num_samples=config.num_samples
+        )
