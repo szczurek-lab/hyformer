@@ -22,7 +22,7 @@ from jointformer.trainers.trainer import Trainer
 from jointformer.utils.utils import set_seed
 
 process_timestamp = time.strftime("%Y%m%d-%H%M%S")
-logger = logging.getLogger(__name__)
+console_logger = logging.getLogger(__name__)
 logging.basicConfig(
     level=logging.INFO,
     filename=f"process-{process_timestamp}.log",
@@ -31,7 +31,6 @@ logging.basicConfig(
     datefmt='%H:%M:%S',
 )
 
-#f_handler = logging.FileHandler('file.log')
 DEFAULT_SEED_ARRAY = [1337]
 DDP_BACKEND = "nccl"
 TORCHELASTIC_ERROR_FILE = "torchelastic_error_file.txt"
@@ -40,14 +39,14 @@ TORCHELASTIC_ERROR_FILE = "torchelastic_error_file.txt"
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--out_dir", type=str, required=True)
-    parser.add_argument("--logger_display_name", nargs='?', type=str)
-    parser.add_argument("--seed", type=int, nargs='*', default=DEFAULT_SEED_ARRAY)
-    parser.add_argument("--dev_mode", nargs='?', default=False, type=bool)
     parser.add_argument("--path_to_task_config", type=str, required=True)
     parser.add_argument("--path_to_model_config", type=str, required=True)
     parser.add_argument("--path_to_trainer_config", type=str, required=True)
     parser.add_argument("--path_to_logger_config", type=str, required=True)
-    parser.add_argument("--path_to_pretrained", type=str)
+    parser.add_argument("--pretrained_filename", type=str, nargs='?')
+    parser.add_argument("--logger_display_name", nargs='?', type=str)
+    parser.add_argument("--seed", type=int, nargs='*', default=DEFAULT_SEED_ARRAY)
+    parser.add_argument("--dev_mode", nargs='?', default=False, type=bool)
     args = parser.parse_args()
     log_args(args)
     return args
@@ -90,7 +89,7 @@ def create_output_dir(out_dir):
         is_master_process = int(os.environ.get('RANK', -1)) == 0
         if is_master_process & is_ddp:
             os.makedirs(out_dir, exist_ok=True)
-            print(f"Output directory {out_dir} created...")
+            console_logger.info(f"Output directory {out_dir} created...")
 
 
 def init_ddp():
@@ -114,7 +113,7 @@ def main(args):
 
     # Initialize DDP
     is_ddp_run = int(os.environ.get('RANK', -1)) != -1 and trainer_config.enable_ddp
-    print(f"DDP: {is_ddp_run}")
+    console_logger.info(f"DDP: {is_ddp_run}")
     if is_ddp_run:
         init_ddp()
 
@@ -134,7 +133,6 @@ def main(args):
 
     trainer = Trainer(
         out_dir=args.out_dir,
-        init_from=args.path_to_pretrained,
         seed=args.seed,
         config=trainer_config,
         model=model,
@@ -144,7 +142,15 @@ def main(args):
         logger=logger
     )
 
-    # resume
+    try:
+        trainer.resume_snapshot()
+        console_logger.info("Resumed Snapshot")
+    except FileNotFoundError:
+        if args.pretrained_filename:
+            trainer.resume_from_file(args.pretrained_filename)
+            console_logger.info(f"Resuming pre-trained model from {args.pretrained_filename}")
+        else:
+            console_logger.info("Training from scratch")
 
     trainer.train()
 
@@ -159,4 +165,7 @@ if __name__ == "__main__":
         tmp_args.seed = seed
         tmp_args.out_dir = os.path.join(args.out_dir, f"seed_{seed}")
         set_seed(seed)
-        main(tmp_args)
+        try:
+            main(tmp_args)
+        except Exception as e:
+            logging.critical(e, exc_info=True)

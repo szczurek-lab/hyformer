@@ -19,7 +19,7 @@ from jointformer.utils.loggers.wandb import WandbLogger
 from jointformer.utils.datasets.base import BaseDataset
 
 logger = logging.getLogger(__name__)
-SNAPSHOT_FILENAME = 'snap.ckpt'
+SNAPSHOT_FILENAME = 'snapshot.ckpt'
 MODEL_FILENAME = 'ckpt.pt'
 
 class Trainer:
@@ -33,7 +33,6 @@ class Trainer:
             config: TrainerConfig,
             model: Transformer,
             out_dir: Optional[str] = None,
-            init_from: Optional[str] = None,
             seed: Optional[int] = 0,
             train_dataset: Optional[BaseDataset] = None,
             val_dataset: Optional[BaseDataset] = None,
@@ -47,14 +46,10 @@ class Trainer:
 
         The trainer class is responsible for training the model.
 
-        Upon initialization, the trainer will automatically resume training from a snapshot file, if it exists.
-
-        Otherwise, the trainer will resume training from the `init_from` file, if it exists.
         """
 
         # set args
         self.out_dir = out_dir
-        self.init_from = init_from
         self.seed = seed
         self.train_dataset = train_dataset
         self.val_dataset = val_dataset
@@ -102,9 +97,6 @@ class Trainer:
         self._get_ddp_config()
         self._check_dtype()
         self._init_run()
-        self._resume()
-        self._init_optimizer()
-        self._post_init()
 
     def _get_ddp_config(self):
         """ Get the DDP configuration."""
@@ -141,6 +133,10 @@ class Trainer:
         torch.backends.cuda.matmul.allow_tf32 = True  # allow tf32 on matmul
         torch.backends.cudnn.allow_tf32 = True  # allow tf32 on cudnn
 
+        self.model.to(self.device)
+        self.optimizer = self.model.configure_optimizers(
+            self.weight_decay, self.learning_rate, (self.beta1, self.beta2), self.device_type)
+
         self.task_distribution = Categorical(torch.Tensor(list(self.tasks.values())))
         self.tokens_per_iter = self.gradient_accumulation_steps * self.ddp_world_size * self.batch_size * self.block_size
 
@@ -148,42 +144,39 @@ class Trainer:
             raise ValueError(f"Tokenizer and model not compatible. Tokenizer is of length {len(self.tokenizer)} while"
                              f" model expects vocab size {self.model.vocab_size}")
         if self.master_process:
-            print(f"tokens per iteration set to: {self.tokens_per_iter:,}")
             logging.info(f"tokens per iteration set to: {self.tokens_per_iter:,}")
+
+        self.ctx = nullcontext() if self.device_type == 'cpu' else torch.amp.autocast(
+            device_type=self.device_type, dtype=self.ptdtype)
+
+        self.scaler = torch.cuda.amp.GradScaler(enabled=(self.dtype == 'float16'))
+
+    def _compile(self):
+        if self.compile:
+            self.model = torch.compile(self.model, mode='reduce-overhead')
+
+    def _parallelize(self):
+        if self.is_ddp:
+            self.model = DDP(self.model, device_ids=[self.ddp_local_rank])
 
     def _sample_task(self):
         return list(self.tasks.keys())[self.task_distribution.sample().item()]
 
-    def _resume(self):
-        """ Resume training from a checkpoint/snapshot.
+    def resume_snapshot(self):
+        self.resume_from_file(self._snapshot_filepath)
 
-        First, check if a snapshot file exists. If it does, resume training from the snapshot file. Otherwise, check if
-        the init_from argument is set. If it is, resume training from the init_from file. Otherwise, train from scratch.
-        """
-        if self._snapshot_filepath:
-            if os.path.exists(self._snapshot_filepath):
-                self._resume_from_file(self._snapshot_filepath)
-        elif self.init_from:
-            if os.path.exists(self.init_from):
-                print(f"Resuming from {self.init_from}...")
-                logging.info(f"Resuming from {self.init_from}...")
-                self._resume_from_file(self.init_from)
-        else:
-            print("Training from scratch...")
-            logging.info("Training from scratch...")
-        self.model.to(self.device)
-        if self.master_process:
-            print(f"Model device: {self.device}")
-            logging.info(f"Model device: {self.device}")
-
-    def _resume_from_file(self, filepath):
+    def resume_from_file(self, filepath):
         checkpoint = torch.load(filepath, map_location=self.device)
-        state_dict = checkpoint['model']
-        unwanted_prefix = '_orig_mod.'  # compile
-        for k, v in list(state_dict.items()):
-            if k.startswith(unwanted_prefix):
-                state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
-        self.model.load_state_dict(state_dict)
+        try:
+            state_dict = checkpoint['model']
+            unwanted_prefix = '_orig_mod.'  # compile
+            for k, v in list(state_dict.items()):
+                if k.startswith(unwanted_prefix):
+                    state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
+            self.model.load_state_dict(state_dict)
+        except RuntimeError:
+            self.model.load_state_dict(checkpoint['model'])
+        self.optimizer.load_state_dict(checkpoint["optimizer"])
         self._iter_num = checkpoint['iter_num']
         self._best_val_loss = checkpoint['best_val_loss']
         self._loss_dict = checkpoint['loss_dict']
@@ -198,35 +191,6 @@ class Trainer:
             'loss_dict': self._loss_dict
         }
         torch.save(checkpoint, os.path.join(self.out_dir, filename))
-
-    def _init_optimizer(self):
-        """ Initialize the optimizer."""
-        self.optimizer = self.model.configure_optimizers(
-            self.weight_decay, self.learning_rate, (self.beta1, self.beta2), self.device_type)
-
-        if self._snapshot_filepath:
-            if os.path.exists(self._snapshot_filepath):
-                self.optimizer.load_state_dict(torch.load(self._snapshot_filepath, map_location=self.device)["optimizer"])
-        elif self.init_from:
-            self.optimizer.load_state_dict(torch.load(self.init_from, map_location=self.device)["optimizer"])
-        else:
-            print("No optimizer state found, initializing from scratch...")
-
-    def _post_init(self):
-        """ Compile the model and wrap the model in a DDP container. """
-
-        self.ctx = nullcontext() if self.device_type == 'cpu' else torch.amp.autocast(
-            device_type=self.device_type, dtype=self.ptdtype)
-        self.scaler = torch.cuda.amp.GradScaler(enabled=(self.dtype == 'float16'))
-
-        if self.compile:
-            if self.master_process:
-                print("Compiling model..")
-            # self.unoptimized_model = self.model  # is this necessary? No, not really
-            self.model = torch.compile(self.model, mode='reduce-overhead')
-
-        if self.is_ddp:
-            self.model = DDP(self.model, device_ids=[self.ddp_local_rank])
 
     def get_training_batch(self):
         return self.get_batch(split='train')
@@ -257,9 +221,7 @@ class Trainer:
         if isinstance(sampled[0], tuple):
             x = [item[0] for item in sampled]
             y = [item[1] for item in sampled]
-            print("here")
             inputs = self.tokenizer(x, task)
-            print("hereee")
             inputs['targets'] = default_collate(y)
         else:
             inputs = self.tokenizer(sampled, task)
@@ -359,7 +321,7 @@ class Trainer:
                 info += f": train loss {losses['train']['combined']:.4f}"
             if 'val' in losses:
                 info += f", val loss {losses['val']['combined']:.4f}"
-            print(info)
+            logger.info(info)
             if self.out_dir:
                 with open(os.path.join(self.out_dir, 'loss_dict.json'), 'w') as fp:
                     json.dump(self._loss_dict, fp, indent=4)
@@ -378,7 +340,7 @@ class Trainer:
                 if losses['val']['combined'] < self._best_val_loss or self.always_save_checkpoint:
                     self._best_val_loss = losses['val']['combined']
                     if self._iter_num > 0 and self.out_dir:
-                        self._save_ckpt("ckpt.pt")
+                        self._save_ckpt(MODEL_FILENAME)
             if self._iter_num % self.save_checkpoint_every == 0 and self.out_dir:
                 self._save_ckpt(f"ckpt_{self._iter_num}.pt")
 
@@ -401,7 +363,13 @@ class Trainer:
         samples = self.tokenizer.decode(samples)
         return samples
 
-    def train(self):
+    def train(self) -> None:
+
+        if self._iter_num > self.max_iters:
+            return
+
+        self._compile()
+        self._parallelize()
 
         if self.logger and self.master_process:
             self.logger.init_run()
@@ -462,6 +430,6 @@ class Trainer:
                            f" time {dt * 1000:.2f}ms, mfu {self._running_mfu * 100:.2f}%")
                     print(msg)
                     logging.info(msg)
-                    self._save_ckpt("snapshot.ckpt")
+                    self._save_ckpt(SNAPSHOT_FILENAME)
             self._iter_num += 1
             local_iter_num += 1
