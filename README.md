@@ -1,8 +1,10 @@
 # Jointformer
 
-This is the official implementation of the Jointformer. 
-
-Jointformer is a transformer-based joint generative model. 
+The official implementation of the [Jointformer](https://arxiv.org/abs/2310.02066), a foundation model for 
+small molecule generation and scoring (molecular property prediction). In contrast to existing foundation
+models, Jointformer is a [joint model](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/LasserreBishopMinka06.pdf), 
+simultaneously exceling in both generation and a prediction, fostering learning meaningful representations, improved calibration
+robustness and OOD detection.
 
 ## Getting Started
 
@@ -48,7 +50,10 @@ conda config --set solver libmamba
 
 ### Hyperparameters
 
-All hyperparameters used for tasks, models, trainers and loggers are stored in `configs/`.
+All hyperparameters, defining tasks, models, trainers and loggers, are stored in `configs/`.
+
+Show running experiment where you have your own data SMILES and properties optionally, maybe actual as a .npy file :) 
+Instead of GuacaMol. 
 
 ### Vocabularies
 
@@ -140,22 +145,42 @@ trainer_config = TrainerConfig.from_pretrained(PATH_TO_TRAINER_CONFIG)
 trainer = Trainer(config=trainer_config, model=model, train_dataset=dataset, tokenizer=tokenizer)
 trainer.train()
 ```
+
+
 ----
 ## Experiments
 
-The following code is used to reproduce all the experiments.
+In order to reproduce the experiments, an environment with additional dependencies is required.
+To install the necessary dependencies, including [GuacaMol](https://github.com/BenevolentAI/guacamol)
+ and [MoleculeNet](https://moleculenet.org/) benchmarks, run
+```
+conda env create --file jointformer-experiments.yml
+```
+
+For installing [MOSES](https://github.com/molecularsets/moses/tree/master), additionally run
+```
+git clone https://github.com/molecularsets/moses.git
+cd moses
+python setup.py install
+```
+and in case Git LFS is not enabled, manually substitute all data files in `moses/data/` and `moses/moses/dataset/data` directories.
+
 
 ### Model Training
 
-To train a model run 
+To train a model, run 
 ```
 bash experiments/joint_learning/train.sh
 ```
 
 ----
-## Downloads
+## References
 
-Download ZINC15 data from [here](https://az.box.com/s/7eci3nd9vy0xplqniitpk02rbg9q2zcq)
 
 ----
-## References
+## Miscelanous
+
+use TDC as a wrapper.
+
+download ZINC15 data from [here](https://az.box.com/s/7eci3nd9vy0xplqniitpk02rbg9q2zcq)
+

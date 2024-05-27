@@ -6,21 +6,19 @@ channels:
   - pytorch
 dependencies:
   - python
-  - pytorch=2.2.2
+  - pytorch=2.3
   - torchvision
   - torchaudio
   - pytorch-cuda=11.8
-  - guacamol
+  - rdkit
+  - deepchem
   - transformers
   - ipykernel
   - jupyterlab
   - numpy
-  - scipy=1.10.1 # 1.11.4 # GuacaMol requires support for histogram
-  - pandas<2.0.0 # MOSES uses `append()`
+  - scipy
+  - pandas
   - matplotlib
   - seaborn
   - tqdm
-  - FCD=1.1
-  - rdkit
   - wandb
-  - deepchem

@@ -42,6 +42,7 @@ class WandbLogger:
 
     def set_display_name(self, display_name: str):
         self.display_name = display_name
+        self.resume = "auto"
 
     def store_configs(self, *config_list: List[Config]):
         if self.config is None:

@@ -25,7 +25,7 @@ process_timestamp = time.strftime("%Y%m%d-%H%M%S")
 console_logger = logging.getLogger(__name__)
 logging.basicConfig(
     level=logging.INFO,
-    filename=f"process-{process_timestamp}.log",
+    filename="process.log",
     filemode='a',
     format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
     datefmt='%H:%M:%S',
