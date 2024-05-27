@@ -3,8 +3,7 @@
 The official implementation of the [Jointformer](https://arxiv.org/abs/2310.02066), a foundation model for 
 small molecule generation and scoring (molecular property prediction). In contrast to existing foundation
 models, Jointformer is a [joint model](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/LasserreBishopMinka06.pdf), 
-simultaneously exceling in both generation and a prediction, fostering learning meaningful representations, improved calibration
-robustness and OOD detection.
+simultaneously exceling in both generation and prediction.
 
 ## Getting Started
 
