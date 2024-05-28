@@ -165,7 +165,21 @@ python setup.py install
 and in case Git LFS is not enabled, manually substitute all data files in `moses/data/` and `moses/moses/dataset/data` directories.
 
 
-### Model Training
+### Train
+
+To train a model, run 
+```
+bash experiments/joint_learning/train.sh
+```
+
+### Generate
+
+To train a model, run 
+```
+bash experiments/joint_learning/train.sh
+```
+
+### Evaluate
 
 To train a model, run 
 ```

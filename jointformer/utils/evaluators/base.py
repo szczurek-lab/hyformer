@@ -14,13 +14,15 @@ class Evaluate:
             generated_file_path: str,
             reference_file_path: Optional[str] = None,
             out_dir: Optional[str] = None,
-            device: Optional[str] = None
+            device: Optional[str] = None,
+            seed: Optional[int] = 0
     ):
 
         self.generated_file_path = generated_file_path
         self.reference_file_path = reference_file_path
         self.out_dir = out_dir
         self.device = 'cuda' if device == 'cuda' and torch.cuda.is_available() else device
+        self.seed = seed
 
         self.generated_data = None
         self.reference_data = None
