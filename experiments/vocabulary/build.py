@@ -9,7 +9,7 @@ from jointformer.configs.task import TaskConfig
 
 from jointformer.utils.datasets.auto import AutoDataset
 from jointformer.utils.tokenizers.smiles.regex import RegexSmilesTokenizer
-from jointformer.utils.utils import save_strings_to_file
+from jointformer.utils.runtime import save_strings_to_file
 
 VOCABULARY_DIR = './data/vocabularies'
 

@@ -19,7 +19,7 @@ from jointformer.utils.loggers.auto import AutoLogger
 
 from jointformer.trainers.trainer import Trainer
 
-from jointformer.utils.utils import set_seed
+from jointformer.utils.runtime import set_seed
 
 process_timestamp = time.strftime("%Y%m%d-%H%M%S")
 console_logger = logging.getLogger(__name__)
