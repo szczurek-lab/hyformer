@@ -222,10 +222,10 @@ class Trainer:
             x = [item[0] for item in sampled]
             y = [item[1] for item in sampled]
             inputs = self.tokenizer(x, task)
-            inputs['targets'] = default_collate(y)
+            inputs['properties'] = default_collate(y)
         else:
             inputs = self.tokenizer(sampled, task)
-            inputs['targets'] = None
+            inputs['properties'] = None
         return inputs
 
     import torch

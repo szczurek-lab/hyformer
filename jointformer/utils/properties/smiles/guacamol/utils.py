@@ -1,4 +1,4 @@
-""" Get Guacamol targets.
+""" Get Guacamol properties.
 
 Source: https://github.com/BenevolentAI/guacamol/blob/master/guacamol/standard_benchmarks.py
 """

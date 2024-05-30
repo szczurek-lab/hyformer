@@ -4,7 +4,7 @@
   "validate": false,
   "num_samples": null,
   "split": null,
-  "transform": [{"name": "smiles_enumerator", "params": {"enumeration_probability": 0.0}}],
+  "transform": null,
   "target_transform": null,
   "tokenizer": "SmilesTokenizer",
   "path_to_vocabulary": "./data/vocabularies/moses.txt",

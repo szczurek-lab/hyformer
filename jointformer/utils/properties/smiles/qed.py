@@ -3,7 +3,7 @@ import numpy as np
 from rdkit import Chem
 from rdkit.Chem.QED import qed
 
-from jointformer.utils.targets.smiles.base import BaseTarget
+from jointformer.utils.properties.smiles.base import BaseTarget
 
 
 class QED(BaseTarget):

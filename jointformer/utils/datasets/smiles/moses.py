@@ -8,7 +8,7 @@ import torch
 from jointformer.configs.task import TaskConfig
 from jointformer.utils.datasets.smiles.base import SmilesDataset
 from jointformer.utils.datasets.utils import save_strings_to_file, read_strings_from_file
-from jointformer.utils.targets.auto import AutoTarget
+from jointformer.utils.properties.auto import AutoTarget
 
 DATA_DIR = './data/moses'
 DATA_FILE_NAME = 'smiles.txt'
@@ -75,7 +75,7 @@ class MosesDataset(SmilesDataset):
     @staticmethod
     def _get_data_dir(data_dir: str, split: str = None, num_samples: int = None) -> str:
         if split is not None:
-            data_dir =  os.path.join(data_dir, split)
+            data_dir = os.path.join(data_dir, split)
         if num_samples is not None:
             data_dir = os.path.join(data_dir, str(num_samples))
         return data_dir
@@ -88,7 +88,7 @@ class MosesDataset(SmilesDataset):
         if split is None:
             split = 'all'
         if split == 'val':
-            split = 'test' # MOSES does not have a validation set
+            split = 'test'  # MOSES does not have a validation set
 
         return cls(
             split=split,

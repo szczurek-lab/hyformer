@@ -14,6 +14,8 @@ from rdkit.Chem import Descriptors
 from rdkit.Chem.rdMolDescriptors import GetMorganFingerprint
 from rdkit.ML.Descriptors.MoleculeDescriptors import MolecularDescriptorCalculator
 
+PATH_TO_AVAILABLE_DESCRIPTORS = '/home/adam/Projects/jointformer/jointformer/utils/properties/smiles/molbert/physchem_distributions.json'
+
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -160,36 +162,42 @@ class PhysChemFeaturizer(RDKitFeaturizer):
 
     @staticmethod
     def get_descriptor_subset(subset: str, subset_size: int) -> List[str]:
+
+        with open(PATH_TO_AVAILABLE_DESCRIPTORS) as f:
+            available_descriptors = json.load(f).keys()
+
         if subset == 'all':
-            return PhysChemFeaturizer.get_all_descriptor_names()[:subset_size]
+            descriptors = PhysChemFeaturizer.get_all_descriptor_names()
         elif subset == 'simple':
-            return PhysChemFeaturizer.get_simple_descriptor_subset()[:subset_size]
+            descriptors = PhysChemFeaturizer.get_simple_descriptor_subset()
         elif subset == 'uncorrelated':
-            return PhysChemFeaturizer.get_uncorrelated_descriptor_subset(subset_size)
+            descriptors = PhysChemFeaturizer.get_uncorrelated_descriptor_subset(subset_size)
         elif subset == 'fragment':
-            return PhysChemFeaturizer.get_fragment_descriptor_subset()[:subset_size]
+            descriptors = PhysChemFeaturizer.get_fragment_descriptor_subset()
         elif subset == 'graph':
-            return PhysChemFeaturizer.get_graph_descriptor_subset()[:subset_size]
+            descriptors = PhysChemFeaturizer.get_graph_descriptor_subset()
         elif subset == 'surface':
-            return PhysChemFeaturizer.get_surface_descriptor_subset()[:subset_size]
+            descriptors = PhysChemFeaturizer.get_surface_descriptor_subset()
         elif subset == 'druglikeness':
-            return PhysChemFeaturizer.get_druglikeness_descriptor_subset()[:subset_size]
+            descriptors = PhysChemFeaturizer.get_druglikeness_descriptor_subset()
         elif subset == 'logp':
-            return PhysChemFeaturizer.get_logp_descriptor_subset()[:subset_size]
+            descriptors = PhysChemFeaturizer.get_logp_descriptor_subset()
         elif subset == 'refractivity':
-            return PhysChemFeaturizer.get_refractivity_descriptor_subset()[:subset_size]
+            descriptors = PhysChemFeaturizer.get_refractivity_descriptor_subset()
         elif subset == 'estate':
-            return PhysChemFeaturizer.get_estate_descriptor_subset()[:subset_size]
+            descriptors = PhysChemFeaturizer.get_estate_descriptor_subset()
         elif subset == 'charge':
-            return PhysChemFeaturizer.get_charge_descriptor_subset()[:subset_size]
+            descriptors = PhysChemFeaturizer.get_charge_descriptor_subset()
         elif subset == 'general':
-            return PhysChemFeaturizer.get_general_descriptor_subset()[:subset_size]
+            descriptors = PhysChemFeaturizer.get_general_descriptor_subset()
         else:
             raise ValueError(
                 f'Unrecognised descriptor subset: {subset} (should be "all", "simple",'
                 f'"uncorrelated", "fragment", "graph", "logp", "refractivity",'
                 f'"estate", "druglikeness", "surface", "charge", "general").'
             )
+
+        return list(set(descriptors).intersection(set(available_descriptors)))[:subset_size]
 
     @property
     def output_size(self):
