@@ -1,31 +1,27 @@
 """ Test file that initializes a ddp run and counts the number of available GPUs.
 """
 
-import os
-import torch
+import os, sys
 import logging
+import torch
 
-from torch.distributed import init_process_group, destroy_process_group
-
-DDP_BACKEND = "nccl"
 
 logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO,
+    stream=sys.stdout,
+    format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
+    datefmt='%H:%M:%S',
+)
 
 
 def main():
-    is_ddp_run = int(os.environ.get('RANK', -1)) != -1
-    logger.info(f"DDP: {is_ddp_run}")
 
-    if is_ddp_run:
-        init_process_group(backend=DDP_BACKEND)
-
-    if int(os.environ['RANK']) == 0:
-        num_gpus = torch.cuda.device_count()
-        logger.info(f"Number of GPUs: {num_gpus}")
-
-    if is_ddp_run:
-        destroy_process_group()
-
+    logger.info(f"PyTorch version: {torch.__version__}")
+    logger.info(f"CUDA available: {torch.cuda.is_available()}")
+    logger.info(f"Number of recognized GPUs: {torch.cuda.device_count()}")
+    for i in range(torch.cuda.device_count()):
+        logger.info(f'CUDA:{i}: {torch.cuda.get_device_properties(i).name}')
 
 if __name__ == "__main__":
     main()
