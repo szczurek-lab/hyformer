@@ -2,8 +2,8 @@ import importlib
 
 from typing import Union
 
-from jointformer.utils.targets.smiles.qed import QED
-from jointformer.utils.targets.smiles.physchem import PhysChem
+from jointformer.utils.properties.smiles.qed import QED
+from jointformer.utils.properties.smiles.physchem import PhysChem
 
 
 class AutoTarget:
@@ -14,11 +14,11 @@ class AutoTarget:
 
         if target == 'qed':
             return getattr(importlib.import_module(
-                "jointformer.utils.targets.smiles.qed"),
+                "jointformer.utils.properties.smiles.qed"),
                 "QED")()
         elif target == 'physchem':
             return getattr(importlib.import_module(
-                "jointformer.utils.targets.smiles.physchem"),
+                "jointformer.utils.properties.smiles.physchem"),
                 "PhysChem")()
         else:
             raise ValueError(f"Target {target} not available.")

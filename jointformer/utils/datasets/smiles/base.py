@@ -56,7 +56,7 @@ class SmilesDataset(BaseDataset):
             self.target = [y for x, y in inputs]
 
     @classmethod
-    def from_config(cls, config, split=None):
+    def from_config(cls, config, split: str = None):
         if split is not None:
             config.split = split
 

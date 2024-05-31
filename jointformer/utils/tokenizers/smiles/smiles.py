@@ -109,7 +109,7 @@ class SmilesTokenizer(DeepChemSmilesTokenizer):
             batch = self.set_task_token(batch, task)
 
         if targets is not None:
-            batch["targets"] = targets
+            batch["properties"] = targets
 
         return batch
 

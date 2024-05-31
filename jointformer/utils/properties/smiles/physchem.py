@@ -3,9 +3,9 @@ import torch
 
 from rdkit import Chem
 from rdkit.Chem.QED import qed
-from jointformer.utils.targets.smiles.molbert.featurizer import PhysChemFeaturizer
+from jointformer.utils.properties.smiles.molbert.featurizer import PhysChemFeaturizer
 
-from jointformer.utils.targets.smiles.base import BaseTarget
+from jointformer.utils.properties.smiles.base import BaseTarget
 
 
 NORMALIZE = True

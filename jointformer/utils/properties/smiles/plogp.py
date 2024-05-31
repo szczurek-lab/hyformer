@@ -3,8 +3,8 @@ import numpy as np
 from rdkit import Chem
 from rdkit.Chem import Descriptors
 
-from jointformer.utils.targets.smiles import sascorer
-from jointformer.utils.targets.smiles.base import BaseTarget
+from jointformer.utils.properties.smiles import sascorer
+from jointformer.utils.properties.smiles.base import BaseTarget
 
 
 class PlogP(BaseTarget):

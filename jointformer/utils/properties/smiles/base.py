@@ -1,4 +1,4 @@
-""" Base class for all targets. """
+""" Base class for all properties. """
 
 import torch
 from tqdm import tqdm
