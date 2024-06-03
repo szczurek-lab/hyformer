@@ -20,7 +20,8 @@
 #SBATCH --mail-user=adam.izdebski@helmholtz-munich.de
 
 #SBATCH --nice=10000                                        # priority (niceness) // GPU queue priority
-#SBATCH --constraint gpu_tesla_A100                         # restrict the type of GPU to be used 
+#SBATCH --constraint=gpu_tesla_A100                         # GPU type
+
 
 source $HOME/.bashrc
 

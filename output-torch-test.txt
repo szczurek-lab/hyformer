@@ -1,11 +1,11 @@
-Running on supergpu07.scidom.de
+Running on supergpu02.scidom.de
 -------------------------------------------------
 Number of available GPUs: 1
-GPU name: NVIDIA A100-SXM4-40GB
+GPU name: Tesla V100-SXM3-32GB
 The highest compatible CUDA version: 11.6,
 -------------------------------------------------
 Starting the PyTorch compatibility test script...
-11:51:42,562 __main__ INFO PyTorch version: 1.13.1
-11:51:42,799 __main__ INFO CUDA available: True
-11:51:42,828 __main__ INFO Number of recognized GPUs: 1
-11:51:42,832 __main__ INFO     CUDA:0: NVIDIA A100-SXM4-40GB
+15:35:12,210 __main__ INFO PyTorch version: 1.13.1
+15:35:12,336 __main__ INFO CUDA available: True
+15:35:12,379 __main__ INFO Number of recognized GPUs: 1
+15:35:12,489 __main__ INFO CUDA:0: Tesla V100-SXM3-32GB
