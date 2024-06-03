@@ -1,11 +1,30 @@
-Running on supergpu02.scidom.de
+Mon Jun  3 11:01:32 2024       
++---------------------------------------------------------------------------------------+
+| NVIDIA-SMI 545.23.08              Driver Version: 545.23.08    CUDA Version: 12.3     |
+|-----------------------------------------+----------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id        Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |         Memory-Usage | GPU-Util  Compute M. |
+|                                         |                      |               MIG M. |
+|=========================================+======================+======================|
+|   0  NVIDIA A100-SXM4-40GB          Off | 00000000:0F:00.0 Off |                    0 |
+| N/A   28C    P0              52W / 400W |      4MiB / 40960MiB |      0%      Default |
+|                                         |                      |             Disabled |
++-----------------------------------------+----------------------+----------------------+
+                                                                                         
++---------------------------------------------------------------------------------------+
+| Processes:                                                                            |
+|  GPU   GI   CI        PID   Type   Process name                            GPU Memory |
+|        ID   ID                                                             Usage      |
+|=======================================================================================|
+|  No running processes found                                                           |
++---------------------------------------------------------------------------------------+
+Running on supergpu05.scidom.de
 -------------------------------------------------
 Number of available GPUs: 1
-GPU name: Tesla V100-SXM3-32GB
-The highest compatible CUDA version: 11.6,
+GPU name: NVIDIA A100-SXM4-40GB
 -------------------------------------------------
 Starting the PyTorch compatibility test script...
-15:35:12,210 __main__ INFO PyTorch version: 1.13.1
-15:35:12,336 __main__ INFO CUDA available: True
-15:35:12,379 __main__ INFO Number of recognized GPUs: 1
-15:35:12,489 __main__ INFO CUDA:0: Tesla V100-SXM3-32GB
+11:01:34,167 __main__ INFO PyTorch version: 2.2.2
+11:01:34,370 __main__ INFO CUDA available: True
+11:01:34,402 __main__ INFO Number of recognized GPUs: 1
+11:01:34,407 __main__ INFO CUDA:0: NVIDIA A100-SXM4-40GB
