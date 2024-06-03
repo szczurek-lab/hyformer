@@ -1,8 +1,8 @@
 {
   "dataset_name": "guacamol",
   "target_label": "physchem",
-  "validate": false,
-  "num_samples": 100,
+  "validate": true,
+  "num_samples": null,
   "split": null,
   "transform": [{"name": "smiles_enumerator", "params": {"enumeration_probability": 0.8}}],
   "target_transform": null,

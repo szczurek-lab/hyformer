@@ -165,6 +165,7 @@ data/*
 # Results
 results/
 wandb/
+!configs/wandb/
 
 # github
 .github

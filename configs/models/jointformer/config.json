@@ -7,8 +7,8 @@
   "max_seq_len": 128,
   "num_heads": 8,
   "num_layers": 8,
-  "vocab_size": 29,
+  "vocab_size": 106,
   "prediction_task": "regression",
   "num_prediction_tasks": 1,
-  "num_physchem_tasks": 1
+  "num_physchem_tasks": 200
 }

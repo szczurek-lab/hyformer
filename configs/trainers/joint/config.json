@@ -16,13 +16,14 @@
   "lr_decay_iters": 60000,
   "min_lr": 1e-6,
   "eval_iters": 1000,
-  "eval_interval": 100,
+  "eval_interval": 6000,
   "log_interval": 100,
   "always_save_checkpoint": false,
-  "save_checkpoint_every": 10000,
+  "save_checkpoint_every": 6000,
   "block_size": 128,
   "tasks":
     {
-      "lm":  1
+      "lm":  1,
+      "physchem": 1
     }
 }
