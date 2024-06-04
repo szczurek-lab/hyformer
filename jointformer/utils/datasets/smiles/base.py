@@ -1,16 +1,18 @@
-""" A base PyTorch dataset for SMILES strings. """
+""" A base PyTorch dataset for SMILES strings.
+"""
 
 import torch
+import random
 import numpy as np
-
 
 from tqdm import tqdm
 from rdkit import Chem
 from typing import List, Callable, Optional, Union
 
-from jointformer.utils.datasets.utils import read_strings_from_file
+from jointformer.configs.task import TaskConfig
 from jointformer.utils.datasets.base import BaseDataset
-from jointformer.utils.datasets.smiles.utils import is_valid
+from jointformer.utils.data import read_strings_from_file
+from jointformer.utils.chemistry import is_valid
 
 
 class SmilesDataset(BaseDataset):
@@ -18,14 +20,15 @@ class SmilesDataset(BaseDataset):
 
     def __init__(
             self,
-            data: List[str] = None,
+            data: Optional[List[str]] = None,
             data_filename: Optional[str] = None,
-            target: Union[List[float]] = None,
+            target: Optional[torch.Tensor] = None,
             target_filename: Optional[str] = None,
             transform: Optional[Union[Callable, List]] = None,
             target_transform: Optional[Union[Callable, List]] = None,
             num_samples: int = None,
-            validate: Optional[bool] = False
+            validate: Optional[bool] = None,
+            standardize: Optional[bool] = None
     ) -> None:
 
         assert data is not None or data_filename is not None, "Either data or data_filename must be provided."
@@ -36,39 +39,38 @@ class SmilesDataset(BaseDataset):
             target = self._load_target(target_filename)
 
         super().__init__(
-            data=data, target=target, transform=transform, target_transform=target_transform, num_samples=num_samples
+            data=data, target=target, transform=transform, target_transform=target_transform
         )
+        self.num_samples = num_samples
         self.validate = validate
-        self._validate_data()
-        self._validate_target()
+        self.standardize = standardize
+        self._subset()
+        self._validate()
+        self._standardize()
 
-    def _validate_data(self):
-        if self.validate and self.data:
+    def _subset(self):
+        if self.num_samples is not None:
+            if self.data is not None and len(self.data) > self.num_samples:
+                self.data = random.sample(self.data, self.num_samples)
+            if self.target is not None and len(self.target) > self.num_samples:
+                idx = torch.randperm(self.target.size()[0])
+                self.target = self.target[idx[:self.num_samples]]
+
+    def _validate(self):
+        if self.validate and self.data is not None:
             self.data = [x for x in tqdm(self.data, desc="Validating SMILES data") if is_valid(x)]
-            # self.data = [x for x in self.data if len(x) > 0]
+            if self.target is not None:
+                inputs = [
+                    (x, y) for x, y in tqdm(zip(self.data, self.target), desc="Validating target labels")
+                    if torch.equal(y, y)
+                ]
+                self.data = [x for x, y in inputs]
+                self.target = [y for x, y in inputs]
+
+    def _standardize(self):
+        if self.standardize and self.data is not None:
             self.data = [Chem.MolToSmiles(Chem.MolFromSmiles(smiles), canonical=False, isomericSmiles=True)
                          for smiles in tqdm(self.data, desc="Standardizing SMILES data")]
-
-    def _validate_target(self):
-        if self.validate and self.data and self.target is not None:
-            inputs = [
-                (x, y) for x, y in tqdm(zip(self.data, self.target), desc="Validating target labels") if torch.equal(y, y)]
-            self.data = [x for x, y in inputs]
-            self.target = [y for x, y in inputs]
-
-    @classmethod
-    def from_config(cls, config, split: str = None):
-        if split is not None:
-            config.split = split
-
-        return cls(
-            data_filename=config.data_filename,
-            target_filename=config.target_filename,
-            transform=config.transform,
-            target_transform=config.target_transform,
-            num_samples=config.num_samples,
-            validate=config.validate
-        )
 
     @staticmethod
     def _load_data(data_filename: str):

@@ -7,7 +7,7 @@ import torch
 
 from jointformer.configs.task import TaskConfig
 from jointformer.utils.datasets.smiles.base import SmilesDataset
-from jointformer.utils.datasets.utils import save_strings_to_file, read_strings_from_file
+from jointformer.utils.data import save_strings_to_file, read_strings_from_file
 from jointformer.utils.properties.auto import AutoTarget
 
 DATA_DIR = './data/moses'

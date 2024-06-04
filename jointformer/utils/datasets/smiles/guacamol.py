@@ -4,15 +4,15 @@ from urllib.request import urlretrieve
 from typing import List, Optional, Union, Callable
 
 import torch
+import random
 
 from jointformer.configs.task import TaskConfig
 from jointformer.utils.datasets.smiles.base import SmilesDataset
-from jointformer.utils.datasets.utils import save_strings_to_file, read_strings_from_file
+from jointformer.utils.data import save_strings_to_file, read_strings_from_file
 from jointformer.utils.properties.auto import AutoTarget
 
 DATA_DIR = './data/guacamol'
 DATA_FILE_NAME = 'smiles.txt'
-AVAILABLE_TARGETS = ['qed']
 
 GUACAMOL_URL = {
     'train': "https://ndownloader.figshare.com/files/13612760",
@@ -32,10 +32,12 @@ class GuacamolDataset(SmilesDataset):
             transform: Optional[Union[Callable, List]] = None,
             target_transform: Optional[Union[Callable, List]] = None,
             num_samples: Optional[int] = None,
-            validate: Optional[bool] = False,
+            validate: Optional[bool] = None,
+            standardize: Optional[bool] = None,
             data_dir: str = DATA_DIR,
     ) -> None:
 
+        # Download data and targets
         data_dir = self._get_data_dir(data_dir, split, num_samples)
         data_filename = os.path.join(data_dir, DATA_FILE_NAME)
         if not os.path.isfile(data_filename):
@@ -44,11 +46,20 @@ class GuacamolDataset(SmilesDataset):
         if target_label and not os.path.isfile(target_filename):
             self._download_target(data_filename=data_filename, target_filename=target_filename, target_label=target_label)
 
+        # Initialize the dataset
         super().__init__(
             data_filename=data_filename, target_filename=target_filename,
             transform=transform, target_transform=target_transform,
-            num_samples=num_samples, validate=validate
+            num_samples=num_samples, validate=validate, standardize=standardize
         )
+
+    @staticmethod
+    def _get_data_dir(data_dir: str, split: str = None, num_samples: int = None) -> str:
+        if split is not None:
+            data_dir = os.path.join(data_dir, split)
+        if num_samples is not None:
+            data_dir = os.path.join(data_dir, str(num_samples))
+        return data_dir
 
     @staticmethod
     def _download_data(split: str, num_samples: int, data_dir: str) -> None:
@@ -58,8 +69,10 @@ class GuacamolDataset(SmilesDataset):
         urlretrieve(GUACAMOL_URL[split], data_filename)
 
         data = read_strings_from_file(data_filename)
+
+        # Subset the data to restrict the number of samples that the target is computed on
         if num_samples and len(data) > num_samples:
-            data = data[:num_samples]
+            data = random.sample(data, num_samples)
 
         save_strings_to_file(data, data_filename)
 
@@ -71,18 +84,10 @@ class GuacamolDataset(SmilesDataset):
         target = oracle(data)
         torch.save(target, target_filename)
 
-    @staticmethod
-    def _get_data_dir(data_dir: str, split: str = None, num_samples: int = None) -> str:
-        if split is not None:
-            data_dir = os.path.join(data_dir, split)
-        if num_samples is not None:
-            data_dir = os.path.join(data_dir, str(num_samples))
-        return data_dir
-
     @classmethod
-    def from_config(cls, config: TaskConfig, split: str = None) -> SmilesDataset:
+    def from_config(cls, config: TaskConfig, split: str = None, data_dir: str = None) -> SmilesDataset:
 
-        if split:
+        if config is not None:
             config.split = split
 
         return cls(
@@ -91,5 +96,7 @@ class GuacamolDataset(SmilesDataset):
             transform=config.transform,
             target_transform=config.target_transform,
             validate=config.validate,
-            num_samples=config.num_samples
+            standardize=config.standardize,
+            num_samples=config.num_samples,
+            data_dir=data_dir
         )

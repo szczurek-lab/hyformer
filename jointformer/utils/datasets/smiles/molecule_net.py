@@ -10,7 +10,7 @@ from rdkit import Chem
 import deepchem as dc
 from deepchem.feat.molecule_featurizers.raw_featurizer import RawFeaturizer
 
-from jointformer.utils.datasets.utils import load_txt_into_list, save_list_into_txt
+from jointformer.utils.data import load_txt_into_list, save_list_into_txt
 from jointformer.utils.properties.smiles.molecule_net import MOLECULE_NET_REGRESSION_TASKS
 from jointformer.utils.transforms.smiles.permute import AugmentSMILES
 
