@@ -1,4 +1,4 @@
-Mon Jun  3 11:01:32 2024       
+Tue Jun  4 09:45:14 2024       
 +---------------------------------------------------------------------------------------+
 | NVIDIA-SMI 545.23.08              Driver Version: 545.23.08    CUDA Version: 12.3     |
 |-----------------------------------------+----------------------+----------------------+
@@ -24,7 +24,7 @@ Number of available GPUs: 1
 GPU name: NVIDIA A100-SXM4-40GB
 -------------------------------------------------
 Starting the PyTorch compatibility test script...
-11:01:34,167 __main__ INFO PyTorch version: 2.2.2
-11:01:34,370 __main__ INFO CUDA available: True
-11:01:34,402 __main__ INFO Number of recognized GPUs: 1
-11:01:34,407 __main__ INFO CUDA:0: NVIDIA A100-SXM4-40GB
+09:45:19,299 __main__ INFO PyTorch version: 2.2.2
+09:45:19,551 __main__ INFO CUDA available: True
+09:45:19,598 __main__ INFO Number of recognized GPUs: 1
+09:45:19,646 __main__ INFO CUDA:0: NVIDIA A100-SXM4-40GB

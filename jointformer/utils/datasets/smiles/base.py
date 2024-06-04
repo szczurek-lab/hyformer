@@ -50,8 +50,9 @@ class SmilesDataset(BaseDataset):
                          for smiles in tqdm(self.data, desc="Standardizing SMILES data")]
 
     def _validate_target(self):
-        if self.validate and self.data and self.target:
-            inputs = [(x, y) for x, y in tqdm(zip(self.data, self.target), desc="Validating target labels") if y == y]
+        if self.validate and self.data and self.target is not None:
+            inputs = [
+                (x, y) for x, y in tqdm(zip(self.data, self.target), desc="Validating target labels") if torch.equal(y, y)]
             self.data = [x for x, y in inputs]
             self.target = [y for x, y in inputs]
 

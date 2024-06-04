@@ -5,7 +5,7 @@
 #SBATCH --error error-%x.txt                                # create an error file 
 
 #SBATCH -p gpu_p
-#SBATCH --qos gpu_long                                    # gpu_priority for debugging, gpu_long for training 
+#SBATCH --qos gpu_normal                                      # gpu_priority for debugging, gpu_long for training 
 
 #SBATCH --nodes=1                                           # node count
 #SBATCH --ntasks=1                                          # total number of tasks across all nodes
