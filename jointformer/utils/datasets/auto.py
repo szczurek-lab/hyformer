@@ -21,7 +21,8 @@ class AutoDataset:
             num_samples: int = None,
             target_label: str = None,
             validate: bool = None,
-            standardize: bool = None
+            standardize: bool = None,
+            out_dir: str = None
     ) -> BaseDataset:
 
         # Override config values if available
@@ -47,6 +48,6 @@ class AutoDataset:
         elif config.dataset_name == 'guacamol':
             return getattr(importlib.import_module(
                 "jointformer.utils.datasets.smiles.guacamol"),
-                "GuacamolDataset").from_config(config)
+                "GuacamolDataset").from_config(config, out_dir=out_dir)
         else:
             raise ValueError(f"Dataset {config.dataset_name} not available.")

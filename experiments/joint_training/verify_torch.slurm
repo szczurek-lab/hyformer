@@ -39,4 +39,4 @@ nvidia-smi --query-gpu=name --format=csv,noheader
 echo "-------------------------------------------------"
 
 echo "Starting the PyTorch compatibility test script..."
-python experiments/joint_training/test.py
+python experiments/joint_training/verify_torch.py

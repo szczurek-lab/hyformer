@@ -11,6 +11,20 @@ from collections.abc import MutableMapping
 logger = logging.getLogger(__name__)
 
 
+def create_output_dir(out_dir):
+    if not os.path.isdir(out_dir):
+        is_ddp = int(os.environ.get('RANK', -1)) != -1
+        is_master_process = int(os.environ.get('RANK', -1)) == 0
+        if is_master_process & is_ddp:
+            os.makedirs(out_dir, exist_ok=True)
+            logger.info(f"Output directory {out_dir} created...")
+
+
+def log_args(args):
+    for arg, value in sorted(vars(args).items()):
+        logging.info("Argument %s: %r", arg, value)
+
+
 def set_seed(seed: int = 42) -> None:
     """
     Source:

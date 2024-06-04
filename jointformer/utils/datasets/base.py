@@ -31,7 +31,6 @@ class BaseDataset(Dataset):
         self.target_transform = target_transform
         self._current = 0
 
-
     def __len__(self):
         return len(self.data)
 
