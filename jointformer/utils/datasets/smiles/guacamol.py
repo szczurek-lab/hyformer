@@ -85,9 +85,9 @@ class GuacamolDataset(SmilesDataset):
         torch.save(target, target_filename)
 
     @classmethod
-    def from_config(cls, config: TaskConfig, split: str = None, data_dir: str = None) -> SmilesDataset:
+    def from_config(cls, config: TaskConfig, split: str = None) -> SmilesDataset:
 
-        if config is not None:
+        if split is not None:
             config.split = split
 
         return cls(
@@ -97,6 +97,5 @@ class GuacamolDataset(SmilesDataset):
             target_transform=config.target_transform,
             validate=config.validate,
             standardize=config.standardize,
-            num_samples=config.num_samples,
-            data_dir=data_dir
+            num_samples=config.num_samples
         )
