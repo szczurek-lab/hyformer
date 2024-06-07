@@ -54,6 +54,10 @@ class GuacamolDataset(SmilesDataset):
             num_samples=num_samples, validate=validate, standardize=standardize
         )
 
+    def _download(self):
+        # All logic here, maybe?
+        pass
+
     @staticmethod
     def _get_data_dir(data_dir: str, split: str = None, num_samples: int = None) -> str:
         if split is not None:

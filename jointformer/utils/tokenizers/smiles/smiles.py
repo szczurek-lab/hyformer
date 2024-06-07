@@ -4,6 +4,8 @@ import torch
 
 from typing import List, Tuple, Any, Optional, Union
 
+from torch.utils.data._utils.collate import default_collate
+
 from jointformer.utils.chemistry import is_valid, canonicalize
 from jointformer.utils.tokenizers.smiles.deepchem import DeepChemSmilesTokenizer
 
@@ -65,12 +67,12 @@ class SmilesTokenizer(DeepChemSmilesTokenizer):
             self.id_to_token[self.additional_special_tokens_ids[id]] = self.additional_special_tokens[id]
         self.token_to_id = {item: key for item, key in self.vocab.items()}
 
-    def __call__(self, examples: str or List[str], targets: Optional[Any] = None, task: str = 'lm') -> dict:
+    def __call__(self, data: str or List[str], properties: Optional[Any] = None, task: str = 'lm') -> dict:
         """ Tokenize a SMILES string or a list of SMILES strings.
 
         Parameters
         ----------
-        examples : str or List[str]
+        data : str or List[str]
             A SMILES string or a list of SMILES strings.
         task : str
             The task to perform. It can be either 'lm', 'ae', 'prediction' or 'mlm'.
@@ -82,10 +84,14 @@ class SmilesTokenizer(DeepChemSmilesTokenizer):
             `attention_mask` contains the attention mask, with padding tokens masked, `special_tokens_mask`,
              with SMILES tokens masked and 'labels' for computing the LM loss.
         """
+        try:
+            batch = super().__call__(
+                data,
+                truncation=True, padding='max_length', max_length=self.max_molecule_length,
+                return_special_tokens_mask=True, return_token_type_ids=False, return_tensors='pt')
+        except:
+            raise ValueError(f'Tokenization failed. Check the SMILES strings and vocabulary for {data}.')
 
-        batch = super().__call__(
-            examples, return_special_tokens_mask=True, padding='max_length', truncation=True,
-            return_tensors='pt', max_length=self.max_molecule_length, return_token_type_ids=False)
         special_tokens_mask = batch.pop("special_tokens_mask", None)
         batch["task"] = task
 
@@ -100,16 +106,18 @@ class SmilesTokenizer(DeepChemSmilesTokenizer):
                 batch["input_ids"], special_tokens_mask=special_tokens_mask)
 
         elif task == 'prediction' or task == 'physchem':
-            pass # do nothing
+            pass  # do nothing
 
         else:
             raise ValueError('Variable `task` must be either `lm`, `ae`, `prediction` or `mlm`.')
 
-        if self.set_separate_task_tokens:
-            batch = self.set_task_token(batch, task)
+        # if self.set_separate_task_tokens:
+        #     batch = self.set_task_token(batch, task)
 
-        if targets is not None:
-            batch["properties"] = targets
+        if properties is not None:
+            batch["properties"] = default_collate(properties)
+            if len(batch["properties"].shape) == 3:
+                batch["properties"] = batch["properties"].squeeze(1)
 
         return batch
 

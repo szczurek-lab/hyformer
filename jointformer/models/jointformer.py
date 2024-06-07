@@ -87,7 +87,7 @@ class Jointformer(Transformer):
             input_ids: Optional[torch.Tensor] = None,
             attention_mask: Optional[torch.Tensor] = None,
             labels: Optional[torch.Tensor] = None,
-            targets: Optional[torch.Tensor] = None,
+            properties: Optional[torch.Tensor] = None,
             task: Optional[str] = None):
 
         if task == 'lm':
@@ -95,9 +95,9 @@ class Jointformer(Transformer):
         elif task == 'mlm':
             return self.get_loss_mlm(input_ids, attention_mask, labels)
         elif task == 'prediction':
-            return self.get_loss_prediction(input_ids, attention_mask, targets)
+            return self.get_loss_prediction(input_ids, attention_mask, properties)
         elif task == 'physchem':
-            return self.get_loss_physchem(input_ids, attention_mask, targets)
+            return self.get_loss_physchem(input_ids, attention_mask, properties)
         else:
             raise ValueError('Variable `task` must be either `lm`, `mlm`, `prediction` or `finetune`.')
 
@@ -135,27 +135,27 @@ class Jointformer(Transformer):
 
     def get_loss_physchem(
             self, input_ids: Optional[torch.Tensor] = None, attention_mask: Optional[torch.Tensor] = None,
-            targets: Optional[torch.Tensor] = None, **kwargs):
+            properties: Optional[torch.Tensor] = None, **kwargs):
 
         outputs = super().forward(input_ids=input_ids, attention_mask=attention_mask, is_causal=False)
         y_pred = self.physchem_head(outputs['embeddings'][:, 0, :])
 
         outputs["loss"] = None
-        if targets is not None:
-            outputs["loss"] = F.mse_loss(y_pred.flatten(), targets.flatten(), reduction='mean')
+        if properties is not None:
+            outputs["loss"] = F.mse_loss(y_pred.flatten(), properties.flatten(), reduction='mean')
 
         return outputs
 
     def get_loss_prediction(
             self, input_ids: Optional[torch.Tensor] = None, attention_mask: Optional[torch.Tensor] = None,
-            targets: Optional[torch.Tensor] = None, **kwargs):
+            properties: Optional[torch.Tensor] = None, **kwargs):
 
         outputs = super().forward(input_ids=input_ids, attention_mask=attention_mask, is_causal=False)
         y_pred = self.prediction_head(outputs['embeddings'][:, 0, :])
 
         outputs["loss"] = None
-        if targets is not None:
-            outputs["loss"] = F.mse_loss(y_pred.flatten(), targets.flatten(), reduction='mean')
+        if properties is not None:
+            outputs["loss"] = F.mse_loss(y_pred.flatten(), properties.flatten(), reduction='mean')
 
         return outputs
 

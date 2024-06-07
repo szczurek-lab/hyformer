@@ -49,5 +49,9 @@ class AutoDataset:
             return getattr(importlib.import_module(
                 "jointformer.utils.datasets.smiles.guacamol"),
                 "GuacamolDataset").from_config(config, out_dir=out_dir)
+        elif config.dataset_name == 'molecule_net':
+            return getattr(importlib.import_module(
+                "jointformer.utils.datasets.smiles.molecule_net"),
+                "MoleculeNetDataset").from_config(config, out_dir=out_dir)
         else:
             raise ValueError(f"Dataset {config.dataset_name} not available.")

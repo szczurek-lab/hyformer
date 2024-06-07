@@ -9,7 +9,7 @@ import logging
 from typing import Optional, Any
 from contextlib import nullcontext
 from torch.distributions.categorical import Categorical
-from torch.utils.data._utils.collate import default_collate
+
 
 from torch.nn.parallel import DistributedDataParallel as DDP
 
@@ -18,9 +18,10 @@ from jointformer.models.transformer import Transformer
 from jointformer.utils.loggers.wandb import WandbLogger
 from jointformer.utils.datasets.base import BaseDataset
 
-logger = logging.getLogger(__name__)
+console = logging.getLogger(__name__)
 SNAPSHOT_FILENAME = 'snapshot.ckpt'
 MODEL_FILENAME = 'ckpt.pt'
+
 
 class Trainer:
     """Trainer for a Transformer model.
@@ -140,20 +141,24 @@ class Trainer:
         self.task_distribution = Categorical(torch.Tensor(list(self.tasks.values())))
         self.tokens_per_iter = self.gradient_accumulation_steps * self.ddp_world_size * self.batch_size * self.block_size
 
-        if len(self.tokenizer) != self.model.vocab_size:
-            raise ValueError(f"Tokenizer and model not compatible. Tokenizer is of length {len(self.tokenizer)} while"
-                             f" model expects vocab size {self.model.vocab_size}")
+        if self.tokenizer is not None:
+            if len(self.tokenizer) != self.model.vocab_size:
+                raise ValueError(f"Tokenizer and model not compatible. Tokenizer is of length {len(self.tokenizer)}"
+                                 f" while model expects vocab size {self.model.vocab_size}")
         if self.master_process:
-            logging.info(f"tokens per iteration set to: {self.tokens_per_iter:,}")
+            console.info(f"tokens per iteration set to: {self.tokens_per_iter:,}")
 
         self.ctx = nullcontext() if self.device_type == 'cpu' else torch.amp.autocast(
             device_type=self.device_type, dtype=self.ptdtype)
 
         self.scaler = torch.cuda.amp.GradScaler(enabled=(self.dtype == 'float16'))
 
+        if not os.path.isdir(self.out_dir) and self.master_process:
+            os.makedirs(self.out_dir)
+
     def _compile(self):
         if self.compile:
-            self.model = torch.compile(self.model, mode='reduce-overhead')
+            self.model = torch.compile(self.model, mode='reduce-overhead', fullgraph=True)
 
     def _parallelize(self):
         if self.is_ddp:
@@ -190,7 +195,8 @@ class Trainer:
             'best_val_loss': self._best_val_loss,
             'loss_dict': self._loss_dict
         }
-        torch.save(checkpoint, os.path.join(self.out_dir, filename))
+        if self.out_dir is not None:
+            torch.save(checkpoint, os.path.join(self.out_dir, filename))
 
     def get_training_batch(self):
         return self.get_batch(split='train')
@@ -219,16 +225,13 @@ class Trainer:
         sampled = [dataset[i] for i in idx]
 
         if isinstance(sampled[0], tuple):
-            x = [item[0] for item in sampled]
-            y = [item[1] for item in sampled]
-            inputs = self.tokenizer(x, task)
-            inputs['properties'] = default_collate(y)
+            data = [item[0] for item in sampled]
+            properties = [item[1] for item in sampled]
+            inputs = self.tokenizer(data=data, properties=properties, task=task)
         else:
-            inputs = self.tokenizer(sampled, task)
+            inputs = self.tokenizer(data=sampled, task=task)
             inputs['properties'] = None
         return inputs
-
-    import torch
 
     def test(self):
 
@@ -240,7 +243,6 @@ class Trainer:
             inputs = self.tokenizer(inputs)
             with self.ctx:
                 outputs = self.model.get_loss(**inputs)
-            print(f"Test loss {outputs['loss'].item()}")
 
     @torch.no_grad()
     def estimate_loss(self):
@@ -316,12 +318,12 @@ class Trainer:
         if self._iter_num % self.eval_interval == 0 and self.master_process:
             losses = self.estimate_loss()
             self._loss_dict[self._iter_num] = losses
-            info = f"step {self._iter_num}"
+            info = f"Evaluation at step {self._iter_num}"
             if 'train' in losses:
                 info += f": train loss {losses['train']['combined']:.4f}"
             if 'val' in losses:
                 info += f", val loss {losses['val']['combined']:.4f}"
-            logger.info(info)
+            console.info(info)
             if self.out_dir:
                 with open(os.path.join(self.out_dir, 'loss_dict.json'), 'w') as fp:
                     json.dump(self._loss_dict, fp, indent=4)
@@ -336,13 +338,17 @@ class Trainer:
                 log_dict['mfu'] = self._running_mfu * 100
                 self.logger.log(log_dict)
 
-            if 'val' in losses:
+            # More logging here
+            if 'val' in losses and self.out_dir and self._iter_num > 0:
+                console.info(f"Validation loss: {losses['val']['combined']:.4f}")
+                console.info(f"Best validation loss: {self._best_val_loss:.4f}")
                 if losses['val']['combined'] < self._best_val_loss or self.always_save_checkpoint:
                     self._best_val_loss = losses['val']['combined']
-                    if self._iter_num > 0 and self.out_dir:
-                        self._save_ckpt(MODEL_FILENAME)
-            if self._iter_num % self.save_checkpoint_every == 0 and self.out_dir:
-                self._save_ckpt(f"ckpt_{self._iter_num}.pt")
+                    self._save_ckpt(MODEL_FILENAME)
+                    console.info(f"Checkpoint updated at iteration {self._iter_num}")
+            if self.save_checkpoint_every is not None:
+                if self._iter_num % self.save_checkpoint_every == 0:
+                    self._save_ckpt(f"ckpt_{self._iter_num}.pt")
 
     def _terminate(self):
         if self._iter_num > self.max_iters:
@@ -371,9 +377,9 @@ class Trainer:
         self._compile()
         self._parallelize()
 
-        if self.logger and self.master_process:
+        if self.logger is not None and self.master_process:
             self.logger.init_run()
-            # self.logger.watch_model(self.model)
+            self.logger.watch_model(self.model)
 
         inputs = self.get_training_batch()
         t0 = time.time()
@@ -428,8 +434,7 @@ class Trainer:
                     self._running_mfu = mfu if self._running_mfu == -1.0 else 0.9 * self._running_mfu + 0.1 * mfu
                     msg = (f"iter {self._iter_num}: loss {lossf:.6f}, lr {self._learning_rate:.6f}," +
                            f" time {dt * 1000:.2f}ms, mfu {self._running_mfu * 100:.2f}%")
-                    print(msg)
-                    logging.info(msg)
+                    console.info(msg)
                     self._save_ckpt(SNAPSHOT_FILENAME)
             self._iter_num += 1
             local_iter_num += 1

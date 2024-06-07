@@ -1,16 +1,16 @@
 {
-  "dataset_name": "moses",
-  "target_label": "qed",
+  "dataset_name": "guacamol",
+  "target_label": "physchem",
   "validate": true,
   "standardize": true,
-  "num_samples": null,
+  "num_samples": 100,
   "split": null,
   "splitter": null,
   "transform": [{
-      "name": "smiles_enumerator", "params": {
-        "enumeration_probability": 0.0,
-        "is_standardized": true}
-  }],
+       "name": "smiles_enumerator", "params": {
+         "enumeration_probability": 0.0,
+         "is_standardized": true}
+   }],
   "target_transform": null,
   "tokenizer": "SmilesTokenizer",
   "path_to_vocabulary": "./data/vocabularies/guacamol.txt",
