@@ -1,7 +1,7 @@
 {
   "model_name": "Jointformer",
   "bias": false,
-  "dropout": 0.0,
+  "dropout": 0.2,
   "embedding_dim": 256,
   "layer_norm_eps": 1e-05,
   "max_seq_len": 128,
