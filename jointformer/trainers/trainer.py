@@ -18,6 +18,9 @@ from jointformer.models.transformer import Transformer
 from jointformer.utils.loggers.wandb import WandbLogger
 from jointformer.utils.datasets.base import BaseDataset
 
+from jointformer.utils.runtime import set_seed
+from jointformer.utils.data_collators import DataCollator
+
 console = logging.getLogger(__name__)
 SNAPSHOT_FILENAME = 'snapshot.ckpt'
 MODEL_FILENAME = 'ckpt.pt'
@@ -130,7 +133,7 @@ class Trainer:
 
     def _init_run(self):
         torch.cuda.set_device(self.device)
-        torch.manual_seed(self.seed + self.seed_offset)
+        set_seed(self.seed + self.seed_offset)
         torch.backends.cuda.matmul.allow_tf32 = True  # allow tf32 on matmul
         torch.backends.cudnn.allow_tf32 = True  # allow tf32 on cudnn
 
@@ -153,8 +156,9 @@ class Trainer:
 
         self.scaler = torch.cuda.amp.GradScaler(enabled=(self.dtype == 'float16'))
 
-        if not os.path.isdir(self.out_dir) and self.master_process:
-            os.makedirs(self.out_dir)
+        if self.out_dir is not None:
+            if not os.path.isdir(self.out_dir) and self.master_process:
+                os.makedirs(self.out_dir)
 
     def _compile(self):
         if self.compile:
@@ -163,9 +167,6 @@ class Trainer:
     def _parallelize(self):
         if self.is_ddp:
             self.model = DDP(self.model, device_ids=[self.ddp_local_rank])
-
-    def _sample_task(self):
-        return list(self.tasks.keys())[self.task_distribution.sample().item()]
 
     def resume_snapshot(self):
         self.resume_from_file(self._snapshot_filepath)
@@ -198,6 +199,67 @@ class Trainer:
         if self.out_dir is not None:
             torch.save(checkpoint, os.path.join(self.out_dir, filename))
 
+    def init_data_loaders(self):
+
+        try:
+            num_workers = int(os.environ["SLURM_CPUS_PER_TASK"])
+        except KeyError:
+            num_workers = 4
+
+        collator = DataCollator(tokenizer=self.tokenizer, tasks=self.tasks)
+
+        if self.train_dataset is not None:
+
+            sampler = torch.utils.data.distributed.DistributedSampler(
+                self.train_dataset,
+                num_replicas=self.ddp_world_size if self.is_ddp else None,
+                rank=self.ddp_rank if self.is_ddp else None
+            )
+
+            self.train_loader = torch.utils.data.DataLoader(
+                self.train_dataset,
+                batch_size=self.batch_size,
+                sampler=sampler,
+                num_workers=num_workers,
+                pin_memory=True,
+                shuffle=True,
+                collate_fn=collator
+            )
+
+        if self.val_dataset is not None:
+            sampler = torch.utils.data.distributed.DistributedSampler(
+                self.val_dataset,
+                num_replicas=self.ddp_world_size if self.is_ddp else None,
+                rank=self.ddp_rank if self.is_ddp else None
+            )
+
+            self.val_loader = torch.utils.data.DataLoader(
+                self.val_dataset,
+                batch_size=self.batch_size,
+                sampler=sampler,
+                num_workers=num_workers,
+                pin_memory=True,
+                shuffle=False,
+                collate_fn=collator
+            )
+
+        if self.test_dataset is not None:
+            sampler = torch.utils.data.distributed.DistributedSampler(
+                self.test_dataset,
+                num_replicas=self.ddp_world_size if self.is_ddp else None,
+                rank=self.ddp_rank if self.is_ddp else None
+            )
+
+            self.test_loader = torch.utils.data.DataLoader(
+                self.test_dataset,
+                batch_size=self.batch_size,
+                sampler=sampler,
+                num_workers=num_workers,
+                pin_memory=True,
+                shuffle=False,
+                collate_fn=collator
+            )
+
     def get_training_batch(self):
         return self.get_batch(split='train')
 
@@ -208,9 +270,10 @@ class Trainer:
         """Acts as a data loader / collate_fn for the dataset."""
 
         if task is None:
-            task = self._sample_task()
-
-        batch = self._sample(self.train_dataset, task) if split == 'train' else self._sample(self.val_dataset, task)
+            self.train_loader.set_epoch(self._iter_num)
+            batch = next(iter(self.train_loader)) if split == 'train' else next(iter(self.val_loader))
+        else:
+            batch = self._sample(self.train_dataset, task) if split == 'train' else self._sample(self.val_dataset, task)
 
         if self.device_type != 'cpu':
             for key, value in batch.items():

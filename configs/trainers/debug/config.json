@@ -1,6 +1,6 @@
 {
   "compile": true,
-  "enable_ddp": false,
+  "enable_ddp": true,
   "dtype": "float32",
   "eval_only": false,
   "max_iters": 600,

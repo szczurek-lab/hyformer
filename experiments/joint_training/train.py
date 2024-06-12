@@ -1,4 +1,6 @@
-import os, logging, argparse, time
+import os, logging, argparse
+
+import torch.distributed as dist
 
 from torch.distributed.elastic.multiprocessing.errors import record
 
@@ -27,21 +29,21 @@ logging.basicConfig(
 )
 logging.captureWarnings(True)
 
-
-DEFAULT_SEED_ARRAY = [1337]
+DEFAULT_MODEL_SEED_ARRAY = [1337]
 DDP_BACKEND = "nccl"
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--out_dir", type=str, default='./')
+    parser.add_argument("--data_dir", type=str, default='./data')
+    parser.add_argument("--out_dir", type=str, default='./results')
+    parser.add_argument("--seed", type=int, nargs='*', default=DEFAULT_MODEL_SEED_ARRAY)
     parser.add_argument("--path_to_task_config", type=str, required=True)
     parser.add_argument("--path_to_model_config", type=str, required=True)
     parser.add_argument("--path_to_trainer_config", type=str, required=True)
     parser.add_argument("--path_to_logger_config", type=str, nargs='?')
     parser.add_argument("--pretrained_filename", type=str, nargs='?')
     parser.add_argument("--logger_display_name", nargs='?', type=str)
-    parser.add_argument("--seed", type=int, nargs='*', default=DEFAULT_SEED_ARRAY)
     parser.add_argument("--dev_mode", default=False, action=argparse.BooleanOptionalAction)
     args = parser.parse_args()
     log_args(args)
@@ -71,8 +73,8 @@ def main(args):
     create_output_dir(args.out_dir)
 
     # Load data, tokenizer and model
-    train_dataset = AutoDataset.from_config(task_config, split='train', out_dir=args.out_dir)
-    val_dataset = AutoDataset.from_config(task_config, split='val', out_dir=args.out_dir)
+    train_dataset = AutoDataset.from_config(task_config, split='train', out_dir=args.data_dir)
+    val_dataset = AutoDataset.from_config(task_config, split='val', out_dir=args.data_dir)
     tokenizer = AutoTokenizer.from_config(task_config)
     model = AutoModel.from_config(model_config)
     logger = AutoLogger.from_config(logger_config) if logger_config else None
@@ -85,7 +87,7 @@ def main(args):
             logger.set_display_name(args.logger_display_name)
 
     trainer = Trainer(
-        out_dir=os.path.join(args.out_dir, 'results'),
+        out_dir=args.out_dir,
         seed=args.seed,
         config=trainer_config,
         model=model,
@@ -105,6 +107,8 @@ def main(args):
         else:
             console.info("Training from scratch")
 
+    if trainer.is_ddp:
+        dist.barrier()
     trainer.train()
 
     # End DDP
