@@ -2,6 +2,7 @@ import os, logging, argparse
 
 import torch.distributed as dist
 
+from socket import gethostname
 from torch.distributed.elastic.multiprocessing.errors import record
 
 from jointformer.configs.task import TaskConfig
@@ -23,14 +24,14 @@ console = logging.getLogger(__file__)
 logging.basicConfig(
     level=logging.INFO,
     filename="job.log",
-    filemode='a',
+    filemode='w',
     format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
     datefmt='%H:%M:%S',
 )
 logging.captureWarnings(True)
 
 DEFAULT_MODEL_SEED_ARRAY = [1337]
-DDP_BACKEND = "nccl"
+
 
 
 def parse_args():
@@ -67,8 +68,8 @@ def main(args):
         )
 
     # Initialize DDP
-    init_ddp(trainer_config.enable_ddp, DDP_BACKEND)
-
+    init_ddp(trainer_config.enable_ddp)
+    
     # Create output directory
     create_output_dir(args.out_dir)
 
@@ -78,6 +79,8 @@ def main(args):
     tokenizer = AutoTokenizer.from_config(task_config)
     model = AutoModel.from_config(model_config)
     logger = AutoLogger.from_config(logger_config) if logger_config else None
+
+    return
 
     # Store configs
     dump_configs(args.out_dir, task_config, model_config, trainer_config, logger_config)
@@ -109,6 +112,7 @@ def main(args):
 
     if trainer.is_ddp:
         dist.barrier()
+
     trainer.train()
 
     # End DDP

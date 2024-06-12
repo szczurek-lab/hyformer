@@ -1,0 +1,28 @@
+DDP initialized
+DDP initialized
+DDP initialized
+DDP initialized
+DDP initialized
+DDP initialized
+DDP initialized
+Downloading data into /lustre/groups/aih/jointformer/data/data/guacamol/train/100/smiles.txt
+Downloading data into /lustre/groups/aih/jointformer/data/data/guacamol/train/100/smiles.txt
+Downloading data into /lustre/groups/aih/jointformer/data/data/guacamol/train/100/smiles.txt
+Downloading data into /lustre/groups/aih/jointformer/data/data/guacamol/train/100/smiles.txt
+Downloading data into /lustre/groups/aih/jointformer/data/data/guacamol/train/100/smiles.txt
+Downloading data into /lustre/groups/aih/jointformer/data/data/guacamol/train/100/smiles.txt
+Downloading data into /lustre/groups/aih/jointformer/data/data/guacamol/train/100/smiles.txt
+Downloading target into /lustre/groups/aih/jointformer/data/data/guacamol/train/100/physchem.pt
+Downloading target into /lustre/groups/aih/jointformer/data/data/guacamol/train/100/physchem.pt
+Downloading target into /lustre/groups/aih/jointformer/data/data/guacamol/train/100/physchem.pt
+Downloading target into /lustre/groups/aih/jointformer/data/data/guacamol/train/100/physchem.pt
+Downloading target into /lustre/groups/aih/jointformer/data/data/guacamol/train/100/physchem.pt
+Downloading target into /lustre/groups/aih/jointformer/data/data/guacamol/train/100/physchem.pt
+Downloading target into /lustre/groups/aih/jointformer/data/data/guacamol/train/100/physchem.pt
+Downloading data into /lustre/groups/aih/jointformer/data/data/guacamol/val/smiles.txt
+Downloading target into /lustre/groups/aih/jointformer/data/data/guacamol/val/physchem.pt
+Downloading target into /lustre/groups/aih/jointformer/data/data/guacamol/val/physchem.pt
+Downloading target into /lustre/groups/aih/jointformer/data/data/guacamol/val/physchem.pt
+Downloading target into /lustre/groups/aih/jointformer/data/data/guacamol/val/physchem.pt
+Downloading target into /lustre/groups/aih/jointformer/data/data/guacamol/val/physchem.pt
+Downloading target into /lustre/groups/aih/jointformer/data/data/guacamol/val/physchem.pt

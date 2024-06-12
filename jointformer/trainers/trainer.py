@@ -166,7 +166,7 @@ class Trainer:
 
     def _parallelize(self):
         if self.is_ddp:
-            self.model = DDP(self.model, device_ids=[self.ddp_local_rank])
+            self.model = DDP(self.model, device_ids=[self.ddp_local_rank], output_device=self.ddp_local_rank)
 
     def resume_snapshot(self):
         self.resume_from_file(self._snapshot_filepath)

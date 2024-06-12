@@ -3,15 +3,16 @@ import logging
 
 from torch.distributed import init_process_group, destroy_process_group
 
-logger = logging.getLogger(__name__)
+console = logging.getLogger(__name__)
+DDP_BACKEND = "nccl"
 
 
-def init_ddp(enable_ddp: bool, backend: str) -> None:
+def init_ddp(enable_ddp: bool) -> None:
     if enable_ddp and int(os.environ.get('RANK', -1)) != -1:
-        init_process_group(backend=backend)
-        logger.info(f"DDP enabled with backend {backend}")
-
-
+        init_process_group(backend=DDP_BACKEND)
+        console.info("DDP initialized")
+        print("DDP initialized")
+        
 def end_ddp(enable_ddp: bool) -> None:
     if enable_ddp and int(os.environ.get('RANK', -1)) != -1:
         destroy_process_group()
