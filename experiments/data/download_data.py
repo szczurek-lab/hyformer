@@ -2,6 +2,8 @@ import os
 import logging
 import argparse
 
+from tqdm.contrib.logging import logging_redirect_tqdm
+
 from jointformer.configs.task import TaskConfig
 from jointformer.utils.datasets.auto import AutoDataset
 from jointformer.utils.runtime import set_seed
@@ -44,6 +46,7 @@ if __name__ == "__main__":
     args = parse_args()
     args.data_dir = os.path.join(args.data_dir, f"seed_{args.seed}")
     try:
-        main(args)
+        with logging_redirect_tqdm():
+            main(args)
     except Exception as e:
         logging.critical(e, exc_info=True)
