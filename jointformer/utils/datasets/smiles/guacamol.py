@@ -1,17 +1,16 @@
 import os
+import torch
+import random
 
 from urllib.request import urlretrieve
 from typing import List, Optional, Union, Callable
-
-import torch
-import random
 
 from jointformer.configs.task import TaskConfig
 from jointformer.utils.datasets.smiles.base import SmilesDataset
 from jointformer.utils.data import save_strings_to_file, read_strings_from_file
 from jointformer.utils.properties.auto import AutoTarget
 
-DATA_DIR = 'data/guacamol'
+DATA_DIR = 'guacamol'
 DATA_FILE_NAME = 'smiles.txt'
 
 GUACAMOL_URL = {
@@ -34,12 +33,13 @@ class GuacamolDataset(SmilesDataset):
             num_samples: Optional[int] = None,
             validate: Optional[bool] = None,
             standardize: Optional[bool] = None,
-            out_dir: Optional[str] = None,
+            data_dir: Optional[str] = None,
     ) -> None:
 
         # Download data and targets
-        out_dir = out_dir if out_dir is not None else './'
-        data_dir = self._get_data_dir(os.path.join(out_dir, DATA_DIR), split, num_samples)
+        data_dir = data_dir if data_dir is not None else './data'
+        data_dir = os.path.join(data_dir, 'guacamol')
+        data_dir = self._get_data_dir(data_dir, split, num_samples)
         data_filename = os.path.join(data_dir, DATA_FILE_NAME)
         if not os.path.isfile(data_filename):
             self._download_data(data_dir=data_dir, split=split, num_samples=num_samples)
@@ -90,7 +90,7 @@ class GuacamolDataset(SmilesDataset):
         torch.save(target, target_filename)
 
     @classmethod
-    def from_config(cls, config: TaskConfig, split: str = None, out_dir: str = None) -> SmilesDataset:
+    def from_config(cls, config: TaskConfig, split: str = None, data_dir: str = None) -> SmilesDataset:
 
         if split is not None:
             config.split = split
@@ -103,5 +103,5 @@ class GuacamolDataset(SmilesDataset):
             validate=config.validate,
             standardize=config.standardize,
             num_samples=config.num_samples,
-            out_dir=out_dir
+            data_dir=data_dir
         )

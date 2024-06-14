@@ -23,9 +23,9 @@ from jointformer.utils.ddp import init_ddp, end_ddp
 console = logging.getLogger(__file__)
 logging.basicConfig(
     level=logging.INFO,
-    filename="job.log",
+    filename=f"{os.environ.get('SLURM_JOB_NAME')}.log",
     filemode='w',
-    format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
+    format='%(asctime)s %(name)s %(levelname)s %(message)s',
     datefmt='%H:%M:%S',
 )
 logging.captureWarnings(True)
@@ -36,8 +36,8 @@ DEFAULT_MODEL_SEED_ARRAY = [1337]
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data_dir", type=str, default='./data')
     parser.add_argument("--out_dir", type=str, default='./results')
+    parser.add_argument("--data_dir", type=str, default='./data')
     parser.add_argument("--seed", type=int, nargs='*', default=DEFAULT_MODEL_SEED_ARRAY)
     parser.add_argument("--path_to_task_config", type=str, required=True)
     parser.add_argument("--path_to_model_config", type=str, required=True)
@@ -74,13 +74,11 @@ def main(args):
     create_output_dir(args.out_dir)
 
     # Load data, tokenizer and model
-    train_dataset = AutoDataset.from_config(task_config, split='train', out_dir=args.data_dir)
-    val_dataset = AutoDataset.from_config(task_config, split='val', out_dir=args.data_dir)
+    train_dataset = AutoDataset.from_config(task_config, split='train', data_dir=args.data_dir)
+    val_dataset = AutoDataset.from_config(task_config, split='val', data_dir=args.data_dir)
     tokenizer = AutoTokenizer.from_config(task_config)
     model = AutoModel.from_config(model_config)
     logger = AutoLogger.from_config(logger_config) if logger_config else None
-
-    return
 
     # Store configs
     dump_configs(args.out_dir, task_config, model_config, trainer_config, logger_config)
@@ -89,6 +87,7 @@ def main(args):
         if args.logger_display_name is not None:
             logger.set_display_name(args.logger_display_name)
 
+    
     trainer = Trainer(
         out_dir=args.out_dir,
         seed=args.seed,
@@ -128,5 +127,6 @@ if __name__ == "__main__":
         set_seed(seed)
         try:
             main(tmp_args)
+            logging.info(f"Completed seed {seed}")
         except Exception as e:
             logging.critical(e, exc_info=True)

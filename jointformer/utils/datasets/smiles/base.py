@@ -64,8 +64,10 @@ class SmilesDataset(BaseDataset):
                 self.target = self.target[idx[:self.num_samples]]
 
     def _validate(self):
-        logger.info("Validating SMILES data.")
+        
         if self.validate and self.data is not None:
+
+            logger.info("Validating SMILES data.")
 
             is_valid_molecule = [is_valid(x) for x in self.data]
 

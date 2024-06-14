@@ -27,11 +27,11 @@ def create_output_dir(out_dir):
     if not os.path.isdir(out_dir):
         is_ddp = int(os.environ.get('RANK', -1)) != -1
         is_master_process = int(os.environ.get('RANK', -1)) == 0
-        if is_master_process & is_ddp:
+        if (is_master_process and is_ddp) or not is_ddp:
             os.makedirs(out_dir, exist_ok=True)
             logger.info(f"Output directory {out_dir} created...")
-
-
+        
+        
 def log_args(args):
     logging.info("Logging experiment...")
     for arg, value in sorted(vars(args).items()):

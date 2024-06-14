@@ -126,7 +126,6 @@ class Trainer:
             self.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
     def _check_dtype(self):
-        # note: float16 data type will automatically use a GradScaler
         if self.dtype == 'bfloat16':
             if not torch.cuda.is_available() or not torch.cuda.is_bf16_supported():
                 self.dtype = 'float16'
@@ -199,7 +198,7 @@ class Trainer:
         if self.out_dir is not None:
             torch.save(checkpoint, os.path.join(self.out_dir, filename))
 
-    def init_data_loaders(self):
+    def init_training_data_loaders(self):
 
         try:
             num_workers = int(os.environ["SLURM_CPUS_PER_TASK"])
@@ -209,13 +208,7 @@ class Trainer:
         collator = DataCollator(tokenizer=self.tokenizer, tasks=self.tasks)
 
         if self.train_dataset is not None:
-
-            sampler = torch.utils.data.distributed.DistributedSampler(
-                self.train_dataset,
-                num_replicas=self.ddp_world_size if self.is_ddp else None,
-                rank=self.ddp_rank if self.is_ddp else None
-            )
-
+            sampler = torch.utils.data.distributed.DistributedSampler(self.train_dataset) if self.is_ddp else None
             self.train_loader = torch.utils.data.DataLoader(
                 self.train_dataset,
                 batch_size=self.batch_size,
@@ -227,12 +220,7 @@ class Trainer:
             )
 
         if self.val_dataset is not None:
-            sampler = torch.utils.data.distributed.DistributedSampler(
-                self.val_dataset,
-                num_replicas=self.ddp_world_size if self.is_ddp else None,
-                rank=self.ddp_rank if self.is_ddp else None
-            )
-
+            sampler = torch.utils.data.distributed.DistributedSampler(self.val_dataset) if self.is_ddp else None
             self.val_loader = torch.utils.data.DataLoader(
                 self.val_dataset,
                 batch_size=self.batch_size,
@@ -244,12 +232,7 @@ class Trainer:
             )
 
         if self.test_dataset is not None:
-            sampler = torch.utils.data.distributed.DistributedSampler(
-                self.test_dataset,
-                num_replicas=self.ddp_world_size if self.is_ddp else None,
-                rank=self.ddp_rank if self.is_ddp else None
-            )
-
+            sampler = torch.utils.data.distributed.DistributedSampler(self.test_dataset) if self.is_ddp else None
             self.test_loader = torch.utils.data.DataLoader(
                 self.test_dataset,
                 batch_size=self.batch_size,
@@ -270,7 +253,8 @@ class Trainer:
         """Acts as a data loader / collate_fn for the dataset."""
 
         if task is None:
-            self.train_loader.set_epoch(self._iter_num)
+            if split == 'train' and self.is_ddp:
+                self.train_loader.set_epoch(self._iter_num)
             batch = next(iter(self.train_loader)) if split == 'train' else next(iter(self.val_loader))
         else:
             batch = self._sample(self.train_dataset, task) if split == 'train' else self._sample(self.val_dataset, task)
@@ -439,6 +423,7 @@ class Trainer:
 
         self._compile()
         self._parallelize()
+        self.init_training_data_loaders()
 
         if self.logger is not None and self.master_process:
             self.logger.init_run()

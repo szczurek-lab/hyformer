@@ -1,1 +1,0 @@
-Downloading data into /lustre/groups/aih/jointformer/data/seed_0/data/guacamol/train/smiles.txt
