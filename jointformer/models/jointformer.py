@@ -38,11 +38,11 @@ class Jointformer(Transformer):
         self.mlm_head = nn.Linear(self.embedding_dim, self.vocab_size, bias=False)
         self.physchem_head = nn.Sequential(
             nn.Dropout(self.dropout),
-            nn.Linear(self.embedding_dim, self.embedding_dim),
+            nn.Linear(self.embedding_dim * self.max_seq_len, self.embedding_dim),
             nn.ReLU(),
             nn.Linear(self.embedding_dim, num_physchem_tasks),
         )
-        self.prediction_head = nn.Linear(self.embedding_dim, num_prediction_tasks, bias=False)
+        self.prediction_head = nn.Linear(self.embedding_dim * max_seq_len, num_prediction_tasks, bias=False)
 
         # Weight tying https://paperswithcode.com/method/weight-tying
         if tie_weights:
@@ -77,7 +77,7 @@ class Jointformer(Transformer):
         """ Perform a forward pass through the discriminative part of the model. """
         outputs = self.forward(input_ids=input_ids, attention_mask=attention_mask, is_causal=False)
         outputs["loss"] = None
-        outputs["logits"] = self.prediction_head(outputs['embeddings'][:, 0, :])
+        outputs["logits"] = self.prediction_head(outputs['embeddings'].flatten(start_dim=1, end_dim=-1))
         outputs["y_pred"] = outputs["logits"]
 
         return outputs
@@ -138,7 +138,7 @@ class Jointformer(Transformer):
             properties: Optional[torch.Tensor] = None, **kwargs):
 
         outputs = super().forward(input_ids=input_ids, attention_mask=attention_mask, is_causal=False)
-        y_pred = self.physchem_head(outputs['embeddings'][:, 0, :])
+        y_pred = self.physchem_head(outputs['embeddings'].flatten(start_dim=1, end_dim=-1))
 
         outputs["loss"] = None
         if properties is not None:
@@ -151,7 +151,7 @@ class Jointformer(Transformer):
             properties: Optional[torch.Tensor] = None, **kwargs):
 
         outputs = super().forward(input_ids=input_ids, attention_mask=attention_mask, is_causal=False)
-        y_pred = self.prediction_head(outputs['embeddings'][:, 0, :])
+        y_pred = self.prediction_head(outputs['embeddings'].flatten(start_dim=1, end_dim=-1))
 
         outputs["loss"] = None
         if properties is not None:

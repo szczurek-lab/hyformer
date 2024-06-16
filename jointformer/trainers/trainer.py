@@ -437,10 +437,15 @@ class Trainer:
 
         while True:
             if self._terminate():
+                if self.logger is not None:
+                    self.logger.finish()
                 break
+                
             self._set_lr()
             self.evaluate()
             if self._iter_num == 0 and self.eval_only:
+                if self.logger is not None:
+                    self.logger.finish()
                 break
 
             # forward backward update, with optional gradient accumulation to simulate larger batch size

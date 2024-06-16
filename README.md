@@ -10,7 +10,7 @@ that simultaneously excels in both molecule generation and property prediction.
 ### Installation
 To create an environment that satisfies the necessary requirements run
 ```
- conda env create -f env.yml
+ conda env create -f jointformer-experiments.yml
 ```
 Next, install Jointformer from the project directory with 
 ```
