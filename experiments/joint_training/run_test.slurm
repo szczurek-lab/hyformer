@@ -12,7 +12,7 @@
 #SBATCH --ntasks-per-node=1                                 
 #SBATCH --gpus-per-task=1                                   
 #SBATCH --cpus-per-task=8                                   
-#SBATCH --mem=40G                                           
+#SBATCH --mem=64G                                           
 #SBATCH --gres=gpu:1                                        
 #SBATCH --time=24:00:00                                    
 
@@ -31,9 +31,9 @@ conda deactivate
 conda activate jointformer-experiments
 
 srun python experiments/joint_training/train.py \
-    --out_dir /lustre/groups/aih/jointformer/results/lm_psychem/no_separate_token/shared_emb/bs_512/drop_2/ \
+    --out_dir /lustre/groups/aih/jointformer/results_pretrain \
     --data_dir /lustre/groups/aih/jointformer/data \
-    --path_to_task_config configs/tasks/guacamol/physchem \
-    --path_to_model_config configs/models/jointformer \
-    --path_to_trainer_config configs/trainers/joint \
+    --path_to_task_config configs/tasks/guacamol/debug \
+    --path_to_model_config configs/models/jointformer_debug \
+    --path_to_trainer_config configs/trainers/debug \
     --path_to_logger_config configs/loggers/wandb 

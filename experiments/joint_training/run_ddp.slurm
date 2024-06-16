@@ -31,7 +31,7 @@ conda deactivate
 conda activate jointformer-experiments
 
 
-python -m torch.distributed.run \
+srun python -m torch.distributed.run \
     --standalone \
     --nproc_per_node=gpu \
     experiments/joint_training/train.py \
