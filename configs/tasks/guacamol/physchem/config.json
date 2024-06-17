@@ -1,8 +1,8 @@
 {
   "dataset_name": "guacamol",
   "target_label": "physchem",
-  "validate": true,
-  "standardize": true,
+  "validate": false,
+  "standardize": false,
   "num_samples": null,
   "split": null,
   "splitter": null,
@@ -13,7 +13,7 @@
    }],
   "target_transform": null,
   "tokenizer": "SmilesTokenizer",
-  "path_to_vocabulary": "./data/vocabularies/guacamol.txt",
+  "path_to_vocabulary": "./data/vocabularies/deepchem.txt",
   "max_molecule_length": 128,
   "set_separate_task_tokens": false
 }

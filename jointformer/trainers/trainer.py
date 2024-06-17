@@ -72,6 +72,9 @@ class Trainer:
         self.batch_size = config.batch_size
         self.block_size = config.block_size
         self.dtype = config.dtype
+        if self.dtype == 'bfloat16':
+            if not torch.cuda.is_available() or not torch.cuda.is_bf16_supported():
+                self.dtype = 'float16'
         self.ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[self.dtype]
         self.weight_decay = config.weight_decay
         self.learning_rate = config.learning_rate
@@ -98,11 +101,9 @@ class Trainer:
         self._learning_rate = None
         self._running_mfu = 0.0
 
-        self._get_ddp_config()
-        self._check_dtype()
-        self._init_run()
+        self._post_init()
 
-    def _get_ddp_config(self):
+    def _set_ddp_config(self):
         """ Get the DDP configuration."""
         ddp = int(os.environ.get('RANK', -1)) != -1  # is this a ddp run?
         if self.enable_ddp and ddp:
@@ -113,29 +114,28 @@ class Trainer:
             self.device = f'cuda:{self.ddp_local_rank}'
             self.master_process = self.ddp_rank == 0  # this process will do logging, checkpointing etc.
             self.seed_offset = self.ddp_rank * 1234  # each process gets a different torch seed
-            # world_size number of processes will be training simultaneously, so we can scale
-            # down the desired gradient accumulation iterations per process proportionally
-            assert self.gradient_accumulation_steps % self.ddp_world_size == 0
-            self.gradient_accumulation_steps //= self.ddp_world_size
+            assert self.gradient_accumulation_steps % self.ddp_world_size == 0  # world_size number of processes will be training simultaneously
+            self.gradient_accumulation_steps //= self.ddp_world_size  # hence, scale down the gradient accumulation iterations per process proportionally
         else:
-            # if not ddp, we are running on a single gpu, and one process
             self.is_ddp = False
             self.master_process = True
             self.seed_offset = 0
             self.ddp_world_size = 1
             self.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-
-    def _check_dtype(self):
-        if self.dtype == 'bfloat16':
-            if not torch.cuda.is_available() or not torch.cuda.is_bf16_supported():
-                self.dtype = 'float16'
-
-    def _init_run(self):
+    
+    def _set_device(self):
         torch.cuda.set_device(self.device)
-        set_seed(self.seed + self.seed_offset)
+        
+    def _set_backends(self):
         torch.backends.cuda.matmul.allow_tf32 = True  # allow tf32 on matmul
         torch.backends.cudnn.allow_tf32 = True  # allow tf32 on cudnn
 
+    def _post_init(self):
+        self._set_ddp_config()
+        self._set_device()
+        self._set_backends()
+        
+        set_seed(self.seed + self.seed_offset)
         self.model.to(self.device)
         self.optimizer = self.model.configure_optimizers(
             self.weight_decay, self.learning_rate, (self.beta1, self.beta2), self.device_type)
@@ -188,22 +188,25 @@ class Trainer:
         checkpoint = None
 
     def _save_ckpt(self, filename: str):
-        checkpoint = {
-            'model': self.raw_model.state_dict(),
-            'optimizer': self.optimizer.state_dict(),
-            'iter_num': self._iter_num,
-            'best_val_loss': self._best_val_loss,
-            'loss_dict': self._loss_dict
-        }
         if self.out_dir is not None:
+            checkpoint = {
+                'model': self.raw_model.state_dict(),
+                'optimizer': self.optimizer.state_dict(),
+                'iter_num': self._iter_num,
+                'best_val_loss': self._best_val_loss,
+                'loss_dict': self._loss_dict
+            }    
             torch.save(checkpoint, os.path.join(self.out_dir, filename))
 
-    def init_training_data_loaders(self):
-
+    @staticmethod
+    def _get_num_workers():
         try:
             num_workers = int(os.environ["SLURM_CPUS_PER_TASK"])
         except KeyError:
             num_workers = 4
+        return num_workers
+
+    def _init_data_loaders(self):
 
         collator = DataCollator(tokenizer=self.tokenizer, tasks=self.tasks)
 
@@ -213,7 +216,7 @@ class Trainer:
                 self.train_dataset,
                 batch_size=self.batch_size,
                 sampler=sampler,
-                num_workers=num_workers,
+                num_workers=self._get_num_workers(),
                 pin_memory=True,
                 shuffle=True,
                 collate_fn=collator
@@ -225,7 +228,7 @@ class Trainer:
                 self.val_dataset,
                 batch_size=self.batch_size,
                 sampler=sampler,
-                num_workers=num_workers,
+                num_workers=self._get_num_workers(),
                 pin_memory=True,
                 shuffle=False,
                 collate_fn=collator
@@ -237,7 +240,7 @@ class Trainer:
                 self.test_dataset,
                 batch_size=self.batch_size,
                 sampler=sampler,
-                num_workers=num_workers,
+                num_workers=self._get_num_workers(),
                 pin_memory=True,
                 shuffle=False,
                 collate_fn=collator
@@ -417,13 +420,13 @@ class Trainer:
         return samples
 
     def train(self) -> None:
-
+        
         if self._iter_num > self.max_iters:
             return
 
         self._compile()
         self._parallelize()
-        self.init_training_data_loaders()
+        self._init_data_loaders()
 
         if self.logger is not None and self.master_process:
             self.logger.init_run()
@@ -447,47 +450,41 @@ class Trainer:
                 if self.logger is not None:
                     self.logger.finish()
                 break
-
-            # forward backward update, with optional gradient accumulation to simulate larger batch size
-            # and using the GradScaler if data type is float16
-            for micro_step in range(self.gradient_accumulation_steps):
+            
+            ### Training step
+            for micro_step in range(self.gradient_accumulation_steps): # gradient accumulation loop
                 if self.is_ddp:
-                    # in DDP training we only need to sync gradients at the last micro step.
-                    # the official way to do this is with model.no_sync() context manager, but
-                    # I really dislike that this bloats the code and forces us to repeat code
-                    # looking at the source of that context manager, it just toggles this variable
-                    self.model.require_backward_grad_sync = (micro_step == self.gradient_accumulation_steps - 1)
+                    self.model.require_backward_grad_sync = (micro_step == self.gradient_accumulation_steps - 1)  # in ddp mode, only sync grads at the last micro-step
                 with self.ctx:
                     outputs = self.model.get_loss(**inputs)
                     loss = outputs["loss"] / self.gradient_accumulation_steps  # scale the loss to account for gradient accumulation
-                # immediately async prefetch next batch while model is doing the forward pass on the GPU
-                inputs = self.get_training_batch()
-                # backward pass, with gradient scaling if training in fp16
-                self.scaler.scale(loss).backward()
-            # clip the gradient
-            if self.grad_clip != 0.0:
+                inputs = self.get_training_batch()  # async prefetch next batch
+                self.scaler.scale(loss).backward()  # backward pass, with gradient scaling if training in fp16
+            
+            if self.grad_clip != 0.0: # clip the gradient
                 self.scaler.unscale_(self.optimizer)
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
-            # step the optimizer and scaler if training in fp16
-            self.scaler.step(self.optimizer)
+            self.scaler.step(self.optimizer) # step the optimizer and scaler if training in fp16
             self.scaler.update()
-            # flush the gradients as soon as we can, no need for this memory anymore
-            self.optimizer.zero_grad(set_to_none=True)
+            self.optimizer.zero_grad(set_to_none=True) # flush the gradients
+            ###
 
             # timing and logging
             t1 = time.time()
             dt = t1 - t0
             t0 = t1
-            if self._iter_num % self.log_interval == 0 and self.master_process:
-                # get loss as float. note: this is a CPU-GPU sync point
-                # scale up to undo the division above, approximating the true total loss (exact would have been a sum)
+            if self._iter_num % self.log_interval == 0 and self.master_process:  # a CPU-GPU sync point
                 lossf = loss.item() * self.gradient_accumulation_steps
                 if local_iter_num >= 5:  # let the training loop settle a bit
                     mfu = self.raw_model.estimate_mfu(self.batch_size * self.gradient_accumulation_steps, dt)
                     self._running_mfu = mfu if self._running_mfu == -1.0 else 0.9 * self._running_mfu + 0.1 * mfu
-                    msg = (f"iter {self._iter_num}: loss {lossf:.6f}, lr {self._learning_rate:.6f}," +
-                           f" time {dt * 1000:.2f}ms, mfu {self._running_mfu * 100:.2f}%")
-                    console.info(msg)
+                    console.info(
+                        f"iter {self._iter_num}:
+                          loss {lossf:.6f} on {inputs['task']} task,
+                            lr {self._learning_rate:.6f}," + 
+                            f" time {dt * 1000:.2f}ms,
+                              mfu {self._running_mfu * 100:.2f}%"
+                        )
                     self._save_ckpt(SNAPSHOT_FILENAME)
             self._iter_num += 1
             local_iter_num += 1

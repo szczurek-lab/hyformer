@@ -90,7 +90,15 @@ class SmilesTokenizer(DeepChemSmilesTokenizer):
                 truncation=True, padding='max_length', max_length=self.max_molecule_length,
                 return_special_tokens_mask=True, return_token_type_ids=False, return_tensors='pt')
         except:
-            raise ValueError(f'Tokenization failed. Check the SMILES strings and vocabulary for {data}.')
+            for smiles in data:
+                try:
+                    super().__call__(
+                        smiles, truncation=True, padding='max_length', max_length=self.max_molecule_length,
+                        return_special_tokens_mask=True, return_token_type_ids=False, return_tensors='pt'
+                    )
+                except Exception as e:
+                    print(e)
+                    raise ValueError(f'Tokenization failed. Check the SMILES strings and vocabulary for {smiles}.')
 
         special_tokens_mask = batch.pop("special_tokens_mask", None)
         batch["task"] = task
