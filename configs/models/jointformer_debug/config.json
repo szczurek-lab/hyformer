@@ -2,13 +2,13 @@
   "model_name": "Jointformer",
   "bias": false,
   "dropout": 0.0,
-  "embedding_dim": 32,
+  "embedding_dim": 16,
   "layer_norm_eps": 1e-05,
   "max_seq_len": 128,
   "num_heads": 2,
   "num_layers": 2,
-  "vocab_size": 106,
+  "vocab_size": 107,
   "prediction_task": "regression",
   "num_prediction_tasks": 1,
-  "num_physchem_tasks": 1
+  "num_physchem_tasks": 200
 }

@@ -1,10 +1,10 @@
 {
   "compile": true,
-  "enable_ddp": false,
-  "dtype": "bfloat16",
+  "enable_ddp": true,
+  "dtype": "float32",
   "eval_only": false,
-  "max_iters": 4,
-  "batch_size": 12,
+  "max_iters": 600,
+  "batch_size": 2,
   "learning_rate": 6e-4,
   "weight_decay": 1e-1,
   "beta1": 0.9,
@@ -12,17 +12,18 @@
   "gradient_accumulation_steps": 2,
   "grad_clip": 1.0,
   "decay_lr": true,
-  "warmup_iters": 1,
-  "lr_decay_iters": 4,
+  "warmup_iters": 60,
+  "lr_decay_iters": 600,
   "min_lr": 1e-6,
   "eval_iters": 2,
-  "eval_interval": 2,
-  "log_interval": 1,
+  "eval_interval": 200,
+  "log_interval": 100,
   "always_save_checkpoint": false,
-  "save_checkpoint_every": 2,
+  "save_checkpoint_every": 200,
   "block_size": 128,
   "tasks":
     {
-      "lm":  1
+      "lm": 1,
+      "physchem":  1
     }
 }

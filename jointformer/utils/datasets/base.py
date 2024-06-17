@@ -1,12 +1,13 @@
-""" Base class for datasets."""
+""" Base class for PyTorch datasets.
 
-import os
+This module contains the BaseDataset class, which is the base class for all PyTorch datasets used in JointFormer.
+
+"""
 
 import torchvision.transforms as transforms
 
-from typing import Any, List, Callable, Optional, Union
-
 from torch.utils.data.dataset import Dataset
+from typing import Any, List, Callable, Optional, Union
 
 from jointformer.utils.transforms.auto import AutoTransform
 
@@ -19,8 +20,7 @@ class BaseDataset(Dataset):
             data: Any = None,
             target: Any = None,
             transform: Optional[Union[Callable, List]] = None,
-            target_transform: Optional[Union[Callable, List]] = None,
-            num_samples: int = None
+            target_transform: Optional[Union[Callable, List]] = None
     ) -> None:
         super().__init__()
         self.data = data
@@ -29,7 +29,6 @@ class BaseDataset(Dataset):
         self.target_transform = transforms.Compose(target_transform) if isinstance(target_transform,
                                                                                    list) else target_transform
         self.target_transform = target_transform
-        self.num_samples = num_samples
         self._current = 0
 
     def __len__(self):
@@ -58,12 +57,3 @@ class BaseDataset(Dataset):
             if self.target_transform is not None:
                 y = self.target_transform(y)
             return x, y
-
-    def _subset_data(self):
-        if self.data and self.num_samples and len(self.data) > self.num_samples:
-            self.data = self.data[:self.num_samples]
-
-    def subset_target(self):
-        if self.target and self.num_samples and len(self.target) > self.num_samples:
-            self.target = self.target[:self.num_samples]
-

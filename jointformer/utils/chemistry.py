@@ -2,6 +2,7 @@
 
 Source:
     [1] https://github.com/BenevolentAI/guacamol/blob/master/guacamol/utils/chemistry.py
+    [2] https://github.com/BenevolentAI/MolBERT/blob/main/molbert/utils/featurizer/molfeaturizer.py#L1346
 """
 
 from typing import Iterable, List, Optional
@@ -9,6 +10,38 @@ from rdkit import Chem
 
 from jointformer.utils.data import remove_duplicates
 
+# Suppress RDKit warnings
+from rdkit import RDLogger
+RDLogger.logger().setLevel(RDLogger.CRITICAL)
+
+
+def standardize(smiles: str, canonicalize: bool = False) -> Optional[str]:
+    """
+            Standardise a SMILES string if valid (canonical + kekulized)
+
+            Args:
+                smiles: SMILES string
+                canonicalise: optional flag to override `self.canonicalise`
+
+            Returns: standard version the SMILES if valid, None otherwise
+
+            """
+    try:
+        mol = Chem.MolFromSmiles(smiles, sanitize=False)
+        if mol is None:
+            return None
+        flags = Chem.SanitizeFlags.SANITIZE_ALL ^ Chem.SanitizeFlags.SANITIZE_CLEANUP
+        Chem.SanitizeMol(mol, flags, catchErrors=True)
+        if canonicalize:
+            mol = Chem.MolFromSmiles(Chem.MolToSmiles(mol))
+            if mol is None:
+                return None
+        Chem.Kekulize(mol, clearAromaticFlags=True)
+        smiles = Chem.MolToSmiles(mol, kekuleSmiles=True, canonical=canonicalize)
+    except:
+         return None
+
+    return smiles
 
 def is_valid(smiles: str):
     """

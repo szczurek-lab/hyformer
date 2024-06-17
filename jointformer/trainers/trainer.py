@@ -9,7 +9,7 @@ import logging
 from typing import Optional, Any
 from contextlib import nullcontext
 from torch.distributions.categorical import Categorical
-from torch.utils.data._utils.collate import default_collate
+
 
 from torch.nn.parallel import DistributedDataParallel as DDP
 
@@ -18,9 +18,13 @@ from jointformer.models.transformer import Transformer
 from jointformer.utils.loggers.wandb import WandbLogger
 from jointformer.utils.datasets.base import BaseDataset
 
-logger = logging.getLogger(__name__)
+from jointformer.utils.runtime import set_seed
+from jointformer.utils.data_collators import DataCollator
+
+console = logging.getLogger(__name__)
 SNAPSHOT_FILENAME = 'snapshot.ckpt'
 MODEL_FILENAME = 'ckpt.pt'
+
 
 class Trainer:
     """Trainer for a Transformer model.
@@ -68,6 +72,9 @@ class Trainer:
         self.batch_size = config.batch_size
         self.block_size = config.block_size
         self.dtype = config.dtype
+        if self.dtype == 'bfloat16':
+            if not torch.cuda.is_available() or not torch.cuda.is_bf16_supported():
+                self.dtype = 'float16'
         self.ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[self.dtype]
         self.weight_decay = config.weight_decay
         self.learning_rate = config.learning_rate
@@ -94,11 +101,9 @@ class Trainer:
         self._learning_rate = None
         self._running_mfu = 0.0
 
-        self._get_ddp_config()
-        self._check_dtype()
-        self._init_run()
+        self._post_init()
 
-    def _get_ddp_config(self):
+    def _set_ddp_config(self):
         """ Get the DDP configuration."""
         ddp = int(os.environ.get('RANK', -1)) != -1  # is this a ddp run?
         if self.enable_ddp and ddp:
@@ -109,30 +114,28 @@ class Trainer:
             self.device = f'cuda:{self.ddp_local_rank}'
             self.master_process = self.ddp_rank == 0  # this process will do logging, checkpointing etc.
             self.seed_offset = self.ddp_rank * 1234  # each process gets a different torch seed
-            # world_size number of processes will be training simultaneously, so we can scale
-            # down the desired gradient accumulation iterations per process proportionally
-            assert self.gradient_accumulation_steps % self.ddp_world_size == 0
-            self.gradient_accumulation_steps //= self.ddp_world_size
+            assert self.gradient_accumulation_steps % self.ddp_world_size == 0  # world_size number of processes will be training simultaneously
+            self.gradient_accumulation_steps //= self.ddp_world_size  # hence, scale down the gradient accumulation iterations per process proportionally
         else:
-            # if not ddp, we are running on a single gpu, and one process
             self.is_ddp = False
             self.master_process = True
             self.seed_offset = 0
             self.ddp_world_size = 1
             self.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-
-    def _check_dtype(self):
-        # note: float16 data type will automatically use a GradScaler
-        if self.dtype == 'bfloat16':
-            if not torch.cuda.is_available() or not torch.cuda.is_bf16_supported():
-                self.dtype = 'float16'
-
-    def _init_run(self):
+    
+    def _set_device(self):
         torch.cuda.set_device(self.device)
-        torch.manual_seed(self.seed + self.seed_offset)
+        
+    def _set_backends(self):
         torch.backends.cuda.matmul.allow_tf32 = True  # allow tf32 on matmul
         torch.backends.cudnn.allow_tf32 = True  # allow tf32 on cudnn
 
+    def _post_init(self):
+        self._set_ddp_config()
+        self._set_device()
+        self._set_backends()
+        
+        set_seed(self.seed + self.seed_offset)
         self.model.to(self.device)
         self.optimizer = self.model.configure_optimizers(
             self.weight_decay, self.learning_rate, (self.beta1, self.beta2), self.device_type)
@@ -140,27 +143,29 @@ class Trainer:
         self.task_distribution = Categorical(torch.Tensor(list(self.tasks.values())))
         self.tokens_per_iter = self.gradient_accumulation_steps * self.ddp_world_size * self.batch_size * self.block_size
 
-        if len(self.tokenizer) != self.model.vocab_size:
-            raise ValueError(f"Tokenizer and model not compatible. Tokenizer is of length {len(self.tokenizer)} while"
-                             f" model expects vocab size {self.model.vocab_size}")
+        if self.tokenizer is not None:
+            if len(self.tokenizer) != self.model.vocab_size:
+                raise ValueError(f"Tokenizer and model not compatible. Tokenizer is of length {len(self.tokenizer)}"
+                                 f" while model expects vocab size {self.model.vocab_size}")
         if self.master_process:
-            logging.info(f"tokens per iteration set to: {self.tokens_per_iter:,}")
+            console.info(f"tokens per iteration set to: {self.tokens_per_iter:,}")
 
         self.ctx = nullcontext() if self.device_type == 'cpu' else torch.amp.autocast(
             device_type=self.device_type, dtype=self.ptdtype)
 
         self.scaler = torch.cuda.amp.GradScaler(enabled=(self.dtype == 'float16'))
 
+        if self.out_dir is not None:
+            if not os.path.isdir(self.out_dir) and self.master_process:
+                os.makedirs(self.out_dir)
+
     def _compile(self):
         if self.compile:
-            self.model = torch.compile(self.model, mode='reduce-overhead')
+            self.model = torch.compile(self.model, mode='reduce-overhead', fullgraph=True)
 
     def _parallelize(self):
         if self.is_ddp:
-            self.model = DDP(self.model, device_ids=[self.ddp_local_rank])
-
-    def _sample_task(self):
-        return list(self.tasks.keys())[self.task_distribution.sample().item()]
+            self.model = DDP(self.model, device_ids=[self.ddp_local_rank], output_device=self.ddp_local_rank)
 
     def resume_snapshot(self):
         self.resume_from_file(self._snapshot_filepath)
@@ -183,14 +188,63 @@ class Trainer:
         checkpoint = None
 
     def _save_ckpt(self, filename: str):
-        checkpoint = {
-            'model': self.raw_model.state_dict(),
-            'optimizer': self.optimizer.state_dict(),
-            'iter_num': self._iter_num,
-            'best_val_loss': self._best_val_loss,
-            'loss_dict': self._loss_dict
-        }
-        torch.save(checkpoint, os.path.join(self.out_dir, filename))
+        if self.out_dir is not None:
+            checkpoint = {
+                'model': self.raw_model.state_dict(),
+                'optimizer': self.optimizer.state_dict(),
+                'iter_num': self._iter_num,
+                'best_val_loss': self._best_val_loss,
+                'loss_dict': self._loss_dict
+            }    
+            torch.save(checkpoint, os.path.join(self.out_dir, filename))
+
+    @staticmethod
+    def _get_num_workers():
+        try:
+            num_workers = int(os.environ["SLURM_CPUS_PER_TASK"])
+        except KeyError:
+            num_workers = 4
+        return num_workers
+
+    def _init_data_loaders(self):
+
+        collator = DataCollator(tokenizer=self.tokenizer, tasks=self.tasks)
+
+        if self.train_dataset is not None:
+            sampler = torch.utils.data.distributed.DistributedSampler(self.train_dataset) if self.is_ddp else None
+            self.train_loader = torch.utils.data.DataLoader(
+                self.train_dataset,
+                batch_size=self.batch_size,
+                sampler=sampler,
+                num_workers=self._get_num_workers(),
+                pin_memory=True,
+                shuffle=True,
+                collate_fn=collator
+            )
+
+        if self.val_dataset is not None:
+            sampler = torch.utils.data.distributed.DistributedSampler(self.val_dataset) if self.is_ddp else None
+            self.val_loader = torch.utils.data.DataLoader(
+                self.val_dataset,
+                batch_size=self.batch_size,
+                sampler=sampler,
+                num_workers=self._get_num_workers(),
+                pin_memory=True,
+                shuffle=False,
+                collate_fn=collator
+            )
+
+        if self.test_dataset is not None:
+            sampler = torch.utils.data.distributed.DistributedSampler(self.test_dataset) if self.is_ddp else None
+            self.test_loader = torch.utils.data.DataLoader(
+                self.test_dataset,
+                batch_size=self.batch_size,
+                sampler=sampler,
+                num_workers=self._get_num_workers(),
+                pin_memory=True,
+                shuffle=False,
+                collate_fn=collator
+            )
 
     def get_training_batch(self):
         return self.get_batch(split='train')
@@ -202,9 +256,11 @@ class Trainer:
         """Acts as a data loader / collate_fn for the dataset."""
 
         if task is None:
-            task = self._sample_task()
-
-        batch = self._sample(self.train_dataset, task) if split == 'train' else self._sample(self.val_dataset, task)
+            if split == 'train' and self.is_ddp:
+                self.train_loader.set_epoch(self._iter_num)
+            batch = next(iter(self.train_loader)) if split == 'train' else next(iter(self.val_loader))
+        else:
+            batch = self._sample(self.train_dataset, task) if split == 'train' else self._sample(self.val_dataset, task)
 
         if self.device_type != 'cpu':
             for key, value in batch.items():
@@ -219,16 +275,13 @@ class Trainer:
         sampled = [dataset[i] for i in idx]
 
         if isinstance(sampled[0], tuple):
-            x = [item[0] for item in sampled]
-            y = [item[1] for item in sampled]
-            inputs = self.tokenizer(x, task)
-            inputs['properties'] = default_collate(y)
+            data = [item[0] for item in sampled]
+            properties = [item[1] for item in sampled]
+            inputs = self.tokenizer(data=data, properties=properties, task=task)
         else:
-            inputs = self.tokenizer(sampled, task)
+            inputs = self.tokenizer(data=sampled, task=task)
             inputs['properties'] = None
         return inputs
-
-    import torch
 
     def test(self):
 
@@ -240,7 +293,6 @@ class Trainer:
             inputs = self.tokenizer(inputs)
             with self.ctx:
                 outputs = self.model.get_loss(**inputs)
-            print(f"Test loss {outputs['loss'].item()}")
 
     @torch.no_grad()
     def estimate_loss(self):
@@ -316,12 +368,12 @@ class Trainer:
         if self._iter_num % self.eval_interval == 0 and self.master_process:
             losses = self.estimate_loss()
             self._loss_dict[self._iter_num] = losses
-            info = f"step {self._iter_num}"
+            info = f"Evaluation at step {self._iter_num}"
             if 'train' in losses:
                 info += f": train loss {losses['train']['combined']:.4f}"
             if 'val' in losses:
                 info += f", val loss {losses['val']['combined']:.4f}"
-            logger.info(info)
+            console.info(info)
             if self.out_dir:
                 with open(os.path.join(self.out_dir, 'loss_dict.json'), 'w') as fp:
                     json.dump(self._loss_dict, fp, indent=4)
@@ -336,13 +388,17 @@ class Trainer:
                 log_dict['mfu'] = self._running_mfu * 100
                 self.logger.log(log_dict)
 
-            if 'val' in losses:
+            # More logging here
+            if 'val' in losses and self.out_dir and self._iter_num > 0:
+                console.info(f"Validation loss: {losses['val']['combined']:.4f}")
+                console.info(f"Best validation loss: {self._best_val_loss:.4f}")
                 if losses['val']['combined'] < self._best_val_loss or self.always_save_checkpoint:
                     self._best_val_loss = losses['val']['combined']
-                    if self._iter_num > 0 and self.out_dir:
-                        self._save_ckpt(MODEL_FILENAME)
-            if self._iter_num % self.save_checkpoint_every == 0 and self.out_dir:
-                self._save_ckpt(f"ckpt_{self._iter_num}.pt")
+                    self._save_ckpt(MODEL_FILENAME)
+                    console.info(f"Checkpoint updated at iteration {self._iter_num}")
+            if self.save_checkpoint_every is not None:
+                if self._iter_num % self.save_checkpoint_every == 0:
+                    self._save_ckpt(f"ckpt_{self._iter_num}.pt")
 
     def _terminate(self):
         if self._iter_num > self.max_iters:
@@ -364,16 +420,17 @@ class Trainer:
         return samples
 
     def train(self) -> None:
-
+        
         if self._iter_num > self.max_iters:
             return
 
         self._compile()
         self._parallelize()
+        self._init_data_loaders()
 
-        if self.logger and self.master_process:
+        if self.logger is not None and self.master_process:
             self.logger.init_run()
-            # self.logger.watch_model(self.model)
+            self.logger.watch_model(self.model)
 
         inputs = self.get_training_batch()
         t0 = time.time()
@@ -383,53 +440,51 @@ class Trainer:
 
         while True:
             if self._terminate():
+                if self.logger is not None:
+                    self.logger.finish()
                 break
+                
             self._set_lr()
             self.evaluate()
             if self._iter_num == 0 and self.eval_only:
+                if self.logger is not None:
+                    self.logger.finish()
                 break
-
-            # forward backward update, with optional gradient accumulation to simulate larger batch size
-            # and using the GradScaler if data type is float16
-            for micro_step in range(self.gradient_accumulation_steps):
+            
+            ### Training step
+            for micro_step in range(self.gradient_accumulation_steps): # gradient accumulation loop
                 if self.is_ddp:
-                    # in DDP training we only need to sync gradients at the last micro step.
-                    # the official way to do this is with model.no_sync() context manager, but
-                    # I really dislike that this bloats the code and forces us to repeat code
-                    # looking at the source of that context manager, it just toggles this variable
-                    self.model.require_backward_grad_sync = (micro_step == self.gradient_accumulation_steps - 1)
+                    self.model.require_backward_grad_sync = (micro_step == self.gradient_accumulation_steps - 1)  # in ddp mode, only sync grads at the last micro-step
                 with self.ctx:
                     outputs = self.model.get_loss(**inputs)
                     loss = outputs["loss"] / self.gradient_accumulation_steps  # scale the loss to account for gradient accumulation
-                # immediately async prefetch next batch while model is doing the forward pass on the GPU
-                inputs = self.get_training_batch()
-                # backward pass, with gradient scaling if training in fp16
-                self.scaler.scale(loss).backward()
-            # clip the gradient
-            if self.grad_clip != 0.0:
+                inputs = self.get_training_batch()  # async prefetch next batch
+                self.scaler.scale(loss).backward()  # backward pass, with gradient scaling if training in fp16
+            
+            if self.grad_clip != 0.0: # clip the gradient
                 self.scaler.unscale_(self.optimizer)
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip)
-            # step the optimizer and scaler if training in fp16
-            self.scaler.step(self.optimizer)
+            self.scaler.step(self.optimizer) # step the optimizer and scaler if training in fp16
             self.scaler.update()
-            # flush the gradients as soon as we can, no need for this memory anymore
-            self.optimizer.zero_grad(set_to_none=True)
+            self.optimizer.zero_grad(set_to_none=True) # flush the gradients
+            ###
 
             # timing and logging
             t1 = time.time()
             dt = t1 - t0
             t0 = t1
-            if self._iter_num % self.log_interval == 0 and self.master_process:
-                # get loss as float. note: this is a CPU-GPU sync point
-                # scale up to undo the division above, approximating the true total loss (exact would have been a sum)
+            if self._iter_num % self.log_interval == 0 and self.master_process:  # a CPU-GPU sync point
                 lossf = loss.item() * self.gradient_accumulation_steps
                 if local_iter_num >= 5:  # let the training loop settle a bit
                     mfu = self.raw_model.estimate_mfu(self.batch_size * self.gradient_accumulation_steps, dt)
                     self._running_mfu = mfu if self._running_mfu == -1.0 else 0.9 * self._running_mfu + 0.1 * mfu
-                    msg = (f"iter {self._iter_num}: loss {lossf:.6f}, lr {self._learning_rate:.6f}," +
-                           f" time {dt * 1000:.2f}ms, mfu {self._running_mfu * 100:.2f}%")
-                    print(msg)
-                    logging.info(msg)
+                    console.info(
+                        f"iter {self._iter_num}:
+                          loss {lossf:.6f} on {inputs['task']} task,
+                            lr {self._learning_rate:.6f}," + 
+                            f" time {dt * 1000:.2f}ms,
+                              mfu {self._running_mfu * 100:.2f}%"
+                        )
                     self._save_ckpt(SNAPSHOT_FILENAME)
             self._iter_num += 1
             local_iter_num += 1

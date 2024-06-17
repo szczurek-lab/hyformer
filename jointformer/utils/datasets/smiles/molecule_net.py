@@ -1,158 +1,131 @@
 import os
 import torch
 
-from typing import Tuple, List, Any
-from torch.utils.data.dataset import Dataset
-from guacamol.utils.chemistry import is_valid
-
-from rdkit import Chem
-
 import deepchem as dc
+
+from typing import List, Optional, Union, Callable, Any
 from deepchem.feat.molecule_featurizers.raw_featurizer import RawFeaturizer
 
-from jointformer.utils.datasets.utils import load_txt_into_list, save_list_into_txt
-from jointformer.utils.properties.smiles.molecule_net import MOLECULE_NET_REGRESSION_TASKS
-from jointformer.utils.transforms.smiles.permute import AugmentSMILES
+from jointformer.configs.task import TaskConfig
+from jointformer.utils.datasets.smiles.base import SmilesDataset
+from jointformer.utils.data import save_strings_to_file
 
-from jointformer.utils.properties.smiles.molecule_net import DTYPE_OBJECTIVE
-
-from jointformer.utils.runtime import set_seed
-
-DATASET_SEED = 0
-MAX_MOLECULES_LENGTH = 126
-
-DATA_FOLDER = './data/molecule_net'
-FILE_NAME = "smiles_tokenizers.txt"
-
-TARGET_LABELS = {}
+DATA_DIR = 'data/molecule_net'
+DATA_FILE_NAME = 'smiles.txt'
 
 
-class MoleculeNetSMILESDataset(Dataset):
+class MoleculeNetDataset(SmilesDataset):
 
-    def __init__(self, split: str, target_label: str, transforms: List[Any]) -> None:
+    def __init__(
+            self,
+            split: str,
+            splitter: str,
+            target_label: str,
+            transform: Optional[Union[Callable, List]] = None,
+            validate: Optional[bool] = None,
+            standardize: Optional[bool] = None,
+            out_dir: Optional[str] = None,
+    ) -> None:
 
-        super().__init__()
-        self.data = None
-        self.target = None
-        self.split = split
-        self.target_label = target_label
-        self.transforms = transforms
-        self.target_transforms = None
-        self.path_to_data_dir = None
+        # Download data and targets
+        out_dir = out_dir if out_dir is not None else './'
+        data_dir = self._get_data_dir(os.path.join(out_dir, DATA_DIR, target_label, splitter), split)
+        data_filename = os.path.join(data_dir, DATA_FILE_NAME)
+        target_filename = os.path.join(data_dir, f'{target_label}.pt')
+        if not os.path.isfile(data_filename) or not os.path.isfile(target_filename):
+            self._download(
+                data_dir=data_dir,
+                data_filename=data_filename,
+                target_filename=target_filename,
+                split=split,
+                splitter=splitter,
+                target_label=target_label
+            )
 
-        self._check_args()
-        self._get_path_to_data_dir()
-        self._load_data()
-        self._load_target()
+        # Initialize the dataset
+        super().__init__(
+            data_filename=data_filename, target_filename=target_filename,
+            transform=transform, target_transform=None,
+            num_samples=None, validate=validate, standardize=standardize
+        )
+        self._target_transform = self.get_target_transform(target_label=target_label, splitter=splitter) # used only for validation
 
-    def __len__(self):
-        return len(self.data)
+    @staticmethod
+    def _get_data_dir(data_dir: str, split: str = None, num_samples: int = None, splitter: str = None) -> str:
+        if split is not None:
+            data_dir = os.path.join(data_dir, split)
+        if num_samples is not None:
+            data_dir = os.path.join(data_dir, str(num_samples))
+        if splitter is not None:
+            data_dir = os.path.join(data_dir, splitter)
+        return data_dir
 
-    def __getitem__(self, idx: int) -> Tuple[str, torch.Tensor]:
+    @staticmethod
+    def _download(
+            data_dir: str,
+            data_filename: str,
+            target_filename: str,
+            split: str,
+            splitter: str,
+            target_label: str
+    ) -> None:
 
-        x = self.data[idx]
+        print(f"Downloading data into {data_filename}")
+        os.makedirs(data_dir, exist_ok=True)
 
-        if self.target is not None:
-            for transform in self.transforms:
-                x = transform(x)
+        featurizer = RawFeaturizer(smiles=True)
 
-        if self.target_label is None:
-            return x
+        if target_label == 'esol':
+            _, datasets, _ = dc.molnet.load_delaney(featurizer=featurizer, splitter=splitter, data_dir=data_dir)
+        elif target_label == 'freesolv':
+            _, datasets, _ = dc.molnet.load_sampl(featurizer=featurizer, splitter=splitter, data_dir=data_dir)
+        elif target_label == 'lipo':
+            _, datasets, _ = dc.molnet.load_lipo(featurizer=featurizer, splitter=splitter, data_dir=data_dir)
         else:
-            y = self.target[idx]
-            return x, y
+            raise ValueError(f"Unknown target label: {target_label}")
 
-    def _check_args(self):
-        if self.target_label not in MOLECULE_NET_REGRESSION_TASKS:
-            raise ValueError('Variable `target_label` must be one of "%s"' % MOLECULE_NET_REGRESSION_TASKS)
+        split_idx = {'train': 0, 'val': 1, 'test': 2}
 
-    def _get_path_to_data_dir(self) -> None:
-        self.path_to_data_dir = os.path.join(DATA_FOLDER, self.target_label)
-        return None
+        data = datasets[split_idx[split]].X.tolist()
+        save_strings_to_file(data, data_filename)
 
-    def _load_data(self) -> None:
-        filename = os.path.join(self.path_to_data_dir, self.split, FILE_NAME)
-        if not os.path.exists(filename):
-            self._download()
-        self.data = load_txt_into_list(filename)
+        print(f"Downloading target into {target_filename}")
+        target = torch.from_numpy(datasets[split_idx[split]].y)
+        torch.save(target, os.path.join(data_dir, f"{target_label}.pt"))
 
+    @staticmethod
+    def get_target_transform(target_label: str, splitter: str = 'random') -> List[Any]:
         featurizer = RawFeaturizer(smiles=True)
-        splitter = 'random'
-        target_transforms = None
-
-        if self.target_label == 'esol':
-            _, _, target_transforms = dc.molnet.load_delaney(
-                featurizer=featurizer, splitter=splitter, data_dir=self.path_to_data_dir)
-        if self.target_label == 'freesolv':
-            _, _, target_transforms = dc.molnet.load_sampl(featurizer=featurizer, splitter=splitter)
-        if self.target_label == 'lipo':
-            _, _, target_transforms = dc.molnet.load_lipo(featurizer=featurizer, splitter=splitter)
-
-        self.target_transforms = target_transforms if target_transforms is not None else None
-
-        return None
-
-    def _load_target(self) -> None:
-        filename = os.path.join(self.path_to_data_dir, self.split, f'{self.target_label}.pt')
-        if not os.path.exists(filename):
-            self._download()
-        self.target = torch.load(filename)
-        return None
-
-    def _download(self) -> None:
-        print(f"Downloading {self.target_label} MoleculeNet task...")
-
-        set_seed(DATASET_SEED)
-        featurizer = RawFeaturizer(smiles=True)
-        splitter = 'random'
-
-        if self.target_label == 'esol':
-            _, datasets, _ = dc.molnet.load_delaney(
-                featurizer=featurizer, splitter=splitter, data_dir=self.path_to_data_dir)
-        if self.target_label == 'freesolv':
-            _, datasets, _ = dc.molnet.load_sampl(featurizer=featurizer, splitter=splitter, data_dir=self.path_to_data_dir)
-        if self.target_label == 'lipo':
-            _, datasets, _ = dc.molnet.load_lipo(featurizer=featurizer, splitter=splitter, data_dir=self.path_to_data_dir)
-
-        split_names = ['train', 'val', 'test']
-        for idx, split in enumerate(datasets):
-            data = split.X.tolist()
-            target = torch.Tensor(split.y).to(DTYPE_OBJECTIVE)
-            data, target = self._validate(data, target)
-
-            split_name = split_names[idx]
-            data_dir = os.path.join(self.path_to_data_dir, split_name)
-            os.makedirs(data_dir, exist_ok=True)
-            save_list_into_txt(os.path.join(data_dir, FILE_NAME), data)
-            torch.save(target, os.path.join(data_dir, f"{self.target_label}.pt"))
-
-        print(f"Downloaded into {self.path_to_data_dir}")
+        if target_label == 'esol':
+            _, _, target_transform = dc.molnet.load_delaney(featurizer=featurizer, splitter=splitter)
+        elif target_label == 'freesolv':
+            _, _, target_transform = dc.molnet.load_sampl(featurizer=featurizer, splitter=splitter)
+        elif target_label == 'lipo':
+            _, _, target_transform = dc.molnet.load_lipo(featurizer=featurizer, splitter=splitter)
+        else:
+            target_transform = None
+        return target_transform
 
     def undo_target_transform(self, y: torch.Tensor) -> torch.Tensor:
-        if self.target_transforms is None:
+        if self._target_transform is None:
             return y
         y_undone = y.numpy()
-        for transform in reversed(self.target_transforms):
+        for transform in reversed(self._target_transform):
             y_undone = transform.untransform(y_undone)
         return torch.from_numpy(y_undone).view(-1, 1)
 
-    @staticmethod
-    def _validate(data, target):
-
-        data_validated = []
-        target_validated = []
-
-        for idx, (x, y) in enumerate(zip(data, target)):
-            if is_valid(x) and not torch.isnan(y):
-                data_validated.append(Chem.MolToSmiles(Chem.MolFromSmiles(x)))
-                target_validated.append(y)
-
-        return data_validated, torch.Tensor(target_validated).view(-1, 1)
-
     @classmethod
-    def from_config(cls, config):
-        transforms = []
-        if config.augment_molecular_representation:
-            transforms.append(AugmentSMILES(augmentation_prob=config.augmentation_prob))
+    def from_config(cls, config: TaskConfig, split: str = None, out_dir: str = None) -> SmilesDataset:
 
-        return cls(split=config.split, target_label=config.target_label, transforms=transforms)
+        if split is not None:
+            config.split = split
+
+        return cls(
+            split=config.split,
+            splitter=config.splitter,
+            target_label=config.target_label,
+            transform=config.transform,
+            validate=config.validate,
+            standardize=config.standardize,
+            out_dir=out_dir
+        )

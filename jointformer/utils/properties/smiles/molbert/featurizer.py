@@ -14,7 +14,7 @@ from rdkit.Chem import Descriptors
 from rdkit.Chem.rdMolDescriptors import GetMorganFingerprint
 from rdkit.ML.Descriptors.MoleculeDescriptors import MolecularDescriptorCalculator
 
-PATH_TO_AVAILABLE_DESCRIPTORS = '/home/adam/Projects/jointformer/jointformer/utils/properties/smiles/molbert/physchem_distributions.json'
+PATH_TO_AVAILABLE_DESCRIPTORS = f'{os.path.dirname(os.path.abspath(__file__))}/physchem_distributions.json'
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)

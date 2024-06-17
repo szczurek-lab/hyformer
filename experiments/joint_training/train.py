@@ -1,11 +1,9 @@
-import os
-import logging
-import argparse
-import time
+import os, logging, argparse
 
+import torch.distributed as dist
+
+from socket import gethostname
 from torch.distributed.elastic.multiprocessing.errors import record
-from torch.distributed import init_process_group, destroy_process_group
-
 
 from jointformer.configs.task import TaskConfig
 from jointformer.configs.model import ModelConfig
@@ -19,82 +17,38 @@ from jointformer.utils.loggers.auto import AutoLogger
 
 from jointformer.trainers.trainer import Trainer
 
-from jointformer.utils.runtime import set_seed
+from jointformer.utils.runtime import set_seed, create_output_dir, set_to_dev_mode, log_args, dump_configs
+from jointformer.utils.ddp import init_ddp, end_ddp
 
-process_timestamp = time.strftime("%Y%m%d-%H%M%S")
-console_logger = logging.getLogger(__name__)
+console = logging.getLogger(__file__)
 logging.basicConfig(
     level=logging.INFO,
-    filename="process.log",
-    filemode='a',
-    format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
+    filename=f"{os.environ.get('SLURM_JOB_NAME')}.log",
+    filemode='w',
+    format='%(asctime)s %(name)s %(levelname)s %(message)s',
     datefmt='%H:%M:%S',
 )
 logging.captureWarnings(True)
 
-DEFAULT_SEED_ARRAY = [1337]
-DDP_BACKEND = "nccl"
-TORCHELASTIC_ERROR_FILE = "torchelastic_error_file.txt"
+DEFAULT_MODEL_SEED_ARRAY = [1337]
+
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--out_dir", type=str, required=True)
+    parser.add_argument("--out_dir", type=str, default='./results')
+    parser.add_argument("--data_dir", type=str, default='./data')
+    parser.add_argument("--seed", type=int, nargs='*', default=DEFAULT_MODEL_SEED_ARRAY)
     parser.add_argument("--path_to_task_config", type=str, required=True)
     parser.add_argument("--path_to_model_config", type=str, required=True)
     parser.add_argument("--path_to_trainer_config", type=str, required=True)
-    parser.add_argument("--path_to_logger_config", type=str, required=True)
+    parser.add_argument("--path_to_logger_config", type=str, nargs='?')
     parser.add_argument("--pretrained_filename", type=str, nargs='?')
     parser.add_argument("--logger_display_name", nargs='?', type=str)
-    parser.add_argument("--seed", type=int, nargs='*', default=DEFAULT_SEED_ARRAY)
-    parser.add_argument("--dev_mode", nargs='?', default=False, type=bool)
+    parser.add_argument("--dev_mode", default=False, action=argparse.BooleanOptionalAction)
     args = parser.parse_args()
     log_args(args)
     return args
-
-
-def log_args(args):
-    for arg, value in sorted(vars(args).items()):
-        logging.info("Argument %s: %r", arg, value)
-
-
-def set_to_dev_mode(**kwargs):
-    print("Dev mode is on")
-    task_config = kwargs.get("task_config", None)
-    model_config = kwargs.get("model_config", None)
-    trainer_config = kwargs.get("trainer_config", None)
-    logger_config = kwargs.get("logger_config", None)
-
-    if task_config:
-        if hasattr(task_config, "num_samples"):
-            task_config.num_samples = 4
-    if model_config:
-        if hasattr(model_config, "num_layers"):
-            model_config.num_layers = 1
-        if hasattr(model_config, "num_heads"):
-            model_config.num_heads = 1
-        if hasattr(model_config, "embedding_dim"):
-            model_config.embedding_dim = 16
-    if trainer_config and hasattr(trainer_config, "batch_size"):
-        trainer_config.batch_size = 2
-        trainer_config.max_iters = 1000
-        trainer_config.eval_every = 100
-        trainer_config.eval_iters = 10
-    if logger_config and hasattr(logger_config, "enable_wandb"):
-        logger_config.display_name = 'test'
-
-
-def create_output_dir(out_dir):
-    if not os.path.isdir(out_dir):
-        is_ddp = int(os.environ.get('RANK', -1)) != -1
-        is_master_process = int(os.environ.get('RANK', -1)) == 0
-        if is_master_process & is_ddp:
-            os.makedirs(out_dir, exist_ok=True)
-            console_logger.info(f"Output directory {out_dir} created...")
-
-
-def init_ddp():
-    init_process_group(backend=DDP_BACKEND)
 
 
 @record
@@ -104,34 +58,36 @@ def main(args):
     task_config = TaskConfig.from_pretrained(args.path_to_task_config)
     model_config = ModelConfig.from_pretrained(args.path_to_model_config)
     trainer_config = TrainerConfig.from_pretrained(args.path_to_trainer_config)
-    logger_config = LoggerConfig.from_pretrained(args.path_to_logger_config)
+    logger_config = LoggerConfig.from_pretrained(args.path_to_logger_config) if args.path_to_logger_config else None
 
     # Dev mode
     if args.dev_mode:
         set_to_dev_mode(
             task_config=task_config, model_config=model_config,
-            trainer_config=trainer_config, logger_config=logger_config)
+            trainer_config=trainer_config, logger_config=logger_config
+        )
 
     # Initialize DDP
-    is_ddp_run = int(os.environ.get('RANK', -1)) != -1 and trainer_config.enable_ddp
-    console_logger.info(f"DDP: {is_ddp_run}")
-    if is_ddp_run:
-        init_ddp()
-
+    init_ddp(trainer_config.enable_ddp)
+    
     # Create output directory
     create_output_dir(args.out_dir)
 
     # Load data, tokenizer and model
-    train_dataset = AutoDataset.from_config(task_config, split='train')
-    val_dataset = AutoDataset.from_config(task_config, split='val')
+    train_dataset = AutoDataset.from_config(task_config, split='train', data_dir=args.data_dir)
+    val_dataset = AutoDataset.from_config(task_config, split='val', data_dir=args.data_dir)
     tokenizer = AutoTokenizer.from_config(task_config)
     model = AutoModel.from_config(model_config)
-    logger = AutoLogger.from_config(logger_config)
-    logger.store_configs(task_config, model_config, trainer_config, logger_config)
-    logger.save_configs(args.out_dir)
-    if args.logger_display_name is not None:
-        logger.set_display_name(args.logger_display_name)
+    logger = AutoLogger.from_config(logger_config) if logger_config else None
 
+    # Store configs
+    dump_configs(args.out_dir, task_config, model_config, trainer_config, logger_config)
+    if logger is not None:
+        logger.store_configs(task_config, model_config, trainer_config, logger_config)
+        if args.logger_display_name is not None:
+            logger.set_display_name(args.logger_display_name)
+
+    
     trainer = Trainer(
         out_dir=args.out_dir,
         seed=args.seed,
@@ -145,18 +101,21 @@ def main(args):
 
     try:
         trainer.resume_snapshot()
-        console_logger.info("Resumed Snapshot")
+        console.info("Resumed Snapshot")
     except FileNotFoundError:
         if args.pretrained_filename:
             trainer.resume_from_file(args.pretrained_filename)
-            console_logger.info(f"Resuming pre-trained model from {args.pretrained_filename}")
+            console.info(f"Resuming pre-trained model from {args.pretrained_filename}")
         else:
-            console_logger.info("Training from scratch")
+            console.info("Training from scratch")
+
+    if trainer.is_ddp:
+        dist.barrier()
 
     trainer.train()
 
-    if is_ddp_run:
-        destroy_process_group()
+    # End DDP
+    end_ddp(trainer_config.enable_ddp)
 
 
 if __name__ == "__main__":
@@ -168,5 +127,6 @@ if __name__ == "__main__":
         set_seed(seed)
         try:
             main(tmp_args)
+            logging.info(f"Completed seed {seed}")
         except Exception as e:
             logging.critical(e, exc_info=True)

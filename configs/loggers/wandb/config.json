@@ -1,0 +1,10 @@
+{
+  "logger_name": "wandb",
+  "enable_logging": true,
+  "user": "adam-izdebski1",
+  "project": "jointformer",
+  "resume": "allow",
+  "display_name": null,
+  "watch": true,
+  "watch_freq": 100
+}

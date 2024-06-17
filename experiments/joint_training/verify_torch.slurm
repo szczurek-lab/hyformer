@@ -20,12 +20,15 @@
 #SBATCH --mail-user=adam.izdebski@helmholtz-munich.de
 
 #SBATCH --nice=10000                                        # priority (niceness) // GPU queue priority
-#SBATCH --constraint gpu_tesla_A100                         # restrict the type of GPU to be used 
+#SBATCH --constraint=gpu_tesla_A100                         # GPU type
+
 
 source $HOME/.bashrc
 
 conda deactivate
 conda activate jointformer-experiments
+
+nvidia-smi
 
 echo "Running on $(hostname)"
 echo "-------------------------------------------------"
@@ -33,9 +36,7 @@ echo -n "Number of available GPUs: "
 nvidia-smi --query-gpu=name --format=csv,noheader | wc -l
 echo -n "GPU name: "
 nvidia-smi --query-gpu=name --format=csv,noheader
-echo -n "The highest compatible CUDA version: "
-nvcc --version | grep release | awk '{print $5}'
 echo "-------------------------------------------------"
 
 echo "Starting the PyTorch compatibility test script..."
-python experiments/joint_training/test.py
+python experiments/joint_training/verify_torch.py

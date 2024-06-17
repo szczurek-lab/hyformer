@@ -1,13 +1,19 @@
 {
   "dataset_name": "moses",
   "target_label": "qed",
-  "validate": false,
+  "validate": true,
+  "standardize": true,
   "num_samples": null,
   "split": null,
-  "transform": [{"name": "smiles_enumerator", "params": {"enumeration_probability": 0.0}}],
+  "splitter": null,
+  "transform": [{
+      "name": "smiles_enumerator", "params": {
+        "enumeration_probability": 0.0,
+        "is_standardized": true}
+  }],
   "target_transform": null,
   "tokenizer": "SmilesTokenizer",
-  "path_to_vocabulary": "./data/vocabularies/moses.txt",
+  "path_to_vocabulary": "./data/vocabularies/guacamol.txt",
   "max_molecule_length": 128,
   "set_separate_task_tokens": false
 }

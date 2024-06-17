@@ -59,11 +59,16 @@ class WandbLogger:
     def init_run(self):
         if self.enable_logging:
             wandb.init(
-                entity=self.user, project=self.project, resume=self.resume, name=self.display_name, config=self.config)
+                entity=self.user, project=self.project, resume=self.resume, name=self.display_name, config=self.config,
+                  reinit=True, settings=wandb.Settings(_service_wait=300, start_method="fork"))
 
     def log(self, log: dict):
         if self.enable_logging:
             wandb.log(log)
+
+    def finish(self):
+        if self.enable_logging:
+            wandb.finish()
 
     def log_molecule_data(self, data: List[str]) -> None:
         if self.enable_logging:

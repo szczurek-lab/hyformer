@@ -3,14 +3,14 @@
 The official implementation of the [Jointformer](https://arxiv.org/abs/2310.02066), a foundation model for 
 small molecule generation and scoring (molecular property prediction). In contrast to existing foundation
 models, Jointformer is a [joint model](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/LasserreBishopMinka06.pdf), 
-simultaneously exceling in both generation and prediction.
+that simultaneously excels in both molecule generation and property prediction.
 
 ## Getting Started
 
 ### Installation
 To create an environment that satisfies the necessary requirements run
 ```
- conda env create -f env.yml
+ conda env create -f jointformer-experiments.yml
 ```
 Next, install Jointformer from the project directory with 
 ```
