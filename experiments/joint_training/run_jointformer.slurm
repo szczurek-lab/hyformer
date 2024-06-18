@@ -1,20 +1,19 @@
 #!/bin/bash
 
-#SBATCH --job-name=jointformer-pretrain                              
+#SBATCH --job-name=gpt-correct-pretrain                              
 #SBATCH --output output-%x.log                              
 #SBATCH --error error-%x.log                                 
 
 #SBATCH -p gpu_p
-#SBATCH --qos gpu_reservation
-#SBATCH --reservation=reservations_supergpu07
+#SBATCH --qos gpu_normal
 
 #SBATCH --nodes=1                                           
 #SBATCH --ntasks-per-node=1                                 
 #SBATCH --gpus-per-task=1                                   
 #SBATCH --cpus-per-task=8                                   
-#SBATCH --mem=40G                                           
+#SBATCH --mem=16G                                           
 #SBATCH --gres=gpu:1                                        
-#SBATCH --time=24:00:00                                    
+#SBATCH --time=36:00:00                                    
 
 #SBATCH --mail-type=begin                                   
 #SBATCH --mail-type=end                                     

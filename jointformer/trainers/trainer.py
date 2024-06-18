@@ -157,7 +157,7 @@ class Trainer:
 
         if self.out_dir is not None:
             if not os.path.isdir(self.out_dir) and self.master_process:
-                os.makedirs(self.out_dir)
+                os.makedirs(self.out_dir, exist_ok=False)
 
     def _compile(self):
         if self.compile:
@@ -188,7 +188,7 @@ class Trainer:
         checkpoint = None
 
     def _save_ckpt(self, filename: str):
-        if self.out_dir is not None:
+        if self.out_dir is not None and self.master_process:
             checkpoint = {
                 'model': self.raw_model.state_dict(),
                 'optimizer': self.optimizer.state_dict(),
@@ -388,17 +388,17 @@ class Trainer:
                 log_dict['mfu'] = self._running_mfu * 100
                 self.logger.log(log_dict)
 
-            # More logging here
-            if 'val' in losses and self.out_dir and self._iter_num > 0:
-                console.info(f"Validation loss: {losses['val']['combined']:.4f}")
-                console.info(f"Best validation loss: {self._best_val_loss:.4f}")
-                if losses['val']['combined'] < self._best_val_loss or self.always_save_checkpoint:
-                    self._best_val_loss = losses['val']['combined']
-                    self._save_ckpt(MODEL_FILENAME)
-                    console.info(f"Checkpoint updated at iteration {self._iter_num}")
-            if self.save_checkpoint_every is not None:
-                if self._iter_num % self.save_checkpoint_every == 0:
-                    self._save_ckpt(f"ckpt_{self._iter_num}.pt")
+            if self._iter_num > 0: # More logging here
+                if 'val' in losses: # save checkpoint if validation loss is better
+                    console.info(f"Validation loss: {losses['val']['combined']:.4f}")
+                    console.info(f"Best validation loss: {self._best_val_loss:.4f}")
+                    if losses['val']['combined'] < self._best_val_loss or self.always_save_checkpoint:
+                        self._best_val_loss = losses['val']['combined']
+                        self._save_ckpt(MODEL_FILENAME)
+                        console.info(f"Checkpoint updated at iteration {self._iter_num}")
+                if self.save_checkpoint_every is not None: # save checkpoint every n iterations
+                    if self._iter_num % self.save_checkpoint_every == 0:
+                        self._save_ckpt(f"ckpt_{self._iter_num}.pt")
 
     def _terminate(self):
         if self._iter_num > self.max_iters:
@@ -479,11 +479,9 @@ class Trainer:
                     mfu = self.raw_model.estimate_mfu(self.batch_size * self.gradient_accumulation_steps, dt)
                     self._running_mfu = mfu if self._running_mfu == -1.0 else 0.9 * self._running_mfu + 0.1 * mfu
                     console.info(
-                        f"iter {self._iter_num}:
-                          loss {lossf:.6f} on {inputs['task']} task,
-                            lr {self._learning_rate:.6f}," + 
-                            f" time {dt * 1000:.2f}ms,
-                              mfu {self._running_mfu * 100:.2f}%"
+                        f"iter {self._iter_num}: loss {lossf:.6f} on {inputs['task']} task, lr {self._learning_rate:.6f},"
+                        + 
+                        f" time {dt * 1000:.2f}ms, mfu {self._running_mfu * 100:.2f}%"
                         )
                     self._save_ckpt(SNAPSHOT_FILENAME)
             self._iter_num += 1

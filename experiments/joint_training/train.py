@@ -24,7 +24,7 @@ console = logging.getLogger(__file__)
 logging.basicConfig(
     level=logging.INFO,
     filename=f"{os.environ.get('SLURM_JOB_NAME')}.log",
-    filemode='w',
+    filemode='a',
     format='%(asctime)s %(name)s %(levelname)s %(message)s',
     datefmt='%H:%M:%S',
 )
