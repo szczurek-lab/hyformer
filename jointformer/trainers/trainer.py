@@ -187,16 +187,20 @@ class Trainer:
         self._best_val_loss = checkpoint['best_val_loss']
         self._loss_dict = checkpoint['loss_dict']
         self._resumed_from_iter_num = self._iter_num
+        if 'run_id' in checkpoint:
+            self.logger.set_run_id(checkpoint['run_id'])
         checkpoint = None
 
     def _save_ckpt(self, filename: str):
         if self.out_dir is not None and self.master_process:
+            run_id = self.logger.run_id if self.logger is not None else None
             checkpoint = {
                 'model': self.raw_model.state_dict(),
                 'optimizer': self.optimizer.state_dict(),
                 'iter_num': self._iter_num,
                 'best_val_loss': self._best_val_loss,
-                'loss_dict': self._loss_dict
+                'loss_dict': self._loss_dict,
+                'run_id': run_id
             }    
             torch.save(checkpoint, os.path.join(self.out_dir, filename))
 
@@ -367,7 +371,7 @@ class Trainer:
             param_group['lr'] = self._learning_rate
 
     def evaluate(self):
-        if self._iter_num % self.eval_interval == 0 and self.master_process and self._resumed_from_iter_num != self._iter_num:
+        if self._iter_num % self.eval_interval == 0 and self.master_process and (self._resumed_from_iter_num != self._iter_num or self._iter_num ==  0):
             losses = self.estimate_loss()
             self._loss_dict[self._iter_num] = losses
             info = f"Evaluation at step {self._iter_num}"

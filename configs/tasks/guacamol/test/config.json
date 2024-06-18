@@ -8,7 +8,7 @@
   "splitter": null,
   "transform": [{
        "name": "smiles_enumerator", "params": {
-         "enumeration_probability": 0.0,
+         "enumeration_probability": 0.8,
          "is_standardized": true}
    }],
   "target_transform": null,
