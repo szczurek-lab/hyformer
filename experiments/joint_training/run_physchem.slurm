@@ -35,4 +35,5 @@ srun python experiments/joint_training/train.py \
     --path_to_task_config configs/tasks/guacamol/physchem \
     --path_to_model_config configs/models/jointformer \
     --path_to_trainer_config configs/trainers/physchem \
-    --path_to_logger_config configs/loggers/wandb 
+    --path_to_logger_config configs/loggers/wandb \
+    --path_to_model_ckpt /lustre/groups/aih/jointformer/results/physchem/no_separate_token/shared_emb/bs_512/drop_2/seed_1337/ckpt.pt \

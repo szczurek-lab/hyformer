@@ -43,7 +43,7 @@ def parse_args():
     parser.add_argument("--path_to_model_config", type=str, required=True)
     parser.add_argument("--path_to_trainer_config", type=str, required=True)
     parser.add_argument("--path_to_logger_config", type=str, nargs='?')
-    parser.add_argument("--pretrained_filename", type=str, nargs='?')
+    parser.add_argument("--path_to_model_ckpt", type=str, nargs='?')
     parser.add_argument("--logger_display_name", nargs='?', type=str)
     parser.add_argument("--dev_mode", default=False, action=argparse.BooleanOptionalAction)
     args = parser.parse_args()
@@ -103,9 +103,9 @@ def main(args):
         trainer.resume_snapshot()
         console.info("Resumed Snapshot")
     except FileNotFoundError:
-        if args.pretrained_filename:
-            trainer.resume_from_file(args.pretrained_filename)
-            console.info(f"Resuming pre-trained model from {args.pretrained_filename}")
+        if args.path_to_model_ckpt:
+            trainer.resume_from_file(args.path_to_model_ckpt)
+            console.info(f"Resuming pre-trained model from {args.path_to_model_ckpt}")
         else:
             console.info("Training from scratch")
 

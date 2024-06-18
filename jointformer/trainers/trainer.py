@@ -22,7 +22,7 @@ from jointformer.utils.runtime import set_seed
 from jointformer.utils.data_collators import DataCollator
 
 console = logging.getLogger(__name__)
-SNAPSHOT_FILENAME = 'snapshot.ckpt'
+SNAPSHOT_FILENAME = 'snapshot.pt'
 MODEL_FILENAME = 'ckpt.pt'
 
 
@@ -100,6 +100,7 @@ class Trainer:
         self._snapshot_filepath = os.path.join(self.out_dir, SNAPSHOT_FILENAME) if self.out_dir else None
         self._learning_rate = None
         self._running_mfu = 0.0
+        self._resumed_from_iter_num = 0
 
         self._post_init()
 
@@ -185,6 +186,7 @@ class Trainer:
         self._iter_num = checkpoint['iter_num']
         self._best_val_loss = checkpoint['best_val_loss']
         self._loss_dict = checkpoint['loss_dict']
+        self._resumed_from_iter_num = self._iter_num
         checkpoint = None
 
     def _save_ckpt(self, filename: str):
@@ -365,7 +367,7 @@ class Trainer:
             param_group['lr'] = self._learning_rate
 
     def evaluate(self):
-        if self._iter_num % self.eval_interval == 0 and self.master_process:
+        if self._iter_num % self.eval_interval == 0 and self.master_process and self._resumed_from_iter_num != self._iter_num:
             losses = self.estimate_loss()
             self._loss_dict[self._iter_num] = losses
             info = f"Evaluation at step {self._iter_num}"
