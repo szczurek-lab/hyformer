@@ -26,7 +26,7 @@ logging.basicConfig(
     filename=f"{os.environ.get('SLURM_JOB_NAME')}.log",
     filemode='a',
     format='%(asctime)s %(name)s %(levelname)s %(message)s',
-    datefmt='%H:%M:%S',
+    datefmt='%Y-%m-%d %H:%M:%S',
 )
 logging.captureWarnings(True)
 
