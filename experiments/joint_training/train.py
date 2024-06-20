@@ -24,9 +24,9 @@ console = logging.getLogger(__file__)
 logging.basicConfig(
     level=logging.INFO,
     filename=f"{os.environ.get('SLURM_JOB_NAME')}.log",
-    filemode='w',
+    filemode='a',
     format='%(asctime)s %(name)s %(levelname)s %(message)s',
-    datefmt='%H:%M:%S',
+    datefmt='%Y-%m-%d %H:%M:%S',
 )
 logging.captureWarnings(True)
 
@@ -43,9 +43,9 @@ def parse_args():
     parser.add_argument("--path_to_model_config", type=str, required=True)
     parser.add_argument("--path_to_trainer_config", type=str, required=True)
     parser.add_argument("--path_to_logger_config", type=str, nargs='?')
-    parser.add_argument("--pretrained_filename", type=str, nargs='?')
-    parser.add_argument("--logger_display_name", nargs='?', type=str)
-    parser.add_argument("--dev_mode", default=False, action=argparse.BooleanOptionalAction)
+    parser.add_argument("--path_to_model_ckpt", type=str, nargs='?')
+    # parser.add_argument("--logger_display_name", nargs='?', type=str)
+    # parser.add_argument("--dev_mode", default=False, action=argparse.BooleanOptionalAction)
     args = parser.parse_args()
     log_args(args)
     return args
@@ -54,40 +54,33 @@ def parse_args():
 @record
 def main(args):
 
-    # Load Configs
     task_config = TaskConfig.from_pretrained(args.path_to_task_config)
     model_config = ModelConfig.from_pretrained(args.path_to_model_config)
     trainer_config = TrainerConfig.from_pretrained(args.path_to_trainer_config)
     logger_config = LoggerConfig.from_pretrained(args.path_to_logger_config) if args.path_to_logger_config else None
 
-    # Dev mode
-    if args.dev_mode:
-        set_to_dev_mode(
-            task_config=task_config, model_config=model_config,
-            trainer_config=trainer_config, logger_config=logger_config
-        )
+    # # Dev mode
+    # if args.dev_mode:
+    #     set_to_dev_mode(
+    #         task_config=task_config, model_config=model_config,
+    #         trainer_config=trainer_config, logger_config=logger_config
+    #     )
 
-    # Initialize DDP
     init_ddp(trainer_config.enable_ddp)
-    
-    # Create output directory
     create_output_dir(args.out_dir)
 
-    # Load data, tokenizer and model
     train_dataset = AutoDataset.from_config(task_config, split='train', data_dir=args.data_dir)
     val_dataset = AutoDataset.from_config(task_config, split='val', data_dir=args.data_dir)
     tokenizer = AutoTokenizer.from_config(task_config)
     model = AutoModel.from_config(model_config)
     logger = AutoLogger.from_config(logger_config) if logger_config else None
 
-    # Store configs
-    dump_configs(args.out_dir, task_config, model_config, trainer_config, logger_config)
+    dump_configs(args.out_dir, task_config, model_config, trainer_config, logger_config) # Store configs, within the out_dir
     if logger is not None:
-        logger.store_configs(task_config, model_config, trainer_config, logger_config)
-        if args.logger_display_name is not None:
-            logger.set_display_name(args.logger_display_name)
+        logger.store_configs(task_config, model_config, trainer_config, logger_config) # Store configs, within the logger object
+        # if args.logger_display_name is not None:
+        #     logger.set_display_name(args.logger_display_name)
 
-    
     trainer = Trainer(
         out_dir=args.out_dir,
         seed=args.seed,
@@ -103,18 +96,17 @@ def main(args):
         trainer.resume_snapshot()
         console.info("Resumed Snapshot")
     except FileNotFoundError:
-        if args.pretrained_filename:
-            trainer.resume_from_file(args.pretrained_filename)
-            console.info(f"Resuming pre-trained model from {args.pretrained_filename}")
+        if args.path_to_model_ckpt:
+            trainer.resume_from_file(args.path_to_model_ckpt)
+            console.info(f"Resuming pre-trained model from {args.path_to_model_ckpt}")
         else:
             console.info("Training from scratch")
 
     if trainer.is_ddp:
-        dist.barrier()
+        dist.barrier() # Ensure all processes are ready before training
 
     trainer.train()
 
-    # End DDP
     end_ddp(trainer_config.enable_ddp)
 
 

@@ -28,7 +28,7 @@ def create_output_dir(out_dir):
         is_ddp = int(os.environ.get('RANK', -1)) != -1
         is_master_process = int(os.environ.get('RANK', -1)) == 0
         if (is_master_process and is_ddp) or not is_ddp:
-            os.makedirs(out_dir, exist_ok=True)
+            os.makedirs(out_dir, exist_ok=False)
             logger.info(f"Output directory {out_dir} created...")
         
         

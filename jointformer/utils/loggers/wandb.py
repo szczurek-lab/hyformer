@@ -33,16 +33,29 @@ class WandbLogger:
         self.resume = resume
         self.watch = watch
         self.watch_freq = watch_freq
-        self.display_name = time.strftime("%Y%m%d-%H%M%S") if display_name is None else display_name
+        self.display_name = None
         self.config = config
+        self.run_id = None
+        self.run = None
+
+        self.set_run_id()
+        self.set_display_name(display_name)
+
+    def set_run_id(self, run_id: Optional[str] = None):
+        self.run_id = wandb.util.generate_id() if run_id is None else run_id
 
     def watch_model(self, model: nn.Module):
         if self.watch:
-            wandb.watch(model, log_freq=self.watch_freq, log='all')
+            self.run.watch(model, log_freq=self.watch_freq, log='all')
 
-    def set_display_name(self, display_name: str):
-        self.display_name = display_name
-        self.resume = "auto"
+    def set_display_name(self, display_name: str = None):
+        if display_name is not None:
+            self.display_name = display_name
+        else:
+            try:
+                self.display_name = os.environ.get('SLURM_JOB_NAME')
+            except KeyError:
+                self.display_name = time.strftime("%Y%m%d-%H%M%S")
 
     def store_configs(self, *config_list: List[Config]):
         if self.config is None:
@@ -58,17 +71,19 @@ class WandbLogger:
 
     def init_run(self):
         if self.enable_logging:
-            wandb.init(
-                entity=self.user, project=self.project, resume=self.resume, name=self.display_name, config=self.config,
-                  reinit=True, settings=wandb.Settings(_service_wait=300, start_method="fork"))
+            self.run = wandb.init(
+                entity=self.user, project=self.project, resume=self.resume, name=self.display_name,
+                config=self.config, id=self.run_id, reinit=True,
+                settings=wandb.Settings(_service_wait=300, start_method="fork")
+                )
 
     def log(self, log: dict):
         if self.enable_logging:
-            wandb.log(log)
+            self.run.log(log)
 
     def finish(self):
         if self.enable_logging:
-            wandb.finish()
+            self.run.finish()
 
     def log_molecule_data(self, data: List[str]) -> None:
         if self.enable_logging:
@@ -87,7 +102,7 @@ class WandbLogger:
             if len(out) > 0:
                 dataframe = pd.DataFrame.from_records(data)
                 table = wandb.Table(dataframe=dataframe)
-                wandb.log(
+                self.run.log(
                     {
                         "table": table,
                         "molecules": [substance.get("molecule") for substance in data],

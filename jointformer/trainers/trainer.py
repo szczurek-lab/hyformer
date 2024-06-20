@@ -22,7 +22,7 @@ from jointformer.utils.runtime import set_seed
 from jointformer.utils.data_collators import DataCollator
 
 console = logging.getLogger(__name__)
-SNAPSHOT_FILENAME = 'snapshot.ckpt'
+SNAPSHOT_FILENAME = 'snapshot.pt'
 MODEL_FILENAME = 'ckpt.pt'
 
 
@@ -100,6 +100,7 @@ class Trainer:
         self._snapshot_filepath = os.path.join(self.out_dir, SNAPSHOT_FILENAME) if self.out_dir else None
         self._learning_rate = None
         self._running_mfu = 0.0
+        self._resumed_from_iter_num = 0
 
         self._post_init()
 
@@ -157,7 +158,7 @@ class Trainer:
 
         if self.out_dir is not None:
             if not os.path.isdir(self.out_dir) and self.master_process:
-                os.makedirs(self.out_dir)
+                os.makedirs(self.out_dir, exist_ok=False)
 
     def _compile(self):
         if self.compile:
@@ -185,16 +186,21 @@ class Trainer:
         self._iter_num = checkpoint['iter_num']
         self._best_val_loss = checkpoint['best_val_loss']
         self._loss_dict = checkpoint['loss_dict']
+        self._resumed_from_iter_num = self._iter_num
+        if 'run_id' in checkpoint:
+            self.logger.set_run_id(checkpoint['run_id'])
         checkpoint = None
 
     def _save_ckpt(self, filename: str):
-        if self.out_dir is not None:
+        if self.out_dir is not None and self.master_process:
+            run_id = self.logger.run_id if self.logger is not None else None
             checkpoint = {
                 'model': self.raw_model.state_dict(),
                 'optimizer': self.optimizer.state_dict(),
                 'iter_num': self._iter_num,
                 'best_val_loss': self._best_val_loss,
-                'loss_dict': self._loss_dict
+                'loss_dict': self._loss_dict,
+                'run_id': run_id
             }    
             torch.save(checkpoint, os.path.join(self.out_dir, filename))
 
@@ -365,7 +371,7 @@ class Trainer:
             param_group['lr'] = self._learning_rate
 
     def evaluate(self):
-        if self._iter_num % self.eval_interval == 0 and self.master_process:
+        if self._iter_num % self.eval_interval == 0 and self.master_process and (self._resumed_from_iter_num != self._iter_num or self._iter_num ==  0):
             losses = self.estimate_loss()
             self._loss_dict[self._iter_num] = losses
             info = f"Evaluation at step {self._iter_num}"
@@ -388,17 +394,17 @@ class Trainer:
                 log_dict['mfu'] = self._running_mfu * 100
                 self.logger.log(log_dict)
 
-            # More logging here
-            if 'val' in losses and self.out_dir and self._iter_num > 0:
-                console.info(f"Validation loss: {losses['val']['combined']:.4f}")
-                console.info(f"Best validation loss: {self._best_val_loss:.4f}")
-                if losses['val']['combined'] < self._best_val_loss or self.always_save_checkpoint:
-                    self._best_val_loss = losses['val']['combined']
-                    self._save_ckpt(MODEL_FILENAME)
-                    console.info(f"Checkpoint updated at iteration {self._iter_num}")
-            if self.save_checkpoint_every is not None:
-                if self._iter_num % self.save_checkpoint_every == 0:
-                    self._save_ckpt(f"ckpt_{self._iter_num}.pt")
+            if self._iter_num > 0: # More logging here
+                if 'val' in losses: # save checkpoint if validation loss is better
+                    console.info(f"Validation loss: {losses['val']['combined']:.4f}")
+                    console.info(f"Best validation loss: {self._best_val_loss:.4f}")
+                    if losses['val']['combined'] < self._best_val_loss or self.always_save_checkpoint:
+                        self._best_val_loss = losses['val']['combined']
+                        self._save_ckpt(MODEL_FILENAME)
+                        console.info(f"Checkpoint updated at iteration {self._iter_num}")
+                if self.save_checkpoint_every is not None: # save checkpoint every n iterations
+                    if self._iter_num % self.save_checkpoint_every == 0:
+                        self._save_ckpt(f"ckpt_{self._iter_num}.pt")
 
     def _terminate(self):
         if self._iter_num > self.max_iters:
@@ -479,11 +485,9 @@ class Trainer:
                     mfu = self.raw_model.estimate_mfu(self.batch_size * self.gradient_accumulation_steps, dt)
                     self._running_mfu = mfu if self._running_mfu == -1.0 else 0.9 * self._running_mfu + 0.1 * mfu
                     console.info(
-                        f"iter {self._iter_num}:
-                          loss {lossf:.6f} on {inputs['task']} task,
-                            lr {self._learning_rate:.6f}," + 
-                            f" time {dt * 1000:.2f}ms,
-                              mfu {self._running_mfu * 100:.2f}%"
+                        f"iter {self._iter_num}: loss {lossf:.6f} on {inputs['task']} task, lr {self._learning_rate:.6f},"
+                        + 
+                        f" time {dt * 1000:.2f}ms, mfu {self._running_mfu * 100:.2f}%"
                         )
                     self._save_ckpt(SNAPSHOT_FILENAME)
             self._iter_num += 1
