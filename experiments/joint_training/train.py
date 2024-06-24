@@ -54,10 +54,10 @@ def parse_args():
 @record
 def main(args):
 
-    task_config = TaskConfig.from_pretrained(args.path_to_task_config)
-    model_config = ModelConfig.from_pretrained(args.path_to_model_config)
-    trainer_config = TrainerConfig.from_pretrained(args.path_to_trainer_config)
-    logger_config = LoggerConfig.from_pretrained(args.path_to_logger_config) if args.path_to_logger_config else None
+    task_config = TaskConfig.from_config_file(args.path_to_task_config)
+    model_config = ModelConfig.from_config_file(args.path_to_model_config)
+    trainer_config = TrainerConfig.from_config_file(args.path_to_trainer_config)
+    logger_config = LoggerConfig.from_config_file(args.path_to_logger_config) if args.path_to_logger_config else None
 
     # # Dev mode
     # if args.dev_mode:
