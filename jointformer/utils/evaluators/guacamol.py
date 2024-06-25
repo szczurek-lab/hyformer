@@ -35,7 +35,7 @@ class GuacamolEvaluator(Evaluate):
     def evaluate(self):
 
         if len(self.generated_data) < NUM_SAMPLES:
-            warnings.warn("GuacaMol metrics require at least 10k samples")
+            warnings.warn(f"GuacaMol metrics require at least {NUM_SAMPLES} samples")
 
         self.results = self.get_all_metrics(self.generated_data, self.reference_data)
 
@@ -51,7 +51,7 @@ class GuacamolEvaluator(Evaluate):
         generated_data_canonical = canonicalize_list(generated_data_valid, include_stereocenters=False)
 
         if len(generated_data) < NUM_SAMPLES or len(generated_data_valid) < NUM_SAMPLES or len(generated_data_canonical) < NUM_SAMPLES:
-            warnings.warn("GuacaMol metrics require at least 10k samples")
+            warnings.warn(f"GuacaMol metrics require at least {NUM_SAMPLES} samples")
 
         out['Validity'] = calculate_validity(generated_data)
         out['Uniqueness'] = calculate_uniqueness(generated_data_valid)
