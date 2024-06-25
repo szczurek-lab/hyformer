@@ -109,9 +109,11 @@ class Trainer:
         ddp = int(os.environ.get('RANK', -1)) != -1  # is this a ddp run?
         if self.enable_ddp and ddp:
             self.is_ddp = True
-            self.ddp_rank = int(os.environ['RANK'])
-            self.ddp_local_rank = int(os.environ['LOCAL_RANK'])
-            self.ddp_world_size = int(os.environ['WORLD_SIZE'])
+            self.ddp_rank = int(os.environ["SLURM_PROCID"])
+            self.gpus_per_node = int(os.environ["SLURM_GPUS_PER_NODE"])
+            self.ddp_world_size = int(os.environ["WORLD_SIZE"])
+            assert self.gpus_per_node == torch.cuda.device_count()
+            self.ddp_local_rank = self.ddp_rank - self.gpus_per_node * (self.ddp_rank // self.gpus_per_node)
             self.device = f'cuda:{self.ddp_local_rank}'
             self.master_process = self.ddp_rank == 0  # this process will do logging, checkpointing etc.
             self.seed_offset = self.ddp_rank * 1234  # each process gets a different torch seed
@@ -166,7 +168,7 @@ class Trainer:
 
     def _parallelize(self):
         if self.is_ddp:
-            self.model = DDP(self.model, device_ids=[self.ddp_local_rank], output_device=self.ddp_local_rank)
+            self.model = DDP(self.model, device_ids=[self.ddp_local_rank])
 
     def resume_snapshot(self):
         self.resume_from_file(self._snapshot_filepath)
@@ -187,8 +189,8 @@ class Trainer:
         self._best_val_loss = checkpoint['best_val_loss']
         self._loss_dict = checkpoint['loss_dict']
         self._resumed_from_iter_num = self._iter_num
-        if 'run_id' in checkpoint:
-            self.logger.set_run_id(checkpoint['run_id'])
+        if self.logger is not None:
+            self.logger.set_run_id(checkpoint['run_id'] if 'run_id' in checkpoint else None)
         checkpoint = None
 
     def _save_ckpt(self, filename: str):
@@ -217,7 +219,10 @@ class Trainer:
         collator = DataCollator(tokenizer=self.tokenizer, tasks=self.tasks)
 
         if self.train_dataset is not None:
-            sampler = torch.utils.data.distributed.DistributedSampler(self.train_dataset) if self.is_ddp else None
+            sampler = torch.utils.data.distributed.DistributedSampler(
+                self.train_dataset,
+                num_replicas=self.ddp_world_size,
+                rank=self.ddp_rank) if self.is_ddp else None
             self.train_loader = torch.utils.data.DataLoader(
                 self.train_dataset,
                 batch_size=self.batch_size,
@@ -229,7 +234,10 @@ class Trainer:
             )
 
         if self.val_dataset is not None:
-            sampler = torch.utils.data.distributed.DistributedSampler(self.val_dataset) if self.is_ddp else None
+            sampler = torch.utils.data.distributed.DistributedSampler(
+                self.val_dataset,
+                num_replicas=self.ddp_world_size,
+                rank=self.ddp_rank) if self.is_ddp else None
             self.val_loader = torch.utils.data.DataLoader(
                 self.val_dataset,
                 batch_size=self.batch_size,

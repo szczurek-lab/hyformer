@@ -2,7 +2,7 @@
   "logger_name": "wandb",
   "enable_logging": true,
   "user": "adam-izdebski1",
-  "project": "jointformer",
+  "project": "test-ddp",
   "resume": "allow",
   "display_name": null,
   "watch": true,
