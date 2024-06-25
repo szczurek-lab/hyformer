@@ -1,3 +1,4 @@
+from guacamol.assess_distribution_learning import DistributionMatchingGenerator
 import torch
 
 import torch.nn as nn
@@ -7,11 +8,13 @@ from typing import Optional
 
 from jointformer.models.transformer import Transformer
 from jointformer.utils.tokenizers.smiles.smiles import IGNORE_INDEX
+from jointformer.models.utils import DefaultGuacamolModelWrapper
+from jointformer.models.base import BaseModel
 
 DEFAULT_NUM_PHYCHEM_TASKS = 200
 
 
-class Jointformer(Transformer):
+class Jointformer(Transformer, BaseModel):
 
     def __init__(
             self,
@@ -184,10 +187,12 @@ class Jointformer(Transformer):
         """
         Generate complete sequences of indices using the model.
         """
+        idx = torch.full((batch_size, 1), bos_token_id, device=device, dtype=torch.long)    
 
-        idx = torch.ones(size=(batch_size, 1), dtype=torch.long, device=device) * bos_token_id
+        # TODO: implement caching
         idx = self.generate_single_token(idx, input_length - 1, temperature, top_k, eos_token_id, pad_token_id)
 
+        # TODO: vectorize
         # check for completion
         for sequence_idx, sequence in enumerate(idx):
             if eos_token_id not in sequence:
@@ -252,3 +257,6 @@ class Jointformer(Transformer):
             num_physchem_tasks=config.num_physchem_tasks,
             layer_norm_eps=config.layer_norm_eps
         )
+
+    def to_guacamole_generator(self, tokenizer, batch_size, temperature, top_k, device) -> DistributionMatchingGenerator:
+        return DefaultGuacamolModelWrapper(self, tokenizer, batch_size, temperature, top_k, device)

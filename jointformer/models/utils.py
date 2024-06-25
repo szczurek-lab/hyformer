@@ -3,27 +3,27 @@ import torch
 from typing import List
 from guacamol.assess_distribution_learning import DistributionMatchingGenerator
 
-
-class GuacamolModelWrapper(DistributionMatchingGenerator):
-
-    def __init__(self, model, tokenizer, batch_size, device):
+class DefaultGuacamolModelWrapper(DistributionMatchingGenerator):
+    def __init__(self, model, tokenizer, batch_size, temperature, top_k, device):
         self.model = model
         self.tokenizer = tokenizer
         self.batch_size = batch_size
         self.device = device
-        self._eval()
-
-    def _eval(self):
-        if self.model.training:
-            self.model.eval()
+        self.temperature = temperature
+        self.top_k = top_k
+        self.model.eval()
 
     @torch.no_grad()
     def generate(self, number_samples: int) -> List[str]:
         generated = []
-
+        model = self.model.to(self.device)
         while len(generated) < number_samples:
-            idx = torch.ones(size=(self.batch_size, 1), device=self.device) * self.tokenizer.generate_token_id
-            idx = idx.long()
-            samples = self.model.generate(idx=idx, max_new_tokens=self.tokenizer.max_molecule_length)
-            generated += self.tokenizer.decode(samples)
+            samples = model.generate(self.tokenizer.cls_token_id,
+                                        self.tokenizer.sep_token_id,
+                                        self.tokenizer.pad_token_id,
+                                        self.tokenizer.max_molecule_length,
+                                        self.batch_size,
+                                        self.temperature,
+                                        self.top_k)
+            generated.extend(self.tokenizer.decode(samples))
         return generated[:number_samples]
