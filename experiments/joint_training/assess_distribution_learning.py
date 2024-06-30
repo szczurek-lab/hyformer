@@ -5,7 +5,8 @@ from jointformer.configs.model import ModelConfig
 from jointformer.utils.tokenizers.auto import AutoTokenizer
 from jointformer.models.auto import AutoModel
 from guacamol.assess_distribution_learning import assess_distribution_learning
-
+import logging
+import sys
 
 def get_parser():
     parser = ArgumentParser()
@@ -22,6 +23,8 @@ def get_parser():
 
 
 def main(args):
+
+    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
     model_config = ModelConfig.from_pretrained(args.path_to_model_config)
     task_config = TaskConfig.from_pretrained(args.path_to_task_config)
     model = AutoModel.from_config(model_config)
