@@ -5,23 +5,22 @@
 #SBATCH --error error-%x.log                                 
 
 #SBATCH -p gpu_p
-#SBATCH --qos gpu_reservation
-#SBATCH --reservation=reservations_supergpu07
+#SBATCH --qos gpu_long
 
 #SBATCH --nodes=1                                           
 #SBATCH --ntasks-per-node=1                                 
 #SBATCH --gpus-per-task=1                                   
 #SBATCH --cpus-per-task=8                                   
-#SBATCH --mem=16G                                           
+#SBATCH --mem=20G                                           
 #SBATCH --gres=gpu:1                                        
-#SBATCH --time=36:00:00                                    
+#SBATCH --time=18:00:00                                    
 
 #SBATCH --mail-type=begin                                   
 #SBATCH --mail-type=end                                     
 #SBATCH --mail-type=fail                                    
 #SBATCH --mail-user=adam.izdebski@helmholtz-munich.de
 
-#SBATCH --nice=10000                                        
+#SBATCH --nice=1000                                        
 #SBATCH --constraint=gpu_tesla_A100                        
 
 

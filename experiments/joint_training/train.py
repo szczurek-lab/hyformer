@@ -25,13 +25,12 @@ logging.basicConfig(
     level=logging.INFO,
     filename=f"{os.environ.get('SLURM_JOB_NAME')}.log",
     filemode='a',
-    format='%(asctime)s %(name)s %(levelname)s %(message)s',
+    format=f'{gethostname()}, rank {int(os.environ["SLURM_PROCID"])}: %(asctime)s %(name)s %(levelname)s %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S',
 )
 logging.captureWarnings(True)
 
 DEFAULT_MODEL_SEED_ARRAY = [1337]
-
 
 
 def parse_args():
@@ -44,8 +43,7 @@ def parse_args():
     parser.add_argument("--path_to_trainer_config", type=str, required=True)
     parser.add_argument("--path_to_logger_config", type=str, nargs='?')
     parser.add_argument("--path_to_model_ckpt", type=str, nargs='?')
-    # parser.add_argument("--logger_display_name", nargs='?', type=str)
-    # parser.add_argument("--dev_mode", default=False, action=argparse.BooleanOptionalAction)
+    # parser.add_argument("--dry_run", default=False, action=argparse.BooleanOptionalAction)
     args = parser.parse_args()
     log_args(args)
     return args
@@ -59,16 +57,6 @@ def main(args):
     trainer_config = TrainerConfig.from_config_file(args.path_to_trainer_config)
     logger_config = LoggerConfig.from_config_file(args.path_to_logger_config) if args.path_to_logger_config else None
 
-    # # Dev mode
-    # if args.dev_mode:
-    #     set_to_dev_mode(
-    #         task_config=task_config, model_config=model_config,
-    #         trainer_config=trainer_config, logger_config=logger_config
-    #     )
-
-    init_ddp(trainer_config.enable_ddp)
-    create_output_dir(args.out_dir)
-
     train_dataset = AutoDataset.from_config(task_config, split='train', data_dir=args.data_dir)
     val_dataset = AutoDataset.from_config(task_config, split='val', data_dir=args.data_dir)
     tokenizer = AutoTokenizer.from_config(task_config)
@@ -78,9 +66,8 @@ def main(args):
     dump_configs(args.out_dir, task_config, model_config, trainer_config, logger_config) # Store configs, within the out_dir
     if logger is not None:
         logger.store_configs(task_config, model_config, trainer_config, logger_config) # Store configs, within the logger object
-        # if args.logger_display_name is not None:
-        #     logger.set_display_name(args.logger_display_name)
 
+    init_ddp(trainer_config.enable_ddp)
     trainer = Trainer(
         out_dir=args.out_dir,
         seed=args.seed,
@@ -89,8 +76,7 @@ def main(args):
         train_dataset=train_dataset,
         val_dataset=val_dataset,
         tokenizer=tokenizer,
-        logger=logger
-    )
+        logger=logger)
 
     try:
         trainer.resume_snapshot()
@@ -116,6 +102,7 @@ if __name__ == "__main__":
         tmp_args = args
         tmp_args.seed = seed
         tmp_args.out_dir = os.path.join(args.out_dir, f"seed_{seed}")
+        create_output_dir(tmp_args.out_dir)
         set_seed(seed)
         try:
             main(tmp_args)
