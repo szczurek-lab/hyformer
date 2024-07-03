@@ -14,6 +14,7 @@ from jointformer.configs.task import TaskConfig
 from jointformer.utils.datasets.base import BaseDataset
 from jointformer.utils.data import read_strings_from_file
 from jointformer.utils.chemistry import is_valid, standardize
+from jointformer.utils.data_collators import DataCollator
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +93,7 @@ class SmilesDataset(BaseDataset):
             if self.target is not None:
                 self.target = [x for x, y in zip(self.target, self.data) if y is not None]
                 self.data = [x for x in self.data if x is not None]
-
+        
     @staticmethod
     def _load_data(data_filename: str):
         return read_strings_from_file(data_filename)

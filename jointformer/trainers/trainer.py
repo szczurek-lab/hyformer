@@ -187,7 +187,7 @@ class Trainer:
         self._best_val_loss = checkpoint['best_val_loss']
         self._loss_dict = checkpoint['loss_dict']
         self._resumed_from_iter_num = self._iter_num
-        if 'run_id' in checkpoint:
+        if 'run_id' in checkpoint and self.logger is not None:
             self.logger.set_run_id(checkpoint['run_id'])
         checkpoint = None
 
