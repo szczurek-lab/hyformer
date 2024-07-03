@@ -5,10 +5,12 @@ This module contains the BaseDataset class, which is the base class for all PyTo
 """
 
 import os
-from typing import Any, List, Callable, Optional, Union
 
-from torch.utils.data.dataset import Dataset
+import pandas as pd
 import torchvision.transforms as transforms
+
+from typing import Any, List, Callable, Optional, Union
+from torch.utils.data.dataset import Dataset
 
 from jointformer.utils.runtime import set_seed
 from jointformer.utils.transforms.auto import AutoTransform
@@ -63,6 +65,9 @@ class BaseDataset(Dataset):
             if self.target_transform is not None:
                 y = self.target_transform(y)
             return x, y
+
+    def get_data_frame(self):
+        return pd.DataFrame({'text': self.data, 'labels': self.target.numpy().flatten()})
 
     @staticmethod
     def _get_data_dir(
