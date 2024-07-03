@@ -73,7 +73,7 @@ from jointformer.utils.tokenizers.auto import AutoTokenizer
 
 PATH_TO_TASK_CONFIG = './configs/tasks/guacamol/unsupervised/config.json'
 
-task_config = TaskConfig.from_pretrained(PATH_TO_TASK_CONFIG)
+task_config = TaskConfig.from_config_file(PATH_TO_TASK_CONFIG)
 
 dataset = AutoDataset.from_config(task_config, split='test')
 tokenizer = AutoTokenizer.from_config(task_config)
@@ -99,7 +99,7 @@ from jointformer.models.auto import AutoModel
 PATH_TO_MODEL_CONFIG = './configs/models/jointformer/'
 PATH_TO_PRETRAINED_MODEL = './results/pretrain/jointformer/'
 
-model_config = ModelConfig.from_pretrained(PATH_TO_MODEL_CONFIG)
+model_config = ModelConfig.from_config_file(PATH_TO_MODEL_CONFIG)
 model = AutoModel.from_config(model_config)
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -140,7 +140,7 @@ from jointformer.trainers.trainer import Trainer
 
 PATH_TO_TRAINER_CONFIG = './configs/trainers/fine-tune/'
 
-trainer_config = TrainerConfig.from_pretrained(PATH_TO_TRAINER_CONFIG)
+trainer_config = TrainerConfig.from_config_file(PATH_TO_TRAINER_CONFIG)
 trainer = Trainer(config=trainer_config, model=model, train_dataset=dataset, tokenizer=tokenizer)
 trainer.train()
 ```

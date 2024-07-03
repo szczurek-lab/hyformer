@@ -173,3 +173,6 @@ wandb/
 
 # logs
 .log
+
+checkpoints
+outputs

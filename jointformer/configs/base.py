@@ -34,8 +34,8 @@ class Config:
         return cls(**config_dict)
 
     @classmethod
-    def from_pretrained(cls, pretrained_model_name_or_path: str) -> 'Config':
-        config_path = os.path.join(pretrained_model_name_or_path, CONFIG_NAME)
+    def from_config_file(cls, config_file_dir: str) -> 'Config':
+        config_path = os.path.join(config_file_dir, CONFIG_NAME)
         if not os.path.exists(config_path):
             raise FileNotFoundError(f"Configuration file {config_path} not found.")
         with open(config_path, 'r') as f:

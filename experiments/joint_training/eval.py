@@ -7,7 +7,7 @@ from experiments.joint_training.train import DEFAULT_SEED_ARRAY
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--benchmark", type=str, required=True, help="Benchmark suite name")
+    parser.add_argument("--benchmark", choices=["guacamol", "moses"], required=True, help="Benchmark suite name")
     parser.add_argument("--out_dir", type=str, required=True, help="Path to the output directory")
     parser.add_argument("--results_file_name", nargs='?', type=str, help="Results file name")
     parser.add_argument("--generated_file_path", type=str, required=True, help="Path to the generated data file")
