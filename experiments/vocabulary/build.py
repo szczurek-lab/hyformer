@@ -25,7 +25,7 @@ def main():
 
     args = parse_args()
 
-    task_config = TaskConfig.from_pretrained(args.path_to_task_config)
+    task_config = TaskConfig.from_config_file(args.path_to_task_config)
 
     dataset = AutoDataset.from_config(task_config, split='all')
     print(f"Number of SMILES strings: {len(dataset)}")

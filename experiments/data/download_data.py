@@ -34,7 +34,7 @@ def main(args):
     set_seed(args.seed)
 
     # Config
-    task_config = TaskConfig.from_pretrained(args.path_to_task_config)
+    task_config = TaskConfig.from_config_file(args.path_to_task_config)
     
     # Data
     train_dataset = AutoDataset.from_config(task_config, split='train', out_dir=args.data_dir)
