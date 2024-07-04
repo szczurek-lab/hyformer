@@ -1,6 +1,6 @@
 {
   "dataset_name": "molecule_net",
-  "target_label": "esol",
+  "target_label": "toxcast",
   "validate": false,
   "num_samples": null,
   "standardize": false,
@@ -8,7 +8,7 @@
   "split": null,
   "transform": [{"name": "smiles_enumerator", "params": {"enumeration_probability": 0.0}}],
   "target_transform": null,
-  "task_type": "regression",
-  "metric": "rmse",
-  "num_tasks": 1
+  "task_type": "classification",
+  "metric": "roc_auc",
+  "num_tasks": 617
 }

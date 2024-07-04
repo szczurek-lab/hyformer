@@ -34,6 +34,7 @@ class SmilesDataset(BaseDataset):
             standardize: Optional[bool] = None,
             max_molecule_length: Optional[int] = None,
             seed: Optional[int] = None,
+            task_type: Optional[str] = None
     ) -> None:
 
         if data is None and data_filepath is None:
@@ -51,6 +52,7 @@ class SmilesDataset(BaseDataset):
         self.num_samples = num_samples
         self.validate = validate
         self.standardize = standardize
+        self.task_type = task_type
         self._subset()
         self._validate()
         self._standardize()
@@ -100,6 +102,10 @@ class SmilesDataset(BaseDataset):
         return read_strings_from_file(data_filepath)
 
     @staticmethod
-    def _load_target(target_filepath: str):
+    def _load_target(target_filepath: str, task_type: str = None):
         target = torch.load(target_filepath)
+        if task_type == 'classification':
+            target = target.long()
+        elif task_type == 'regression':
+            target = target.float()
         return target

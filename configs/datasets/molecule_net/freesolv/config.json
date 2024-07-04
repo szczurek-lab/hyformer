@@ -8,7 +8,7 @@
   "split": null,
   "transform": [{"name": "smiles_enumerator", "params": {"enumeration_probability": 0.0}}],
   "target_transform": null,
-  "task_type": "regression",
+  "task_type": "classification",
   "metric": "rmse",
   "num_tasks": 1
 }

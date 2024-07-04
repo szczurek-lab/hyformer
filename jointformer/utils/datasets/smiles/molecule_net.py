@@ -3,7 +3,7 @@ import torch
 
 from typing import List, Optional, Union, Callable, Any
 
-from deepchem.molnet import load_delaney, load_sampl, load_lipo
+from deepchem.molnet import load_delaney, load_sampl, load_lipo, load_hiv, load_bace_classification, load_bbbp, load_tox21, load_toxcast, load_sider, load_clintox
 from deepchem.feat.molecule_featurizers.raw_featurizer import RawFeaturizer
 
 from jointformer.configs.task import TaskConfig
@@ -23,6 +23,13 @@ LOAD_FN = {
     "lipophilicity": load_lipo,
     "esol": load_delaney,
     "freesolv": load_sampl,
+    "hiv": load_hiv,
+    "bace": load_bace_classification,
+    "bbbp": load_bbbp,
+    "tox21": load_tox21,
+    "toxcast": load_toxcast,
+    "sider": load_sider,
+    "clintox": load_clintox
 }
 
 
@@ -38,7 +45,8 @@ class MoleculeNetDataset(SmilesDataset):
             standardize: Optional[bool] = None,
             data_dir: Optional[str] = None,
             seed: Optional[int] = None,
-            num_samples: Optional[int] = None
+            num_samples: Optional[int] = None,
+            task_type: Optional[str] = None
     ) -> None:
 
         self._download(
@@ -56,7 +64,7 @@ class MoleculeNetDataset(SmilesDataset):
         target_filepath = os.path.join(data_dir, f'{target_label}.pt')
         super().__init__(
             data_filepath=data_filepath, target_filepath=target_filepath,
-            transform=transform, target_transform=None,
+            transform=transform, target_transform=None, task_type=task_type,
             num_samples=num_samples, validate=validate, standardize=standardize, seed=seed
         )
         self._target_transform = self.get_target_transform(target_label=target_label, splitter=splitter) # used only for validation
@@ -120,5 +128,6 @@ class MoleculeNetDataset(SmilesDataset):
             standardize=config.standardize,
             data_dir=data_dir,
             seed=seed,
-            num_samples=config.num_samples
+            num_samples=config.num_samples,
+            task_type=config.task_type
         )
