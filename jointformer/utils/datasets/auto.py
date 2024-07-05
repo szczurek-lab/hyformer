@@ -54,5 +54,9 @@ class AutoDataset:
             return getattr(importlib.import_module(
                 "jointformer.utils.datasets.smiles.molecule_net"),
                 "MoleculeNetDataset").from_config(config, data_dir=data_dir, seed=seed)
+        elif config.dataset_name == 'sequence_dataset':
+            return getattr(importlib.import_module(
+                "jointformer.utils.datasets.sequence"),
+                "SequentialDataset").from_config(config, data_dir=data_dir, seed=seed)
         else:
             raise ValueError(f"Dataset {config.dataset_name} not available.")

@@ -43,7 +43,7 @@ class SmilesDataset(BaseDataset):
         if data_filepath is not None:
             data = self._load_data(data_filepath)
         if target_filepath is not None:
-            target = self._load_target(target_filepath)
+            target = self._load_target(target_filepath, task_type)
 
         super().__init__(
             data=data, target=target, transform=transform, target_transform=target_transform, seed=seed
@@ -103,7 +103,24 @@ class SmilesDataset(BaseDataset):
 
     @staticmethod
     def _load_target(target_filepath: str, task_type: str = None):
-        target = torch.load(target_filepath)
+        """
+        Loads the target from the specified file.
+
+        Args:
+            target_filepath (str): The file path to the target.
+            task_type (str, optional): The type of task (e.g., classification, regression). Defaults to None.
+
+        Returns:
+            The loaded target.
+        """
+        target_extension = target_filepath.split('.')[-1]
+        if target_extension == 'pt':
+            target = torch.load(target_filepath)
+        elif target_extension == 'npy' or target_extension == 'npz':
+            target = np.load(target_filepath)
+            target = torch.from_numpy(target)
+        else:
+            raise ValueError(f"Unsupported target file extension: {target_extension}")
         if task_type == 'classification':
             target = target.long()
         elif task_type == 'regression':

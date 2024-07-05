@@ -10,7 +10,7 @@ import numpy as np
 from tqdm import tqdm
 from typing import List, Callable, Optional, Union
 
-from jointformer.configs.task import TaskConfig
+from jointformer.configs.dataset import DatasetConfig
 from jointformer.utils.datasets.base import BaseDataset
 from jointformer.utils.data import read_strings_from_file
 from jointformer.utils.data_collators import DataCollator
@@ -120,21 +120,39 @@ class SequentialDataset(BaseDataset):
             target = torch.from_numpy(target)
         else:
             raise ValueError(f"Unsupported target file extension: {target_extension}")
-        if task_type == 'classification':
-            target = target.long()
-        elif task_type == 'regression':
-            target = target.float()
+        if task_type is not None:
+            if task_type == 'classification':
+                target = target.long()
+            elif task_type == 'regression':
+                target = target.float()
         return target
     
     @classmethod
-    def from_config(cls, config: TaskConfig, split: Optional[str] = None, seed: Optional[int] = None, data_dir: str = None):
+    def from_config(cls, config: DatasetConfig, split: Optional[str] = None, seed: Optional[int] = None, data_dir: str = None):
+        
+        if split is None:
+            split = config.split
 
         if split is not None:
             config.split = split
 
+        if split == 'train':
+            data_filepath = config.path_to_train_data
+            properties_filepath = config.path_to_train_properties
+        elif split == 'val':
+            data_filepath = config.path_to_val_data
+            properties_filepath = config.path_to_val_properties
+        elif split == 'test':
+            data_filepath = config.path_to_test_data
+            properties_filepath = config.path_to_test_properties
+        else:
+            raise ValueError("Provide a correct split value.")
+
         return cls(
-            target_label=config.target_label,
+            data_filepath = data_filepath,
+            target_filepath = properties_filepath,
             transform=config.transform,
+            target_transform=config.target_transform,
             data_dir=data_dir,
             seed=seed,
             num_samples=config.num_samples,
