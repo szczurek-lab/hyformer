@@ -7,6 +7,12 @@ class DatasetConfig(Config):
 
     def __init__(
             self,
+            path_to_train_data: Optional[str] = None,
+            path_to_train_properties: Optional[str] = None,
+            path_to_val_data: Optional[str] = None,
+            path_to_val_properties: Optional[str] = None,
+            path_to_test_data: Optional[str] = None,
+            path_to_test_properties: Optional[str] = None,
             dataset_name: Optional[str] = None,
             target_label: Optional[str] = None,
             data_filepath: Optional[str] = None,
@@ -23,6 +29,12 @@ class DatasetConfig(Config):
             num_tasks: Optional[int] = None
     ):
         super().__init__()
+        self.path_to_train_data = path_to_train_data
+        self.path_to_train_properties = path_to_train_properties
+        self.path_to_val_data = path_to_val_data    
+        self.path_to_val_properties = path_to_val_properties
+        self.path_to_test_data = path_to_test_data
+        self.path_to_test_properties = path_to_test_properties
         self.dataset_name = dataset_name
         self.target_label = target_label
         self.data_filepath = data_filepath

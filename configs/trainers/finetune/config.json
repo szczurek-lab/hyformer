@@ -1,0 +1,30 @@
+{
+  "compile": true,
+  "enable_ddp": false,
+  "dtype": "bfloat16",
+  "eval_only": false,
+  "max_iters": 60000,
+  "max_epochs": 20,
+  "batch_size": 16,
+  "learning_rate": 6e-4,
+  "weight_decay": 1e-1,
+  "beta1": 0.9,
+  "beta2": 0.95,
+  "gradient_accumulation_steps": 1,
+  "grad_clip": 1.0,
+  "decay_lr": true,
+  "warmup_iters": 6000,
+  "lr_decay_iters": 60000,
+  "min_lr": 1e-6,
+  "eval_iters": 24,
+  "eval_interval": 250,
+  "log_interval": 50,
+  "always_save_checkpoint": false,
+  "save_checkpoint": false, 
+  "save_checkpoint_every": 10000,
+  "block_size": 128,
+  "tasks":
+    {
+      "prediction": 1
+    }
+}

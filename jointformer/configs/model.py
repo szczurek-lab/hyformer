@@ -8,17 +8,20 @@ class ModelConfig(Config):
     def __init__(
         self,
         model_name: str,
-        embedding_dim: int,
-        num_heads: int,
-        num_layers: int,
-        bias: bool,
-        dropout: float,
-        layer_norm_eps: float,
-        vocab_size: int,
-        max_seq_len: int,
+        embedding_dim: Optional[int] = None,
+        num_heads: Optional[int] = None,
+        num_layers: Optional[int] = None,
+        bias: Optional[bool] = None,
+        dropout: Optional[float] = None,
+        layer_norm_eps: Optional[float] = None,
+        vocab_size: Optional[int] = None,
+        max_seq_len: Optional[int] = None,
         prediction_task: Optional[str] = None,
         num_prediction_tasks: Optional[int] = None,
-        num_physchem_tasks: Optional[int] = None
+        num_physchem_tasks: Optional[int] = None,
+        pretrained_filepath: Optional[int] = None,
+        predictor_hidden_size: Optional[int] = None,
+        predictor_dropout: Optional[float] = None
     ):
         super().__init__()
         self.model_name = model_name
@@ -33,3 +36,6 @@ class ModelConfig(Config):
         self.prediction_task = prediction_task
         self.num_prediction_tasks = num_prediction_tasks
         self.num_physchem_tasks = num_physchem_tasks
+        self.pretrained_filepath = pretrained_filepath
+        self.predictor_hidden_size = predictor_hidden_size
+        self.predictor_dropout = predictor_dropout

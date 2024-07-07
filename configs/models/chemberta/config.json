@@ -1,0 +1,6 @@
+{
+  "model_name": "ChemBERTa",
+  "pretrained_filepath": "DeepChem/ChemBERTa-5M-MLM",
+  "predictor_hidden_size": 384,
+  "predictor_dropout": 0.144
+}

@@ -57,14 +57,19 @@ class SmilesDataset(BaseDataset):
         self._validate()
         self._standardize()
 
-    def _subset(self):
-        if self.num_samples is not None:
+    def _subset(self, num_samples: Optional[int] = None, seed: Optional[int] = None):
+
+        num_samples = num_samples if num_samples is not None else self.num_samples
+        if seed is not None:
+            random.seed(seed)
+
+        if num_samples is not None:
             idx = list(range(len(self.target)))
             random.shuffle(idx)
-            idx = idx[:self.num_samples] 
-            if self.data is not None and len(self.data) > self.num_samples:
+            idx = idx[:num_samples] 
+            if self.data is not None and len(self.data) > num_samples:
                 self.data = [self.data[i] for i in idx]
-            if self.target is not None and len(self.target) > self.num_samples:
+            if self.target is not None and len(self.target) > num_samples:
                 self.target = self.target[idx]
 
     def _validate(self):

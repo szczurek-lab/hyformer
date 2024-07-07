@@ -22,11 +22,13 @@ class TrainerConfig(Config):
         min_lr,
         decay_lr,
         always_save_checkpoint,
+        save_checkpoint,
         save_checkpoint_every,
         eval_only,
         eval_interval,
         log_interval,
         max_iters,
+        max_epochs,
         tasks
     ):
         super().__init__()
@@ -37,6 +39,7 @@ class TrainerConfig(Config):
         self.dtype = dtype
         self.eval_only = eval_only
         self.max_iters = max_iters
+        self.max_epochs = max_epochs
 
         # optimization
         self.batch_size = batch_size
@@ -59,6 +62,7 @@ class TrainerConfig(Config):
         self.log_interval = log_interval
         self.always_save_checkpoint = always_save_checkpoint
         self.save_checkpoint_every = save_checkpoint_every
+        self.save_checkpoint = save_checkpoint
 
         # others
         self.block_size = block_size
