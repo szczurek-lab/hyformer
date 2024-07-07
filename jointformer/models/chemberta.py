@@ -60,6 +60,16 @@ class ChemBERTa(RobertaForSequenceClassification, BaseModel):
         self.problem_type = task_type
         self.classifier = RobertaClassificationHead(hidden_size=hidden_size, num_labels=out_size, dropout=dropout, task_type=task_type)
 
+    def get_loss(
+            self,
+            input_ids: Optional[torch.Tensor] = None,
+            attention_mask: Optional[torch.Tensor] = None,
+            labels: Optional[torch.Tensor] = None,
+            properties: Optional[torch.Tensor] = None,
+            task: Optional[str] = None):
+
+        return self.forward(input_ids=input_ids, attention_mask=attention_mask, labels=properties)
+
     def predict(
             self,
             input_ids: Optional[torch.Tensor] = None,

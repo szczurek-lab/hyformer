@@ -64,6 +64,8 @@ def parse_args():
 @record
 def main(args):
 
+    os.environ["TOKENIZERS_PARALLELISM"] = "false"
+    
     ###
     # Create out_dir and log configs
     ###
@@ -103,8 +105,8 @@ def main(args):
         model.set_prediction_task(
             task_type=dataset_config.task_type,
             out_size=dataset_config.num_tasks,
-            hidden_size=dataset_config.predictor_hidden_size,
-            dropout=dataset_config.predictor_dropout
+            hidden_size=model_config.predictor_hidden_size,
+            dropout=model_config.predictor_dropout
             )
     ###
 

@@ -359,25 +359,26 @@ class Trainer:
                 else:
                     out[split]['combined'] = out[split][task]
 
-        for split in splits:
-            out[split]['perplexity'] = {}
-            losses = torch.zeros(self.eval_iters)
-            for k in range(self.eval_iters):
-                inputs = self.get_batch(split)
-                with self.ctx:
-                    perplexity = self.model.calculate_perplexity(**inputs)
-                losses[k] = perplexity.mean()
-            out[split]['perplexity'] = losses.mean().item() if torch.nan not in losses else torch.nan
+        if hasattr(self.model, 'calculate_perplexity'):
+            for split in splits:
+                out[split]['perplexity'] = {}
+                losses = torch.zeros(self.eval_iters)
+                for k in range(self.eval_iters):
+                    inputs = self.get_batch(split)
+                    with self.ctx:
+                        perplexity = self.model.calculate_perplexity(**inputs)
+                    losses[k] = perplexity.mean()
+                out[split]['perplexity'] = losses.mean().item() if torch.nan not in losses else torch.nan
 
-        for _ in range(self.eval_iters):
-            samples = []
-            samples.extend(self.generate())
-        if self.logger:
-            self.logger.log_molecule_data(samples)
-        is_valid = [self.tokenizer.is_valid_smiles(sample) for sample in samples]
-        out["val"]["validity"] = sum(is_valid) / len(is_valid)
-        out["val"]["uniqueness"] = len(set(samples)) / len(samples)
-        out["val"]["novelty"] = len(set(samples) - set(self.train_dataset.data)) / len(samples)
+            for _ in range(self.eval_iters):
+                samples = []
+                samples.extend(self.generate())
+            if self.logger:
+                self.logger.log_molecule_data(samples)
+            is_valid = [self.tokenizer.is_valid_smiles(sample) for sample in samples]
+            out["val"]["validity"] = sum(is_valid) / len(is_valid)
+            out["val"]["uniqueness"] = len(set(samples)) / len(samples)
+            out["val"]["novelty"] = len(set(samples) - set(self.train_dataset.data)) / len(samples)
         self.model.train()
         return out
 
