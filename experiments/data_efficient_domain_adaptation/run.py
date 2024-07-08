@@ -79,8 +79,7 @@ def main(args):
     trainer_config = TrainerConfig.from_config_file(args.path_to_trainer_config)
     logger_config = LoggerConfig.from_config_file(args.path_to_logger_config) if args.path_to_logger_config else None
 
-    if not args.prepare_data:
-        dump_configs(args.out_dir, dataset_config, tokenizer_config, model_config, trainer_config, logger_config)
+    dump_configs(args.out_dir, dataset_config, tokenizer_config, model_config, trainer_config, logger_config)
     ###
 
     ###
@@ -100,6 +99,8 @@ def main(args):
     tokenizer = AutoTokenizer.from_config(tokenizer_config)
     model = AutoModel.from_config(model_config)
     logger = AutoLogger.from_config(logger_config) if logger_config else None
+    if logger is not None:
+        logger.store_configs(dataset_config, tokenizer_config, model_config, trainer_config, logger_config)
 
     if model_config.model_name == 'ChemBERTa':
         model.set_prediction_task(
@@ -123,7 +124,7 @@ def main(args):
         )
     trainer._init_data_loaders()
     assert trainer.test_loader is not None
-    max_iters_from_epochs = 1250
+    max_iters_from_epochs = 1000
     # max_iters_from_epochs = int(len(train_dataset) / trainer_config.batch_size * trainer_config.max_epochs) + 1
     max_iters = min(max_iters_from_epochs, trainer_config.max_iters)
     trainer.max_iters = max_iters
@@ -162,6 +163,6 @@ if __name__ == "__main__":
             args.data_seed = data_seed
             args.model_seed = args.model_seed_array[0]
             out[fraction_training_examples][data_seed] = main(args)
-    
-    write_dict_to_file(out, os.path.join(args.out_dir, 'results.json'))
+            write_dict_to_file(out, os.path.join(args.out_dir, 'results.json'))
+
     console.info("Script finished!")

@@ -7,4 +7,5 @@ python experiments/data_efficient_domain_adaptation/run.py \
    --path_to_tokenizer_config configs/tokenizers/chemberta \
    --path_to_model_config configs/models/chemberta \
    --path_to_trainer_config configs/trainers/finetune \
-   --dry_run
+   --dry_run \
+   --prepare_data \

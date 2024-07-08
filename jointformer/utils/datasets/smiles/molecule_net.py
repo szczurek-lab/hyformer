@@ -20,7 +20,7 @@ SPLIT_MAP = {
 }
 
 LOAD_FN = {
-    "lipophilicity": load_lipo,
+    "lipo": load_lipo,
     "esol": load_delaney,
     "freesolv": load_sampl,
     "hiv": load_hiv,
