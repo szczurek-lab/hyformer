@@ -11,3 +11,8 @@ class BaseModel(nn.Module, abc.ABC):
     @abc.abstractmethod
     def load_pretrained(self, filename, device='cpu'):
         pass
+
+    @classmethod
+    @abc.abstractmethod
+    def from_config(cls, config):
+        pass
