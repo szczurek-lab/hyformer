@@ -21,7 +21,8 @@ class ModelConfig(Config):
         num_physchem_tasks: Optional[int] = None,
         pretrained_filepath: Optional[int] = None,
         predictor_hidden_size: Optional[int] = None,
-        predictor_dropout: Optional[float] = None
+        predictor_dropout: Optional[float] = None,
+        predictor_num_heads: Optional[int] = None,
     ):
         super().__init__()
         self.model_name = model_name
@@ -39,3 +40,4 @@ class ModelConfig(Config):
         self.pretrained_filepath = pretrained_filepath
         self.predictor_hidden_size = predictor_hidden_size
         self.predictor_dropout = predictor_dropout
+        self.predictor_num_heads = predictor_num_heads

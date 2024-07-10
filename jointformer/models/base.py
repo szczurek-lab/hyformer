@@ -1,9 +1,11 @@
-import logging
-import inspect
-from torch import nn
 import abc
+import inspect
+import logging
 import torch
+
 from guacamol.assess_distribution_learning import DistributionMatchingGenerator
+from torch import nn
+from typing import Optional
 
 console = logging.getLogger(__name__)
 
@@ -35,6 +37,19 @@ class BaseModel(nn.Module, abc.ABC):
         pass
     
     @abc.abstractmethod
-    def set_prediction_task(self, task_type: str, num_tasks: int):
+    def get_loss(
+            self,
+            input_ids: Optional[torch.Tensor] = None,
+            attention_mask: Optional[torch.Tensor] = None,
+            labels: Optional[torch.Tensor] = None,
+            properties: Optional[torch.Tensor] = None,
+            task: Optional[str] = None):
         pass
     
+    @abc.abstractmethod
+    def predict(
+            self,
+            input_ids: Optional[torch.Tensor] = None,
+            attention_mask: Optional[torch.Tensor] = None
+           ):
+        pass

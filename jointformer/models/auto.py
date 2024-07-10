@@ -18,10 +18,15 @@ class AutoModel:
                 "jointformer.models.gpt"),
                 "GPT").from_config(config)
         
-        elif config.model_name == 'ChemBERTa':
+        elif config.model_name == 'ChemBERTa' and config.prediction_task == 'classification':
             return getattr(importlib.import_module(
                 "jointformer.models.chemberta"),
-                "ChemBERTa").from_config(config)
+                "RobertaForSequenceClassification").from_config(config)
+        
+        elif config.model_name == 'ChemBERTa' and config.prediction_task == 'regression':
+            return getattr(importlib.import_module(
+                "jointformer.models.chemberta"),
+                "RobertaForRegression").from_config(config)
 
         else:
             raise ValueError(f"Model {config.model_name} not supported.")
