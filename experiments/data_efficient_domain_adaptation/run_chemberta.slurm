@@ -13,7 +13,7 @@
 #SBATCH --cpus-per-task=8                                   
 #SBATCH --mem=20G                                           
 #SBATCH --gres=gpu:1                                        
-#SBATCH --time=12:00:00                                    
+#SBATCH --time=8:00:00                                    
 
 #SBATCH --mail-type=begin                                   
 #SBATCH --mail-type=end                                     
@@ -29,28 +29,28 @@ source $HOME/.bashrc
 conda deactivate
 conda activate jointformer-experiments
 
-srun python experiments/data_efficient_domain_adaptation/run.py \
-   --data_dir /lustre/groups/aih/jointformer/data \
-   --out_dir /lustre/groups/aih/jointformer/results/sample_efficient_domain_adaptation/chemberta/esol \
-   --path_to_dataset_config configs/datasets/molecule_net/esol \
-   --path_to_tokenizer_config configs/tokenizers/chemberta \
-   --path_to_model_config configs/models/chemberta \
-   --path_to_trainer_config configs/trainers/finetune \
-   --path_to_logger_config configs/loggers/wandb \
+# srun python experiments/data_efficient_domain_adaptation/run.py \
+#    --data_dir /lustre/groups/aih/jointformer/data \
+#    --out_dir /lustre/groups/aih/jointformer/results/sample_efficient_domain_adaptation/chemberta/esol \
+#    --path_to_dataset_config configs/datasets/molecule_net/esol \
+#    --path_to_tokenizer_config configs/tokenizers/chemberta \
+#    --path_to_model_config configs/models/chemberta \
+#    --path_to_trainer_config configs/trainers/finetune \
+#    --path_to_logger_config configs/loggers/wandb \
+
+# srun python experiments/data_efficient_domain_adaptation/run.py \
+#    --data_dir /lustre/groups/aih/jointformer/data \
+#    --out_dir /lustre/groups/aih/jointformer/results/sample_efficient_domain_adaptation/chemberta/freesolv \
+#    --path_to_dataset_config configs/datasets/molecule_net/freesolv \
+#    --path_to_tokenizer_config configs/tokenizers/chemberta \
+#    --path_to_model_config configs/models/chemberta \
+#    --path_to_trainer_config configs/trainers/finetune \
+#    --path_to_logger_config configs/loggers/wandb \
 
 srun python experiments/data_efficient_domain_adaptation/run.py \
    --data_dir /lustre/groups/aih/jointformer/data \
-   --out_dir /lustre/groups/aih/jointformer/results/sample_efficient_domain_adaptation/chemberta/freesolv \
-   --path_to_dataset_config configs/datasets/molecule_net/freesolv \
-   --path_to_tokenizer_config configs/tokenizers/chemberta \
-   --path_to_model_config configs/models/chemberta \
-   --path_to_trainer_config configs/trainers/finetune \
-   --path_to_logger_config configs/loggers/wandb \
-
-srun python experiments/data_efficient_domain_adaptation/run.py \
-   --data_dir /lustre/groups/aih/jointformer/data \
-   --out_dir /lustre/groups/aih/jointformer/results/sample_efficient_domain_adaptation/chemberta/lipo \
-   --path_to_dataset_config configs/datasets/molecule_net/lipo \
+   --out_dir /lustre/groups/aih/jointformer/results/sample_efficient_domain_adaptation_select_best/chemberta/lipo_scaffold \
+   --path_to_dataset_config configs/datasets/molecule_net/lipo_scaffold \
    --path_to_tokenizer_config configs/tokenizers/chemberta \
    --path_to_model_config configs/models/chemberta \
    --path_to_trainer_config configs/trainers/finetune \

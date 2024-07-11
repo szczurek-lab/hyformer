@@ -103,13 +103,13 @@ def main(args):
     if logger is not None:
         logger.store_configs(dataset_config, tokenizer_config, model_config, trainer_config, logger_config)
 
-    if model_config.model_name == 'ChemBERTa':
-        model.set_prediction_task(
-            task_type=dataset_config.task_type,
-            out_size=dataset_config.num_tasks,
-            hidden_size=model_config.predictor_hidden_size,
-            dropout=model_config.predictor_dropout
-            )
+    # if model_config.model_name == 'ChemBERTa':
+    #     model.set_prediction_task(
+    #         task_type=dataset_config.task_type,
+    #         out_size=dataset_config.num_tasks,
+    #         hidden_size=model_config.predictor_hidden_size,
+    #         dropout=model_config.predictor_dropout
+    #         )
     ###
 
     trainer = Trainer(
@@ -148,6 +148,8 @@ def main(args):
         trainer.eval_iters = 2
     
     trainer.train()
+
+    trainer.resume_from_file(os.path.join(tmp_out_dir, 'ckpt.pt'))
     return trainer.test()
 
 
