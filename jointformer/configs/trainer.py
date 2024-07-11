@@ -1,3 +1,5 @@
+import math
+
 from jointformer.configs.base import Config
 
 
@@ -76,3 +78,14 @@ class TrainerConfig(Config):
         total = sum(self.tasks.values())
         for task in self.tasks:
             self.tasks[task] = self.tasks[task] / total
+
+    def correct_for_num_train_examples(self, num_train_examples: int):
+        if self.max_epochs is not None:
+            num_iters_single_epoch = math.ceil(num_train_examples / self.batch_size)
+            self.max_iters = num_iters_single_epoch * self.max_epochs
+            self.warmup_iters = 0.1 * self.max_iters
+            self.lr_decay_iters = self.max_iters
+            self.eval_interval = num_iters_single_epoch
+            self.log_interval = min(self.log_interval, self.eval_intervl)
+        else:
+            raise ValueError("Argument `max epochs` not specified in config file.")

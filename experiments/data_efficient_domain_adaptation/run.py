@@ -91,6 +91,7 @@ def main(args):
     train_dataset._subset(num_samples = num_subsamples, seed = args.data_seed)
     val_dataset = AutoDataset.from_config(dataset_config, split='val', data_dir=args.data_dir)
     test_dataset = AutoDataset.from_config(dataset_config, split='test', data_dir=args.data_dir)
+    trainer_config.correct_for_num_train_examples(num_train_examples=len(train_dataset))
     console.info(f"Selected Train: {len(train_dataset)}, Val: {len(val_dataset)}, Test: {len(test_dataset)} examples")
 
     if args.prepare_data:
