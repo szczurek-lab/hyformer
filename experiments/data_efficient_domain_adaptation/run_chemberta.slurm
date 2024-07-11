@@ -20,7 +20,7 @@
 #SBATCH --mail-type=fail                                    
 #SBATCH --mail-user=adam.izdebski@helmholtz-munich.de
 
-#SBATCH --nice=999                                       
+#SBATCH --nice=99                                    
 #SBATCH --constraint=gpu_tesla_A100                        
 
 

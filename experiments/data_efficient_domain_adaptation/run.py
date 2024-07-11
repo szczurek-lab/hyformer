@@ -36,7 +36,7 @@ logging.basicConfig(
 )
 logging.captureWarnings(True)
 
-FRACTION_TRAINING_EXAMPLES = [0.01, 0.1, 0.25, 0.5, 1.0]
+FRACTION_TRAINING_EXAMPLES = [0.01, 0.1, 0.25, 1.0]
 MODEL_SEED_ARRAY = [1337]
 DATA_SEED_ARRAY = [0, 1, 2]
 DEFAULT_NUM_EPOCHS = 20
@@ -88,7 +88,7 @@ def main(args):
     train_dataset = AutoDataset.from_config(dataset_config, split='train', data_dir=args.data_dir)
     num_subsamples =  int(len(train_dataset) * args.fraction_training_examples)
 
-    train_dataset._subset(num_samples = num_subsamples, seed = args.data_seed)
+    train_dataset._subset(num_samples=num_subsamples, seed=args.data_seed)
     val_dataset = AutoDataset.from_config(dataset_config, split='val', data_dir=args.data_dir)
     test_dataset = AutoDataset.from_config(dataset_config, split='test', data_dir=args.data_dir)
     trainer_config.correct_for_num_train_examples(num_train_examples=len(train_dataset))
@@ -103,15 +103,6 @@ def main(args):
     if logger is not None:
         logger.store_configs(dataset_config, tokenizer_config, model_config, trainer_config, logger_config)
 
-    # if model_config.model_name == 'ChemBERTa':
-    #     model.set_prediction_task(
-    #         task_type=dataset_config.task_type,
-    #         out_size=dataset_config.num_tasks,
-    #         hidden_size=model_config.predictor_hidden_size,
-    #         dropout=model_config.predictor_dropout
-    #         )
-    ###
-
     trainer = Trainer(
         out_dir=tmp_out_dir,
         seed=args.model_seed,
@@ -125,13 +116,13 @@ def main(args):
         )
     trainer._init_data_loaders()
     assert trainer.test_loader is not None
-    max_iters_from_epochs = 1000
-    # max_iters_from_epochs = int(len(train_dataset) / trainer_config.batch_size * trainer_config.max_epochs) + 1
-    max_iters = min(max_iters_from_epochs, trainer_config.max_iters)
-    trainer.max_iters = max_iters
-    trainer.warmup_iters = int(0.1 * max_iters)
-    trainer.lr_decay_iters = trainer.max_iters
-    console.info(f"Max iters set to: {max_iters}")
+    # max_iters_from_epochs = 1000
+    # # max_iters_from_epochs = int(len(train_dataset) / trainer_config.batch_size * trainer_config.max_epochs) + 1
+    # max_iters = min(max_iters_from_epochs, trainer_config.max_iters)
+    # trainer.max_iters = max_iters
+    # trainer.warmup_iters = int(0.1 * max_iters)
+    # trainer.lr_decay_iters = trainer.max_iters
+    console.info(f"Max iters is set to: {trainer.max_iters}")
 
     try:
         trainer.resume_snapshot()
@@ -149,9 +140,19 @@ def main(args):
     
     trainer.train()
 
-    trainer.resume_from_file(os.path.join(tmp_out_dir, 'ckpt.pt'))
+    trainer.resume_from_file(os.path.join(tmp_out_dir, 'ckpt.pt')) #reload best model
     return trainer.test()
 
+
+def aggregate_results(results):
+    out = {}
+    for key, value in results.items():
+      out[key] = {}
+      result = np.array(list(value.values()))
+      out[key]['mean'] = round(np.mean(result), 3)
+      out[key]['se'] = round(np.std(result, ddof=1) / np.sqrt(len(result)), 3)
+    return out
+      
 
 if __name__ == "__main__":
     console.info("Script running...")
@@ -168,4 +169,6 @@ if __name__ == "__main__":
             out[fraction_training_examples][data_seed] = main(args)
             write_dict_to_file(out, os.path.join(args.out_dir, 'results.json'))
 
+    results = aggregate_results(out)
+    write_dict_to_file(results, os.path.join(args.out_dir, 'results_aggregated.json'))
     console.info("Script finished!")

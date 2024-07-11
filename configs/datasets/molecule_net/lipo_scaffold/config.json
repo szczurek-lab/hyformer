@@ -1,0 +1,14 @@
+{
+  "dataset_name": "molecule_net",
+  "target_label": "lipo",
+  "validate": false,
+  "num_samples": null,
+  "standardize": false,
+  "splitter": "scaffold",
+  "split": null,
+  "transform": [{"name": "smiles_enumerator", "params": {"enumeration_probability": 0.0}}],
+  "target_transform": null,
+  "task_type": "regression",
+  "metric": "rmse",
+  "num_tasks": 1
+}
