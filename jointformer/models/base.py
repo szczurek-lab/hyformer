@@ -53,3 +53,8 @@ class BaseModel(nn.Module, abc.ABC):
             attention_mask: Optional[torch.Tensor] = None
            ):
         pass
+
+    @classmethod
+    @abc.abstractmethod
+    def from_config(cls, config):
+        pass

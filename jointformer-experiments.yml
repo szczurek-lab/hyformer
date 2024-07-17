@@ -12,7 +12,7 @@ dependencies:
   - ipykernel
   - jupyterlab
   - matplotlib
-  - numpy
+  - numpy<2.0
   - pandas==1.5.3
   - python
   - pytorch==2.2.2
@@ -25,4 +25,5 @@ dependencies:
   - tqdm
   - transformers
   - wandb
-  - simpletransformers
+  - tensorflow==2.9.1
+  - molecule-generation
