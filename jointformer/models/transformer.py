@@ -6,7 +6,7 @@ import logging
 import torch.nn as nn
 
 from typing import Optional
-from jointformer.models.layers.layer_norm import LayerNorm
+from jointformer.models.layers.layer_norm import RMSNorm
 from jointformer.models.layers.transformer import TransformerBlock
 
 console = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ class Transformer(nn.Module):
                 [TransformerBlock(
                     self.embedding_dim, self.bias, self.dropout, self.num_heads,
                     self.max_seq_len, self.layer_norm_eps) for _ in range(self.num_layers)]),
-            ln_f = LayerNorm(self.embedding_dim, bias=self.bias, eps=self.layer_norm_eps),
+            ln_f = RMSNorm(self.embedding_dim, eps=self.layer_norm_eps),
         ))
 
     def forward(

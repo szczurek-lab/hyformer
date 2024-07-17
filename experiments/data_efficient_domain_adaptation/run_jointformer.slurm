@@ -5,7 +5,7 @@
 #SBATCH --error error-%x.log                                 
 
 #SBATCH -p gpu_p
-#SBATCH --qos gpu_normal
+#SBATCH --qos gpu_priority
 
 #SBATCH --nodes=1                                           
 #SBATCH --ntasks-per-node=1                                 
@@ -13,7 +13,7 @@
 #SBATCH --cpus-per-task=8                                   
 #SBATCH --mem=20G                                           
 #SBATCH --gres=gpu:1                                        
-#SBATCH --time=8:00:00                                    
+#SBATCH --time=00:30:00                                    
 
 #SBATCH --mail-type=begin                                   
 #SBATCH --mail-type=end                                     
