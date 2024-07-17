@@ -18,5 +18,11 @@ class AutoModel:
                 "jointformer.models.gpt"),
                 "GPT").from_config(config)
 
+        if config.model_name == "Moler":
+            return getattr(importlib.import_module(
+                "jointformer.models.moler"),
+                "Moler").from_config(config)
+            
+
         else:
             raise ValueError(f"Model {config.model_name} not supported.")
