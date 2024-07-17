@@ -6,6 +6,7 @@ import random
 import json
 import logging
 
+from torch import nn
 from typing import Optional, Any
 from contextlib import nullcontext
 from torch.distributions.categorical import Categorical
@@ -88,6 +89,7 @@ class Trainer:
         self.min_lr = config.min_lr
         self.decay_lr = config.decay_lr
         self.always_save_checkpoint = config.always_save_checkpoint
+        self.save_checkpoint = config.save_checkpoint
         self.save_checkpoint_every = config.save_checkpoint_every
         self.eval_only = config.eval_only
         self.eval_interval = config.eval_interval
@@ -146,7 +148,7 @@ class Trainer:
         self.task_distribution = Categorical(torch.Tensor(list(self.tasks.values())))
         self.tokens_per_iter = self.gradient_accumulation_steps * self.ddp_world_size * self.batch_size * self.block_size
 
-        if self.tokenizer is not None:
+        if self.tokenizer is not None and hasattr(self.tokenizer, '__len__'):
             if len(self.tokenizer) != self.model.vocab_size:
                 raise ValueError(f"Tokenizer and model not compatible. Tokenizer is of length {len(self.tokenizer)}"
                                  f" while model expects vocab size {self.model.vocab_size}")
@@ -173,7 +175,7 @@ class Trainer:
     def resume_snapshot(self):
         self.resume_from_file(self._snapshot_filepath)
 
-    def resume_from_file(self, filepath):
+    def resume_from_file(self, filepath, resume_training=False):
         checkpoint = torch.load(filepath, map_location=self.device)
         try:
             state_dict = checkpoint['model']
@@ -185,16 +187,17 @@ class Trainer:
         except RuntimeError:
             self.model.load_state_dict(checkpoint['model'])
         self.optimizer.load_state_dict(checkpoint["optimizer"])
-        self._iter_num = checkpoint['iter_num']
-        self._best_val_loss = checkpoint['best_val_loss']
-        self._loss_dict = checkpoint['loss_dict']
-        self._resumed_from_iter_num = self._iter_num
-        if self.logger is not None:
-            self.logger.set_run_id(checkpoint['run_id'] if 'run_id' in checkpoint else None)
+        if resume_training:
+            self._iter_num = checkpoint['iter_num']
+            self._best_val_loss = checkpoint['best_val_loss']
+            self._loss_dict = checkpoint['loss_dict']
+            self._resumed_from_iter_num = self._iter_num
+            if self.logger is not None:
+                self.logger.set_run_id(checkpoint['run_id'] if 'run_id' in checkpoint else None)
         checkpoint = None
 
     def _save_ckpt(self, filename: str):
-        if self.out_dir is not None and self.master_process:
+        if self.out_dir is not None and self.master_process and self.save_checkpoint:
             run_id = self.logger.run_id if self.logger is not None else None
             checkpoint = {
                 'model': self.raw_model.state_dict(),
@@ -297,16 +300,40 @@ class Trainer:
             inputs['properties'] = None
         return inputs
 
+    @torch.no_grad()
     def test(self):
+        
+        self.model.eval()
+        criterion = nn.MSELoss(reduction='sum')
 
-        if self.logger:
+        if self.logger is not None:
             self.logger.init_run()
 
-        # todo: run evaluate with test dataset
-        for idx, inputs in enumerate(self.test_dataset):
-            inputs = self.tokenizer(inputs)
+        n = 0
+        loss = 0.
+        for _, batch in enumerate(self.test_loader):
+            if self.device_type != 'cpu':
+                for key, value in batch.items():
+                    if value is not None and not isinstance(value, str):
+                        batch[key] = value.pin_memory().to(self.device, non_blocking=True)
             with self.ctx:
-                outputs = self.model.get_loss(**inputs)
+                outputs = self.model.predict(**batch)["y_pred"].cpu()
+            
+            batch['properties'] = batch['properties'].cpu()
+            if outputs.dtype != torch.float32:
+                outputs = torch.tensor(outputs, dtype=torch.float32)
+            if hasattr(self.test_dataset, '_target_transform'):
+                batch["properties"] = self.test_dataset.undo_target_transform(batch["properties"])
+                outputs = self.test_dataset.undo_target_transform(outputs)
+            loss += criterion(batch["properties"], outputs)
+            n += len(outputs)
+        
+        test_metric = torch.sqrt(loss / n).item()
+
+        if self.logger is not None:
+            self.logger.log({"test/rmse": test_metric})
+            
+        return test_metric
 
     @torch.no_grad()
     def estimate_loss(self):
@@ -338,25 +365,26 @@ class Trainer:
                 else:
                     out[split]['combined'] = out[split][task]
 
-        for split in splits:
-            out[split]['perplexity'] = {}
-            losses = torch.zeros(self.eval_iters)
-            for k in range(self.eval_iters):
-                inputs = self.get_batch(split)
-                with self.ctx:
-                    perplexity = self.model.calculate_perplexity(**inputs)
-                losses[k] = perplexity.mean()
-            out[split]['perplexity'] = losses.mean().item() if torch.nan not in losses else torch.nan
+        if hasattr(self.model, 'calculate_perplexity'):
+            for split in splits:
+                out[split]['perplexity'] = {}
+                losses = torch.zeros(self.eval_iters)
+                for k in range(self.eval_iters):
+                    inputs = self.get_batch(split)
+                    with self.ctx:
+                        perplexity = self.model.calculate_perplexity(**inputs)
+                    losses[k] = perplexity.mean()
+                out[split]['perplexity'] = losses.mean().item() if torch.nan not in losses else torch.nan
 
-        for _ in range(self.eval_iters):
-            samples = []
-            samples.extend(self.generate())
-        if self.logger:
-            self.logger.log_molecule_data(samples)
-        is_valid = [self.tokenizer.is_valid_smiles(sample) for sample in samples]
-        out["val"]["validity"] = sum(is_valid) / len(is_valid)
-        out["val"]["uniqueness"] = len(set(samples)) / len(samples)
-        out["val"]["novelty"] = len(set(samples) - set(self.train_dataset.data)) / len(samples)
+            for _ in range(self.eval_iters):
+                samples = []
+                samples.extend(self.generate())
+            if self.logger:
+                self.logger.log_molecule_data(samples)
+            is_valid = [self.tokenizer.is_valid_smiles(sample) for sample in samples]
+            out["val"]["validity"] = sum(is_valid) / len(is_valid)
+            out["val"]["uniqueness"] = len(set(samples)) / len(samples)
+            out["val"]["novelty"] = len(set(samples) - set(self.train_dataset.data)) / len(samples)
         self.model.train()
         return out
 

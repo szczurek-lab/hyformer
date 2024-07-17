@@ -1,3 +1,5 @@
+import math
+
 from jointformer.configs.base import Config
 
 
@@ -22,11 +24,13 @@ class TrainerConfig(Config):
         min_lr,
         decay_lr,
         always_save_checkpoint,
+        save_checkpoint,
         save_checkpoint_every,
         eval_only,
         eval_interval,
         log_interval,
         max_iters,
+        max_epochs,
         tasks
     ):
         super().__init__()
@@ -37,6 +41,7 @@ class TrainerConfig(Config):
         self.dtype = dtype
         self.eval_only = eval_only
         self.max_iters = max_iters
+        self.max_epochs = max_epochs
 
         # optimization
         self.batch_size = batch_size
@@ -59,6 +64,7 @@ class TrainerConfig(Config):
         self.log_interval = log_interval
         self.always_save_checkpoint = always_save_checkpoint
         self.save_checkpoint_every = save_checkpoint_every
+        self.save_checkpoint = save_checkpoint
 
         # others
         self.block_size = block_size
@@ -72,3 +78,14 @@ class TrainerConfig(Config):
         total = sum(self.tasks.values())
         for task in self.tasks:
             self.tasks[task] = self.tasks[task] / total
+
+    def correct_for_num_train_examples(self, num_train_examples: int):
+        if self.max_epochs is not None:
+            num_iters_single_epoch = math.ceil(num_train_examples / self.batch_size)
+            self.max_iters = num_iters_single_epoch * self.max_epochs
+            self.warmup_iters = 0.1 * self.max_iters
+            self.lr_decay_iters = self.max_iters
+            self.eval_interval = num_iters_single_epoch
+            self.log_interval = min(self.log_interval, self.eval_interval)
+        else:
+            raise ValueError("Argument `max epochs` not specified in config file.")

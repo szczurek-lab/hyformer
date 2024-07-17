@@ -18,7 +18,11 @@ class ModelConfig(Config):
         max_seq_len: Optional[int] = None,
         prediction_task: Optional[str] = None,
         num_prediction_tasks: Optional[int] = None,
-        num_physchem_tasks: Optional[int] = None
+        num_physchem_tasks: Optional[int] = None,
+        pretrained_filepath: Optional[int] = None,
+        predictor_hidden_size: Optional[int] = None,
+        predictor_dropout: Optional[float] = None,
+        predictor_num_heads: Optional[int] = None,
     ):
         super().__init__()
         self.model_name = model_name
@@ -33,3 +37,7 @@ class ModelConfig(Config):
         self.prediction_task = prediction_task
         self.num_prediction_tasks = num_prediction_tasks
         self.num_physchem_tasks = num_physchem_tasks
+        self.pretrained_filepath = pretrained_filepath
+        self.predictor_hidden_size = predictor_hidden_size
+        self.predictor_dropout = predictor_dropout
+        self.predictor_num_heads = predictor_num_heads

@@ -260,3 +260,17 @@ class Jointformer(Transformer, BaseModel):
 
     def to_guacamole_generator(self, tokenizer, batch_size, temperature, top_k, device) -> DistributionMatchingGenerator:
         return DefaultGuacamolModelWrapper(self, tokenizer, batch_size, temperature, top_k, device)
+    
+    def set_prediction_task(self, task_type: str, out_size: int, hidden_size: int, dropout: float):
+        self.problem_type = task_type
+        self.classifier = PredictionHead(hidden_size=hidden_size, num_labels=out_size, dropout=dropout, task_type=task_type)
+
+class PredictionHead(nn.Module):
+    
+    def __init__(self, hidden_size: int, dropout: float, num_labels: int, task_type: str):
+        super().__init__()
+        self.out_proj = nn.Linear(hidden_size, num_labels)
+
+    def forward(self, features, **kwargs):
+        x = self.out_proj(features)
+        return x

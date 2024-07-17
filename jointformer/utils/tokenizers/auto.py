@@ -13,5 +13,13 @@ class AutoTokenizer:
             return getattr(importlib.import_module(
                 "jointformer.utils.tokenizers.smiles.smiles"),
                 "SmilesTokenizer").from_config(config)
+        elif config.tokenizer == "ESMTokenizer":
+            return getattr(importlib.import_module(
+                "jointformer.utils.tokenizers.amp"),
+                "AMPTokenizer").from_config(config)
+        elif config.tokenizer == "HFTokenizer":
+            return getattr(importlib.import_module(
+                "jointformer.utils.tokenizers.hf"),
+                "HFTokenizer").from_config(config)
         else:
             raise ValueError(f"Tokenizer {config.tokenizer} not available.")

@@ -1,0 +1,14 @@
+{
+  "dataset_name": "molecule_net",
+  "target_label": "clintox",
+  "validate": false,
+  "num_samples": null,
+  "standardize": false,
+  "splitter": "random",
+  "split": null,
+  "transform": [{"name": "smiles_enumerator", "params": {"enumeration_probability": 0.0}}],
+  "target_transform": null,
+  "task_type": "classification",
+  "metric": "roc_auc",
+  "num_tasks": 2
+}

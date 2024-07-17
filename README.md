@@ -187,13 +187,13 @@ bash experiments/joint_learning/train.sh
 ```
 
 ----
-## References
+## Training Jointformer on new data
+
+To train Jointformer on new data modify the `configs/datasets/sequence/config.json` config by specifying the relative paths to the train/val/test splits of the data.
+The data should consist of a data file containing sequences and a property file containing property values of sequences. 
+
 
 
 ----
-## Miscelanous
-
-use TDC as a wrapper.
-
-download ZINC15 data from [here](https://az.box.com/s/7eci3nd9vy0xplqniitpk02rbg9q2zcq)
+## References
 

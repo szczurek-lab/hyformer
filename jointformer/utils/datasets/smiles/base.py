@@ -7,7 +7,6 @@ import logging
 import numpy as np
 
 from tqdm import tqdm
-from rdkit import Chem
 from typing import List, Callable, Optional, Union
 
 from jointformer.configs.task import TaskConfig
@@ -25,44 +24,53 @@ class SmilesDataset(BaseDataset):
     def __init__(
             self,
             data: Optional[List[str]] = None,
-            data_filename: Optional[str] = None,
+            data_filepath: Optional[str] = None,
             target: Optional[torch.Tensor] = None,
-            target_filename: Optional[str] = None,
+            target_filepath: Optional[str] = None,
             transform: Optional[Union[Callable, List]] = None,
             target_transform: Optional[Union[Callable, List]] = None,
             num_samples: int = None,
             validate: Optional[bool] = None,
             standardize: Optional[bool] = None,
             max_molecule_length: Optional[int] = None,
+            seed: Optional[int] = None,
+            task_type: Optional[str] = None
     ) -> None:
 
-        if data is None and data_filename is None:
-            logger.warning("Either data or data_filename must be provided.")
-            raise AssertionError
+        if data is None and data_filepath is None:
+            raise AssertionError("Either data or data_filepath must be provided.")
 
-        if data_filename is not None:
-            data = self._load_data(data_filename)
-        if target_filename is not None:
-            target = self._load_target(target_filename)
+        if data_filepath is not None:
+            data = self._load_data(data_filepath)
+        if target_filepath is not None:
+            target = self._load_target(target_filepath, task_type)
 
         super().__init__(
-            data=data, target=target, transform=transform, target_transform=target_transform
+            data=data, target=target, transform=transform, target_transform=target_transform, seed=seed
         )
         self.max_molecule_length = max_molecule_length
         self.num_samples = num_samples
         self.validate = validate
         self.standardize = standardize
+        self.task_type = task_type
         self._subset()
         self._validate()
         self._standardize()
 
-    def _subset(self):
-        if self.num_samples is not None:
-            if self.data is not None and len(self.data) > self.num_samples:
-                self.data = random.sample(self.data, self.num_samples)
-            if self.target is not None and len(self.target) > self.num_samples:
-                idx = torch.randperm(self.target.size()[0])
-                self.target = self.target[idx[:self.num_samples]]
+    def _subset(self, num_samples: Optional[int] = None, seed: Optional[int] = None):
+
+        num_samples = num_samples if num_samples is not None else self.num_samples
+        if seed is not None:
+            random.seed(seed)
+
+        if num_samples is not None:
+            idx = list(range(len(self.target)))
+            random.shuffle(idx)
+            idx = idx[:num_samples] 
+            if self.data is not None and len(self.data) > num_samples:
+                self.data = [self.data[i] for i in idx]
+            if self.target is not None and len(self.target) > num_samples:
+                self.target = self.target[idx]
 
     def _validate(self):
         
@@ -95,10 +103,31 @@ class SmilesDataset(BaseDataset):
                 self.data = [x for x in self.data if x is not None]
         
     @staticmethod
-    def _load_data(data_filename: str):
-        return read_strings_from_file(data_filename)
+    def _load_data(data_filepath: str):
+        return read_strings_from_file(data_filepath)
 
     @staticmethod
-    def _load_target(target_filename: str):
-        data = torch.load(target_filename)
-        return data
+    def _load_target(target_filepath: str, task_type: str = None):
+        """
+        Loads the target from the specified file.
+
+        Args:
+            target_filepath (str): The file path to the target.
+            task_type (str, optional): The type of task (e.g., classification, regression). Defaults to None.
+
+        Returns:
+            The loaded target.
+        """
+        target_extension = target_filepath.split('.')[-1]
+        if target_extension == 'pt':
+            target = torch.load(target_filepath)
+        elif target_extension == 'npy' or target_extension == 'npz':
+            target = np.load(target_filepath)
+            target = torch.from_numpy(target)
+        else:
+            raise ValueError(f"Unsupported target file extension: {target_extension}")
+        if task_type == 'classification':
+            target = target.long()
+        elif task_type == 'regression':
+            target = target.float()
+        return target
