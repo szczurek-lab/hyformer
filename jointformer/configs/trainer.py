@@ -86,6 +86,6 @@ class TrainerConfig(Config):
             self.warmup_iters = 0.1 * self.max_iters
             self.lr_decay_iters = self.max_iters
             self.eval_interval = num_iters_single_epoch
-            self.log_interval = min(self.log_interval, self.eval_intervl)
+            self.log_interval = min(self.log_interval, self.eval_interval)
         else:
             raise ValueError("Argument `max epochs` not specified in config file.")
