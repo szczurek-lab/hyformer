@@ -28,7 +28,7 @@ class Moler(BaseModel, DistributionMatchingGenerator):
             for _ in tqdm(range(0, number_samples, self._batch_size), "Generating samples"):
                 samples = model.sample(self._batch_size)
                 generated.extend(samples)
-        return generated
+        return generated[:number_samples]
 
 
     def load_pretrained(self, filename, *args, **kwargs):
