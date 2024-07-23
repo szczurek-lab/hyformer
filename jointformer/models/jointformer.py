@@ -1,4 +1,5 @@
 from guacamol.assess_distribution_learning import DistributionMatchingGenerator
+from jointformer.models.base import SmilesEncoder
 import torch
 
 import torch.nn as nn
@@ -8,7 +9,7 @@ from typing import Optional
 
 from jointformer.models.transformer import Transformer
 from jointformer.utils.tokenizers.smiles.smiles import IGNORE_INDEX
-from jointformer.models.utils import DefaultGuacamolModelWrapper
+from jointformer.models.utils import DefaultGuacamolModelWrapper, DefaultSmilesEncoderWrapper
 from jointformer.models.base import BaseModel
 
 DEFAULT_NUM_PHYCHEM_TASKS = 200
@@ -260,3 +261,6 @@ class Jointformer(Transformer, BaseModel):
 
     def to_guacamole_generator(self, tokenizer, batch_size, temperature, top_k, device) -> DistributionMatchingGenerator:
         return DefaultGuacamolModelWrapper(self, tokenizer, batch_size, temperature, top_k, device)
+    
+    def to_smiles_encoder(self, tokenizer, batch_size, device) -> SmilesEncoder:
+        return DefaultSmilesEncoderWrapper(self, tokenizer, batch_size, device)

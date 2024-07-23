@@ -1,13 +1,15 @@
 import torch
 
 from typing import List
-from base import SmilesEncoder, DistributionMatchingGenerator
+from jointformer.models.base import SmilesEncoder, DistributionMatchingGenerator
 from tqdm import tqdm
+from jointformer.utils.tokenizers.auto import SmilesTokenizer
+import numpy as np
 
 class DefaultGuacamolModelWrapper(DistributionMatchingGenerator):
     def __init__(self, model, tokenizer, batch_size, temperature, top_k, device):
         self._model = model
-        self._tokenizer = tokenizer
+        self._tokenizer: SmilesTokenizer = tokenizer
         self._batch_size = batch_size
         self._device = device
         self._temperature = temperature
@@ -30,24 +32,24 @@ class DefaultGuacamolModelWrapper(DistributionMatchingGenerator):
             generated.extend(self._tokenizer.decode(samples))
         return generated[:number_samples]
 
-#class DefaultSmilesEncoderWrapper(SmilesEncoder):
-#    def __init__(self, model, tokenizer, batch_size, device):
-#        self._model = model
-#        self._tokenizer = tokenizer
-#        self._batch_size = batch_size
-#        self._device = device
-#
-#    def encode(self, smiles: list[str]) -> torch.Tensor:
-#        self._model.eval()
-#        model = self._model.to(self._device)
-#
-#
-#        
-#        encodings = []
-#        with self._model as model:
-#            for i in tqdm(range(0, len(smiles), self._batch_size), "Encoding samples"):
-#                enc = model.encode(smiles[i:i+self._batch_size])
-#                encodings.extend(enc)
-#        ret = torch.stack(encodings, dim=0)
-#        return ret
-#
+class DefaultSmilesEncoderWrapper(SmilesEncoder):
+    def __init__(self, model, tokenizer, batch_size, device):
+        self._model = model
+        self._tokenizer: SmilesTokenizer = tokenizer
+        self._batch_size = batch_size
+        self._device = device
+
+    def encode(self, smiles: list[str]) -> np.ndarray:
+        self._model.eval()
+        model = self._model.to(self._device)
+        embeddings = []
+        for i in tqdm(range(0, len(smiles), self._batch_size), "Encoding samples"):
+            batch = smiles[i:i+self._batch_size]
+            batch_input = self._tokenizer(batch, task="prediction")
+            for k,v in batch_input.items():
+                if isinstance(v, torch.Tensor):
+                    batch_input[k] = v.to(self._device)
+            output = model(**batch_input, is_causal=False)
+            embeddings.append(output["global_embedding"].detach().cpu().numpy())
+        ret = np.concatenate(embeddings, axis=0)
+        return ret

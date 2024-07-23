@@ -41,13 +41,10 @@ class Transformer(nn.Module):
 
     def forward(
             self,
-            input_ids: Optional[torch.Tensor] = None,
+            input_ids: torch.Tensor,
             attention_mask: Optional[torch.Tensor] = None,
-            is_causal: Optional[bool] = True
+            is_causal: bool = True
     ):
-
-        if is_causal:
-            attention_mask = None
 
         device = input_ids.device
         b, t = input_ids.size()
@@ -60,12 +57,20 @@ class Transformer(nn.Module):
         x = self.transformer.drop(tok_emb + pos_emb)
         attention_probs = []
         for block in self.transformer.h:
-            x, attn = block(x, is_causal=is_causal, mask=attention_mask)
+            x, attn = block(x, is_causal=is_causal, mask=None if is_causal else attention_mask)
             attn = attn.detach().cpu() if attn is not None else None
             attention_probs.append(attn)
         x = self.transformer.ln_f(x)
 
+        if attention_mask is None:
+            global_embedding = x.mean(dim=-1)
+        else:
+            w = attention_mask / attention_mask.sum(dim=-1, keepdim=True)
+            w = w.unsqueeze(-2)
+            global_embedding = w @ x
+            global_embedding = global_embedding.squeeze(-2)
         return {
+            'global_embedding': global_embedding,
             'embeddings': x,
             'attention_probabilities': torch.stack(attention_probs) if attention_probs[0] is not None else None,
         }
