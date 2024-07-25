@@ -1,7 +1,7 @@
 import importlib
 
 from jointformer.configs.task import TaskConfig
-from jointformer.utils.tokenizers.smiles.smiles import SmilesTokenizer
+from jointformer.utils.tokenizers.smiles import SmilesTokenizer
 
 
 class AutoTokenizer:
@@ -11,7 +11,7 @@ class AutoTokenizer:
 
         if config.tokenizer == 'SmilesTokenizer':
             return getattr(importlib.import_module(
-                "jointformer.utils.tokenizers.smiles.smiles"),
+                "jointformer.utils.tokenizers.smiles"),
                 "SmilesTokenizer").from_config(config)
         elif config.tokenizer == "ESMTokenizer":
             return getattr(importlib.import_module(
