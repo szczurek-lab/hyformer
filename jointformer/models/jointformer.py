@@ -7,11 +7,17 @@ import torch.nn.functional as F
 from typing import Optional
 
 from jointformer.models.transformer import Transformer
-from jointformer.utils.tokenizers.smiles.smiles import IGNORE_INDEX
+from jointformer.utils.tokenizers.base import TOKEN_DICT
 from jointformer.models.utils import DefaultGuacamolModelWrapper
 from jointformer.models.base import BaseModel
+from jointformer.models.layers.prediction import RegressionHead
+from jointformer.models.utils import ModelOutput
+
+from jointformer.models.utils import lm_loss, mlm_loss, regression_loss, classification_loss
+from jointformer.utils.chemistry import is_valid
 
 DEFAULT_NUM_PHYCHEM_TASKS = 200
+IGNORE_INDEX = TOKEN_DICT['ignore']
 
 
 class Jointformer(Transformer, BaseModel):
@@ -21,35 +27,42 @@ class Jointformer(Transformer, BaseModel):
             vocab_size: int,
             max_seq_len: int,
             embedding_dim: int,
-            dropout: float,
+            embedding_hidden_dim: int,
+            attention_dropout: float,
+            feed_forward_dropout: float,
             num_layers: int,
             bias: int,
             num_heads: int,
-            num_prediction_tasks: int,
             layer_norm_eps: float,
+            prediction_task_type: str,
+            prediction_hidden_dim: int,
+            num_prediction_tasks: int,
             num_physchem_tasks: Optional[int] = DEFAULT_NUM_PHYCHEM_TASKS,
             init_weights: bool = True,
             tie_weights: bool = True
     ):
 
         super().__init__(
-            vocab_size=vocab_size, max_seq_len=max_seq_len, embedding_dim=embedding_dim,
-            dropout=dropout, num_layers=num_layers, bias=bias, num_heads=num_heads, layer_norm_eps=layer_norm_eps)
-
+            vocab_size=vocab_size, max_seq_len=max_seq_len, embedding_dim=embedding_dim, embedding_hidden_dim=embedding_hidden_dim, attention_dropout=attention_dropout,
+            feed_forward_dropout=feed_forward_dropout, num_layers=num_layers, bias=bias, num_heads=num_heads, layer_norm_eps=layer_norm_eps
+            )
         # Hardcoding all tasks into the model definition for easier serialization
+        self.prediction_task_type = prediction_task_type
         self.lm_head = nn.Linear(self.embedding_dim, self.vocab_size, bias=False)
         self.mlm_head = nn.Linear(self.embedding_dim, self.vocab_size, bias=False)
-        self.physchem_head = nn.Sequential(
-            nn.Dropout(self.dropout),
-            nn.Linear(self.embedding_dim * self.max_seq_len, self.embedding_dim),
-            nn.ReLU(),
-            nn.Linear(self.embedding_dim, num_physchem_tasks),
-        )
-        self.prediction_head = nn.Linear(self.embedding_dim * max_seq_len, num_prediction_tasks, bias=False)
+        self.physchem_head = RegressionHead(embedding_dim=self.embedding_dim, prediction_hidden_dim=prediction_hidden_dim, output_dim=num_physchem_tasks)
 
+        # Init prediction head depending on task type
+        if prediction_task_type == 'classification':
+            self.prediction_head = nn.Linear(self.embedding_dim, num_prediction_tasks)
+        elif prediction_task_type == 'regression':
+            self.prediction_head = RegressionHead(embedding_dim=self.embedding_dim, prediction_hidden_dim=prediction_hidden_dim, output_dim=num_prediction_tasks)
+        else:
+            raise ValueError('Variable `prediction_task_type` must be either `classification` or `regression`.')
+        
         # Weight tying https://paperswithcode.com/method/weight-tying
         if tie_weights:
-            self.transformer.wte.weight = self.lm_head.weight
+            self.token_embedding.weight = self.lm_head.weight
             self.mlm_head.weight = self.lm_head.weight
 
         # Weight initialization
@@ -59,44 +72,53 @@ class Jointformer(Transformer, BaseModel):
     def forward(
             self,
             input_ids: Optional[torch.Tensor] = None,
-            labels: Optional[torch.Tensor] = None,
             attention_mask: Optional[torch.Tensor] = None,
-            is_causal: bool = True,
-            next_token_only: bool = False,
+            task: Optional[str] = None,
+            next_token_only: Optional[bool] = False,
             **kwargs):
-        outputs = super().forward(input_ids=input_ids, attention_mask=attention_mask, is_causal=is_causal)
-        outputs["loss"] = None
-        if not next_token_only:
-            outputs["logits"] = self.lm_head(outputs['embeddings'])
+        
+        if task == 'generation':
+            _is_causal = True
+            _attention_mask = None
+        elif task in ['physchem', 'prediction', 'mlm']:
+            _is_causal = False
+            _attention_mask = attention_mask
         else:
-            outputs["logits"] = self.lm_head(outputs["embeddings"][:, [-1], :])
-        return outputs
+            raise ValueError('Variable `task` must be either `generation`, `mlm`, `prediction` or `physchem`. Passed value: {}'.format(task))
+        
+        outputs = super().forward(input_ids=input_ids, attention_mask=_attention_mask, is_causal=_is_causal)
+        if _is_causal:
+            if next_token_only:
+                outputs["logits_generation"] = self.lm_head(outputs['embeddings'][:, [-1], :])
+            else:
+                outputs["logits_generation"] = self.lm_head(outputs["embeddings"])
+        else:
+            outputs["logits_physchem"] = self.physchem_head(outputs['embeddings'][:, 0, :])
+            outputs["logits_prediction"] = self.prediction_head(outputs['embeddings'][:, 0, :])
 
-    def predict(
-            self,
-            input_ids: Optional[torch.Tensor] = None,
-            attention_mask: Optional[torch.Tensor] = None,
-            **kwargs):
-        """ Perform a forward pass through the discriminative part of the model. """
-        outputs = self.forward(input_ids=input_ids, attention_mask=attention_mask, is_causal=False)
-        outputs["loss"] = None
-        outputs["logits"] = self.prediction_head(outputs['embeddings'].flatten(start_dim=1, end_dim=-1))
-        outputs["y_pred"] = outputs["logits"]
-
-        return outputs
+        return ModelOutput(
+            attention_mask=attention_mask,
+            embeddings=outputs['embeddings'],
+            logits_generation=outputs.get('logits_generation', None),
+            logits_physchem=outputs.get('logits_physchem', None),
+            logits_prediction=outputs.get('logits_prediction', None),
+            loss=None
+        )
+    
+    def predict(self, input_ids: Optional[torch.Tensor] = None, attention_mask: Optional[torch.Tensor] = None, **kwargs):
+        return self.forward(input_ids=input_ids, attention_mask=attention_mask, task='prediction')
 
     def get_loss(
             self,
             input_ids: Optional[torch.Tensor] = None,
             attention_mask: Optional[torch.Tensor] = None,
-            labels: Optional[torch.Tensor] = None,
+            input_labels: Optional[torch.Tensor] = None,
             properties: Optional[torch.Tensor] = None,
             task: Optional[str] = None):
-
-        if task == 'lm':
-            return self.get_loss_lm(input_ids, attention_mask, labels)
+        if task == 'lm' or task == 'generation':
+            return self.get_loss_lm(input_ids, attention_mask, input_labels)
         elif task == 'mlm':
-            return self.get_loss_mlm(input_ids, attention_mask, labels)
+            return self.get_loss_mlm(input_ids, attention_mask, input_labels)
         elif task == 'prediction':
             return self.get_loss_prediction(input_ids, attention_mask, properties)
         elif task == 'physchem':
@@ -105,61 +127,56 @@ class Jointformer(Transformer, BaseModel):
             raise ValueError('Variable `task` must be either `lm`, `mlm`, `prediction` or `finetune`.')
 
     def get_loss_lm(
-            self, input_ids: Optional[torch.Tensor] = None, attention_mask: Optional[torch.Tensor] = None,
-            labels: Optional[torch.Tensor] = None, **kwargs):
-
-        outputs = super().forward(input_ids=input_ids, attention_mask=None, is_causal=True)
-
-        outputs["loss"] = None
-        outputs["logits"] = self.lm_head(outputs['embeddings'])
-
-        if labels is not None:
-            input = outputs['logits'][:, :-1, :].contiguous()
-            target = labels[:, 1:].contiguous()
-            outputs["loss"] = F.cross_entropy(
-                input.view(-1, input.size(-1)), target.view(-1), ignore_index=IGNORE_INDEX, reduction='mean')
-
+            self,
+            input_ids: Optional[torch.Tensor] = None,
+            attention_mask: Optional[torch.Tensor] = None,
+            input_labels: Optional[torch.Tensor] = None,
+            **kwargs):
+        outputs = self(input_ids=input_ids, attention_mask=attention_mask, task='generation', next_token_only=False)
+        if input_labels is not None:
+            outputs["loss"] = lm_loss(outputs["logits_generation"], input_labels, IGNORE_INDEX, 'mean')
         return outputs
 
     def get_loss_mlm(
-            self, input_ids: Optional[torch.Tensor] = None, attention_mask: Optional[torch.Tensor] = None,
-            labels: Optional[torch.Tensor] = None, **kwargs):
+            self,
+            input_ids: Optional[torch.Tensor] = None,
+            attention_mask: Optional[torch.Tensor] = None,
+            input_labels: Optional[torch.Tensor] = None,
+            **kwargs
+            ):
 
-        outputs = super().forward(input_ids=input_ids, attention_mask=attention_mask, is_causal=False)
-        outputs["loss"] = None
-        outputs["logits"] = self.mlm_head(outputs['embeddings'])
-
-        if labels is not None:
-            input = outputs['logits']
-            outputs["loss"] = F.cross_entropy(
-                input.view(-1, input.size(-1)), labels.view(-1), ignore_index=IGNORE_INDEX, reduction='mean')
-
+        outputs = self.forward(input_ids=input_ids, attention_mask=attention_mask, task='mlm')
+        outputs["logits_generation"] = self.mlm_head(outputs['embeddings'])
+        if input_labels is not None:
+            outputs["loss"] = mlm_loss(outputs["logits_generation"], input_labels, IGNORE_INDEX, 'mean')
         return outputs
 
     def get_loss_physchem(
-            self, input_ids: Optional[torch.Tensor] = None, attention_mask: Optional[torch.Tensor] = None,
-            properties: Optional[torch.Tensor] = None, **kwargs):
-
-        outputs = super().forward(input_ids=input_ids, attention_mask=attention_mask, is_causal=False)
-        y_pred = self.physchem_head(outputs['embeddings'].flatten(start_dim=1, end_dim=-1))
-
-        outputs["loss"] = None
+            self,
+            input_ids: Optional[torch.Tensor] = None,
+            attention_mask: Optional[torch.Tensor] = None,
+            properties: Optional[torch.Tensor] = None,
+            **kwargs
+            ):
+        outputs = self.predict(input_ids=input_ids, attention_mask=attention_mask)
         if properties is not None:
-            outputs["loss"] = F.mse_loss(y_pred.flatten(), properties.flatten(), reduction='mean')
-
+            outputs["loss"] = regression_loss(outputs["logits_physchem"], properties, 'mean')
         return outputs
 
     def get_loss_prediction(
-            self, input_ids: Optional[torch.Tensor] = None, attention_mask: Optional[torch.Tensor] = None,
-            properties: Optional[torch.Tensor] = None, **kwargs):
-
-        outputs = super().forward(input_ids=input_ids, attention_mask=attention_mask, is_causal=False)
-        y_pred = self.prediction_head(outputs['embeddings'].flatten(start_dim=1, end_dim=-1))
-
-        outputs["loss"] = None
+            self,
+            input_ids: Optional[torch.Tensor] = None,
+            attention_mask: Optional[torch.Tensor] = None,
+            properties: Optional[torch.Tensor] = None,
+            **kwargs):
+        outputs = self.predict(input_ids=input_ids, attention_mask=attention_mask)
         if properties is not None:
-            outputs["loss"] = F.mse_loss(y_pred.flatten(), properties.flatten(), reduction='mean')
-
+            if self.prediction_task_type == 'classification':
+                outputs["loss"] = classification_loss(outputs["logits_prediction"], properties, reduction='mean')
+            elif self.prediction_task_type == 'regression':
+                outputs["loss"] = regression_loss(outputs["logits_prediction"], properties, 'mean')
+            else:
+                raise ValueError('Variable `prediction_task_type` must be either `classification` or `regression`.')
         return outputs
 
     def calculate_perplexity(
@@ -168,14 +185,14 @@ class Jointformer(Transformer, BaseModel):
             attention_mask: Optional[torch.Tensor] = None,
             **kwargs
     ):
-        """ Compute perplexity of the model on the input sequence.
-
+        """Compute perplexity of the model on the input sequence.
         Reference: https://github.com/ETHmodlab/CLM_perplexity/blob/main/src/python/helper.py
         """
-        outputs = self(input_ids=input_ids, attention_mask=None, is_causal=True)
-        log_probs = F.log_softmax(outputs["logits"], dim=-1).max(dim=-1).values
+        outputs = self(input_ids=input_ids, attention_mask=None, task='generation')
+        log_probs = F.log_softmax(outputs["logits_generation"], dim=-1).max(dim=-1).values
         perplexity = torch.zeros(size=(input_ids.size(0),))
 
+        #TODO: verify correctness
         for idx, (log_prob, mask) in enumerate(zip(log_probs, attention_mask)):
             log_prob = log_prob[mask.bool()]
             log_prob = log_prob[:-2]  # Ignore the last two tokens, as they correspond to special tokens in generation
@@ -221,8 +238,8 @@ class Jointformer(Transformer, BaseModel):
             # if the sequence context is growing too long we must crop it at block_size
             idx_cond = idx if idx.size(1) <= self.max_seq_len else idx[:, -self.max_seq_len:]
             # forward the model to get the logits for the index in the sequence
-            outputs = self(input_ids=idx_cond, attention_mask=None, is_causal=True, next_token_only=True)
-            logits = outputs['logits']
+            outputs = self(input_ids=idx_cond, attention_mask=None, next_token_only=True, task='generation')
+            logits = outputs['logits_generation']
 
             # pluck the logits at the final step and scale by desired temperature
             logits = logits[:, -1, :] / temperature
@@ -243,34 +260,24 @@ class Jointformer(Transformer, BaseModel):
 
         return idx
 
+    def to_guacamole_generator(self, tokenizer, batch_size, temperature, top_k, device) -> DistributionMatchingGenerator:
+        return DefaultGuacamolModelWrapper(self, tokenizer, batch_size, temperature, top_k, device)
+
     @classmethod
     def from_config(cls, config):
         return cls(
             vocab_size=config.vocab_size,
             max_seq_len=config.max_seq_len,
             embedding_dim=config.embedding_dim,
-            dropout=config.dropout,
+            embedding_hidden_dim=config.embedding_hidden_dim,
+            attention_dropout=config.attention_dropout,
+            feed_forward_dropout=config.feed_forward_dropout,
             num_layers=config.num_layers,
             bias=config.bias,
             num_heads=config.num_heads,
+            prediction_task_type=config.prediction_task_type,
+            prediction_hidden_dim=config.prediction_hidden_dim,
             num_prediction_tasks=config.num_prediction_tasks,
             num_physchem_tasks=config.num_physchem_tasks,
             layer_norm_eps=config.layer_norm_eps
         )
-
-    def to_guacamole_generator(self, tokenizer, batch_size, temperature, top_k, device) -> DistributionMatchingGenerator:
-        return DefaultGuacamolModelWrapper(self, tokenizer, batch_size, temperature, top_k, device)
-    
-    def set_prediction_task(self, task_type: str, out_size: int, hidden_size: int, dropout: float):
-        self.problem_type = task_type
-        self.classifier = PredictionHead(hidden_size=hidden_size, num_labels=out_size, dropout=dropout, task_type=task_type)
-
-class PredictionHead(nn.Module):
-    
-    def __init__(self, hidden_size: int, dropout: float, num_labels: int, task_type: str):
-        super().__init__()
-        self.out_proj = nn.Linear(hidden_size, num_labels)
-
-    def forward(self, features, **kwargs):
-        x = self.out_proj(features)
-        return x

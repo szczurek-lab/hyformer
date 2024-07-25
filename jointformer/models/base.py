@@ -21,10 +21,6 @@ class BaseModel(nn.Module, abc.ABC):
         pass
     
     @abc.abstractmethod
-    def estimate_mfu(self, fwdbwd_per_iter, dt):
-        pass
-    
-    @abc.abstractmethod
     def initialize_parameters(self):
         pass
 
@@ -51,6 +47,13 @@ class BaseModel(nn.Module, abc.ABC):
             self,
             input_ids: Optional[torch.Tensor] = None,
             attention_mask: Optional[torch.Tensor] = None
+           ):
+        pass
+
+    @abc.abstractmethod
+    def generate(
+            self,
+            num_samples: int,
            ):
         pass
 

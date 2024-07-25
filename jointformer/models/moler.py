@@ -30,7 +30,6 @@ class Moler(BaseModel, DistributionMatchingGenerator):
                 generated.extend(samples)
         return generated
 
-
     def load_pretrained(self, filename, *args, **kwargs):
         dir = os.path.dirname(filename)
         self._model = load_model_from_directory(dir)
