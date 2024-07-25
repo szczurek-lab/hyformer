@@ -1,13 +1,9 @@
 import abc
-import inspect
-import logging
 import torch
 
 from guacamol.assess_distribution_learning import DistributionMatchingGenerator
 from torch import nn
 from typing import Optional
-
-console = logging.getLogger(__name__)
 
 
 class BaseModel(nn.Module, abc.ABC):
@@ -46,14 +42,8 @@ class BaseModel(nn.Module, abc.ABC):
     def predict(
             self,
             input_ids: Optional[torch.Tensor] = None,
-            attention_mask: Optional[torch.Tensor] = None
-           ):
-        pass
-
-    @abc.abstractmethod
-    def generate(
-            self,
-            num_samples: int,
+            attention_mask: Optional[torch.Tensor] = None,
+            **kwargs
            ):
         pass
 
