@@ -1,16 +1,14 @@
 # Jointformer
 
-The official implementation of the [Jointformer](https://arxiv.org/abs/2310.02066), a foundation model for 
-small molecule generation and scoring (molecular property prediction). In contrast to existing foundation
-models, Jointformer is a [joint model](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/LasserreBishopMinka06.pdf), 
-that simultaneously excels in both molecule generation and property prediction.
+The official implementation of the [Jointformer](https://arxiv.org/abs/2310.02066), which is a [joint model](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/LasserreBishopMinka06.pdf) that simultaneously generates novel molecules and predicts their properties.
+
 
 ## Getting Started
 
 ### Installation
-To create an environment that satisfies the necessary requirements run
+To create an environment that satisfies the requirements necessary to run Jointformer, run
 ```
- conda env create -f jointformer-experiments.yml
+ conda env create -f jointformer.yml
 ```
 Next, install Jointformer from the project directory with 
 ```
@@ -26,26 +24,35 @@ conda install -n base conda-libmamba-solver
 conda config --set solver libmamba
 ```
 
+In order to reproduce all experiments, use the `jointformer-experiments.yml` configuration file. 
+
 ### Repository Structure
 
 ```
 .
-├── configs/              # Configuration files
-├── data/                 # Datasets and vocabularies
-├── experiments/          # Scripts to run experiments
-├── results/              # Directory to store results
-└── jointformer/          # Source code
-    ├── configs/          # Configuration classes
-    ├── models/           # Model classes
-    ├── trainers/         # Trainer classes
+├── configs/              # configuration files
+├── experiments/          # scripts and examples
+└── jointformer/          # source code
+    ├── configs/            # configurations
+    ├── models/             # models
+    ├── trainers/           # trainers
     └── utils/           
-        ├── datasets/     # Dataset classes
-        ├── tokenizers/   # Tokenizer classes
-        └── ...           # Other utility classes
+        ├── datasets/       # datasets
+        ├── tokenizers/     # tokenizers
+        └── ...             # utilities
 
 ```
 
+---
 ## Basic Usage
+
+
+```
+# Loads custom data and finetunes jointformer 
+
+
+trainer.train()
+```
 
 ### Hyperparameters
 
@@ -192,7 +199,10 @@ bash experiments/joint_learning/train.sh
 To train Jointformer on new data modify the `configs/datasets/sequence/config.json` config by specifying the relative paths to the train/val/test splits of the data.
 The data should consist of a data file containing sequences and a property file containing property values of sequences. 
 
+----
+## Extending Jointformer to new datasets and tokenizers
 
+In order to train Jointformer to a new dataset, add a 
 
 ----
 ## References
