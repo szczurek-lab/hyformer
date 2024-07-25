@@ -2,7 +2,7 @@
   "logger_name": "wandb",
   "enable_logging": true,
   "user": "adam-izdebski1",
-  "project": "sample-efficient-domain-adaptation",
+  "project": "jointformer-pretrain",
   "resume": "allow",
   "display_name": null,
   "watch": true,

@@ -5,7 +5,7 @@
 #SBATCH --error error-%x.log                                 
 
 #SBATCH -p gpu_p
-#SBATCH --qos gpu_long
+#SBATCH --qos gpu_priority
 
 #SBATCH --nodes=1                                           
 #SBATCH --ntasks-per-node=1                                 
@@ -13,7 +13,7 @@
 #SBATCH --cpus-per-task=8                                   
 #SBATCH --mem=20G                                           
 #SBATCH --gres=gpu:1                                        
-#SBATCH --time=18:00:00                                    
+#SBATCH --time=00:30:00                                    
 
 #SBATCH --mail-type=begin                                   
 #SBATCH --mail-type=end                                     
@@ -32,8 +32,9 @@ conda activate jointformer-experiments
 srun python experiments/joint_training/train.py \
     --out_dir /lustre/groups/aih/jointformer/results/lm_psychem/no_separate_token/shared_emb/bs_512/drop_2/ \
     --data_dir /lustre/groups/aih/jointformer/data \
-    --path_to_task_config configs/tasks/guacamol/physchem \
+    --path_to_dataset_config configs/datasets/guacamol \
+    --path_to_tokenizer_config configs/tokenizers/smiles \
     --path_to_model_config configs/models/jointformer \
     --path_to_trainer_config configs/trainers/joint \
     --path_to_logger_config configs/loggers/wandb \
-    --path_to_model_ckpt /lustre/groups/aih/jointformer/results/lm_psychem/no_separate_token/shared_emb/bs_512/drop_2/seed_1337/ckpt_30000.pt \
+    

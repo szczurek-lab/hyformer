@@ -21,7 +21,7 @@
   "log_interval": 100,
   "always_save_checkpoint": false,
   "save_checkpoint_every": 250,
-  "save_checkpoint": false,
+  "save_checkpoint": true,
   "block_size": 128,
   "tasks":
     {
