@@ -21,6 +21,7 @@ from jointformer.utils.datasets.base import BaseDataset
 
 from jointformer.utils.runtime import set_seed
 from jointformer.utils.data_collators import DataCollator
+from jointformer.utils.chemistry import is_valid
 
 console = logging.getLogger(__name__)
 SNAPSHOT_FILENAME = 'snapshot.pt'
@@ -38,7 +39,7 @@ class Trainer:
             config: TrainerConfig,
             model: Transformer,
             out_dir: Optional[str] = None,
-            seed: Optional[int] = 0,
+            seed: Optional[int] = 1337,
             train_dataset: Optional[BaseDataset] = None,
             val_dataset: Optional[BaseDataset] = None,
             test_dataset: Optional[BaseDataset] = None,
@@ -47,11 +48,6 @@ class Trainer:
             logger: Optional[WandbLogger] = None,
             device_type: Optional[str] = 'cuda'
     ):
-        """ Initialize the Trainer class.
-
-        The trainer class is responsible for training the model.
-
-        """
 
         # set args
         self.out_dir = out_dir
@@ -166,7 +162,7 @@ class Trainer:
 
     def _compile(self):
         if self.compile:
-            self.model = torch.compile(self.model, mode='reduce-overhead', fullgraph=True)
+            self.model = torch.compile(self.model, mode='reduce-overhead', fullgraph=True, dynamic=True)
 
     def _parallelize(self):
         if self.is_ddp:
@@ -212,93 +208,52 @@ class Trainer:
     @staticmethod
     def _get_num_workers():
         try:
-            num_workers = int(os.environ["SLURM_CPUS_PER_TASK"])
+            return int(os.environ["SLURM_CPUS_PER_TASK"])
         except KeyError:
-            num_workers = 4
-        return num_workers
+            return 4
+    
+    def _get_data_loader(self, dataset, shuffle=True):
+        collator = DataCollator(tokenizer=self.tokenizer, tasks=self.tasks)
+        sampler = torch.utils.data.distributed.DistributedSampler(
+                dataset,
+                num_replicas=self.ddp_world_size,
+                rank=self.ddp_rank) if self.is_ddp else None
+        return  torch.utils.data.DataLoader(
+                    dataset,
+                    batch_size=self.batch_size,
+                    shuffle=shuffle,
+                    collate_fn=collator,
+                    sampler=sampler,
+                    num_workers=self._get_num_workers(),
+                    pin_memory=True,
+                    persistent_workers=False
+                )
 
     def _init_data_loaders(self):
-
-        collator = DataCollator(tokenizer=self.tokenizer, tasks=self.tasks)
-
         if self.train_dataset is not None:
-            sampler = torch.utils.data.distributed.DistributedSampler(
-                self.train_dataset,
-                num_replicas=self.ddp_world_size,
-                rank=self.ddp_rank) if self.is_ddp else None
-            self.train_loader = torch.utils.data.DataLoader(
-                self.train_dataset,
-                batch_size=self.batch_size,
-                sampler=sampler,
-                num_workers=self._get_num_workers(),
-                pin_memory=True,
-                shuffle=True,
-                collate_fn=collator
-            )
-
+            self.train_loader = self._get_data_loader(self.train_dataset, shuffle=True)
         if self.val_dataset is not None:
-            sampler = torch.utils.data.distributed.DistributedSampler(
-                self.val_dataset,
-                num_replicas=self.ddp_world_size,
-                rank=self.ddp_rank) if self.is_ddp else None
-            self.val_loader = torch.utils.data.DataLoader(
-                self.val_dataset,
-                batch_size=self.batch_size,
-                sampler=sampler,
-                num_workers=self._get_num_workers(),
-                pin_memory=True,
-                shuffle=False,
-                collate_fn=collator
-            )
-
+            self.val_loader = self._get_data_loader(self.val_dataset, shuffle=False)
         if self.test_dataset is not None:
-            sampler = torch.utils.data.distributed.DistributedSampler(self.test_dataset) if self.is_ddp else None
-            self.test_loader = torch.utils.data.DataLoader(
-                self.test_dataset,
-                batch_size=self.batch_size,
-                sampler=sampler,
-                num_workers=self._get_num_workers(),
-                pin_memory=True,
-                shuffle=False,
-                collate_fn=collator
-            )
+            self.test_loader = self._get_data_loader(self.test_dataset, shuffle=False)
 
     def get_training_batch(self):
-        return self.get_batch(split='train')
+        if self.is_ddp:
+            self.train_loader.set_epoch(self._iter_num)
+        return next(iter(self.train_loader)).to(self.device)
 
     def get_validation_batch(self):
-        return self.get_batch(split='val')
+        return next(iter(self.val_loader)).to(self.device)
 
-    def get_batch(self, split, task=None):
-        """Acts as a data loader / collate_fn for the dataset."""
-
-        if task is None:
-            if split == 'train' and self.is_ddp:
-                self.train_loader.set_epoch(self._iter_num)
-            batch = next(iter(self.train_loader)) if split == 'train' else next(iter(self.val_loader))
-        else:
-            batch = self._sample(self.train_dataset, task) if split == 'train' else self._sample(self.val_dataset, task)
-
-        if self.device_type != 'cpu':
-            for key, value in batch.items():
-                if value is not None and not isinstance(value, str):
-                    batch[key] = value.pin_memory().to(self.device, non_blocking=True)
-        return batch
-
+    def get_batch(self, split, task):
+        batch = self._sample(self.train_dataset, task) if split == 'train' else self._sample(self.val_dataset, task)
+        return batch.to(self.device)
+        
     def _sample(self, dataset, task):
-
         idx = [idx for idx in range(len(dataset))]
         idx = random.sample(idx, min(self.batch_size, len(idx)))
         sampled = [dataset[i] for i in idx]
-
-        if isinstance(sampled[0], tuple):
-            data = [item[0] for item in sampled]
-            properties = [item[1] for item in sampled]
-            inputs = self.tokenizer(data=data, properties=properties, task=task)
-        else:
-            inputs = self.tokenizer(data=sampled, task=task)
-            inputs['properties'] = None
-        return inputs
+        return self.tokenizer(sampled, task=task)
 
     @torch.no_grad()
     def test(self):
@@ -312,10 +267,7 @@ class Trainer:
         n = 0
         loss = 0.
         for _, batch in enumerate(self.test_loader):
-            if self.device_type != 'cpu':
-                for key, value in batch.items():
-                    if value is not None and not isinstance(value, str):
-                        batch[key] = value.pin_memory().to(self.device, non_blocking=True)
+            batch.to(self.device)
             with self.ctx:
                 outputs = self.model.predict(**batch)["y_pred"].cpu()
             
@@ -370,7 +322,7 @@ class Trainer:
                 out[split]['perplexity'] = {}
                 losses = torch.zeros(self.eval_iters)
                 for k in range(self.eval_iters):
-                    inputs = self.get_batch(split)
+                    inputs = self.get_batch(split, task='generation')
                     with self.ctx:
                         perplexity = self.model.calculate_perplexity(**inputs)
                     losses[k] = perplexity.mean()
@@ -381,8 +333,8 @@ class Trainer:
                 samples.extend(self.generate())
             if self.logger:
                 self.logger.log_molecule_data(samples)
-            is_valid = [self.tokenizer.is_valid_smiles(sample) for sample in samples]
-            out["val"]["validity"] = sum(is_valid) / len(is_valid)
+            is_valid_batch = [is_valid(sample) for sample in samples]
+            out["val"]["validity"] = sum(is_valid_batch) / len(is_valid_batch)
             out["val"]["uniqueness"] = len(set(samples)) / len(samples)
             out["val"]["novelty"] = len(set(samples) - set(self.train_dataset.data)) / len(samples)
         self.model.train()
@@ -448,11 +400,11 @@ class Trainer:
         return False
 
     @torch.no_grad()
-    def generate(self, temperature=0.8, top_k=10):
+    def generate(self, temperature=1.0, top_k=25):
         samples = self.model.generate(
-            bos_token_id=self.tokenizer.cls_token_id,
-            eos_token_id=self.tokenizer.sep_token_id,
-            pad_token_id=self.tokenizer.pad_token_id,
+            bos_token_id=self.tokenizer.tokenizer.cls_token_id,
+            eos_token_id=self.tokenizer.tokenizer.sep_token_id,
+            pad_token_id=self.tokenizer.tokenizer.pad_token_id,
             input_length=self.model.max_seq_len,
             batch_size=self.batch_size,
             temperature = temperature,
@@ -518,8 +470,7 @@ class Trainer:
             if self._iter_num % self.log_interval == 0 and self.master_process:  # a CPU-GPU sync point
                 lossf = loss.item() * self.gradient_accumulation_steps
                 if local_iter_num >= 5:  # let the training loop settle a bit
-                    mfu = self.raw_model.estimate_mfu(self.batch_size * self.gradient_accumulation_steps, dt)
-                    self._running_mfu = mfu if self._running_mfu == -1.0 else 0.9 * self._running_mfu + 0.1 * mfu
+                    self._running_mfu = 0.0
                     console.info(
                         f"iter {self._iter_num}: loss {lossf:.6f} on {inputs['task']} task, lr {self._learning_rate:.6f},"
                         + 
