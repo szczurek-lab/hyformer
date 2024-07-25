@@ -48,8 +48,8 @@ class AutoDataset:
                 "MosesDataset").from_config(config)
         elif config.dataset_name == 'guacamol':
             return getattr(importlib.import_module(
-                "jointformer.utils.datasets.smiles.guacamol"),
-                "GuacamolDataset").from_config(config, data_dir=data_dir)
+                "jointformer.utils.datasets.guacamol"),
+                "GuacamolDataset").from_config(config, root=data_dir, seed=seed)
         elif config.dataset_name == 'molecule_net':
             return getattr(importlib.import_module(
                 "jointformer.utils.datasets.smiles.molecule_net"),
