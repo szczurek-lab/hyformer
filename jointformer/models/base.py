@@ -15,10 +15,6 @@ class BaseModel(nn.Module, abc.ABC):
     @abc.abstractmethod
     def load_pretrained(self, filename, device='cpu'):
         pass
-    
-    @abc.abstractmethod
-    def initialize_parameters(self):
-        pass
 
     @abc.abstractmethod
     def get_num_params(self, non_embedding=True):
