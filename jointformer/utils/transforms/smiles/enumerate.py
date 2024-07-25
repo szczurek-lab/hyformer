@@ -34,12 +34,15 @@ class SmilesEnumerator:
 
     @staticmethod
     def randomize(smiles: str) -> str:
-        molecule = Chem.MolFromSmiles(smiles, sanitize=False)
-        num_atoms_molecule = list(range(molecule.GetNumAtoms()))
-        np.random.shuffle(num_atoms_molecule)
-        enumerated_molecule = Chem.RenumberAtoms(molecule, num_atoms_molecule)
-        return Chem.MolToSmiles(enumerated_molecule, canonical=False)
-
+        try:
+            molecule = Chem.MolFromSmiles(smiles, sanitize=False)
+            num_atoms_molecule = list(range(molecule.GetNumAtoms()))
+            np.random.shuffle(num_atoms_molecule)
+            enumerated_molecule = Chem.RenumberAtoms(molecule, num_atoms_molecule)
+            return Chem.MolToSmiles(enumerated_molecule, canonical=False)
+        except:
+            smiles
+            
     @classmethod
     def from_config(cls, config: Any) -> "SmilesEnumerator":
         return cls(
