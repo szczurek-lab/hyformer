@@ -22,7 +22,7 @@ class PlogP(BaseTarget):
     
     def _get_target(self, example: str) -> float:
         try: 
-            mol = Chem.MolFromSmiles(s)
+            mol = Chem.MolFromSmiles(example)
             log_p = Descriptors.MolLogP(mol)
             sa = -sascorer.calculateScore(mol)
 
