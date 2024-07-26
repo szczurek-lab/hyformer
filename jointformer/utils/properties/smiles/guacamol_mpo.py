@@ -20,7 +20,6 @@ GUACAMOL_MPO_TASK_FN = {
 
 class GuacamolMPO(BaseTarget):
     """ Guacamol MPO targets.
-    Source: 
     """
     
     def _get_target(self, example: str, dtype: Optional[np.dtype] = GUACAMOL_MPO_DEFAULT_DTYPE) -> float:
