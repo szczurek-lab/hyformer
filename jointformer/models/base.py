@@ -1,5 +1,4 @@
 import abc
-import torch
 
 from guacamol.assess_distribution_learning import DistributionMatchingGenerator
 from torch import nn
@@ -14,33 +13,6 @@ class BaseModel(nn.Module, abc.ABC):
 
     @abc.abstractmethod
     def load_pretrained(self, filename, device='cpu'):
-        pass
-
-    @abc.abstractmethod
-    def get_num_params(self, non_embedding=True):
-        pass
-
-    @abc.abstractmethod
-    def configure_optimizers(self, weight_decay, learning_rate, betas, device_type):
-        pass
-    
-    @abc.abstractmethod
-    def get_loss(
-            self,
-            input_ids: Optional[torch.Tensor] = None,
-            attention_mask: Optional[torch.Tensor] = None,
-            labels: Optional[torch.Tensor] = None,
-            properties: Optional[torch.Tensor] = None,
-            task: Optional[str] = None):
-        pass
-    
-    @abc.abstractmethod
-    def predict(
-            self,
-            input_ids: Optional[torch.Tensor] = None,
-            attention_mask: Optional[torch.Tensor] = None,
-            **kwargs
-           ):
         pass
 
     @classmethod

@@ -9,7 +9,7 @@ from typing import Optional
 from jointformer.models.transformer import Transformer
 from jointformer.utils.tokenizers.base import TOKEN_DICT
 from jointformer.models.utils import DefaultGuacamolModelWrapper
-from jointformer.models.base import BaseModel
+from jointformer.models.trainable import TrainableModel
 from jointformer.models.layers.prediction import RegressionHead
 from jointformer.models.utils import ModelOutput
 
@@ -20,7 +20,7 @@ DEFAULT_NUM_PHYCHEM_TASKS = 200
 IGNORE_INDEX = TOKEN_DICT['ignore']
 
 
-class Jointformer(Transformer, BaseModel):
+class Jointformer(Transformer, TrainableModel):
 
     def __init__(
             self,
