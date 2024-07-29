@@ -7,11 +7,13 @@ from jointformer.utils.properties.smiles.base import BaseTarget
 
 
 class QED(BaseTarget):
-    """ QED target. """
+    """ QED target. 
+    Source: https://github.com/wengong-jin/hgraph2graph/blob/master/props/properties.py
+    """
 
     def _get_target(self, example: str) -> float:
         try:
-            return qed(Chem.MolFromSmiles(example, sanitize=False))
+            return qed(Chem.MolFromSmiles(example))
         except Exception:
             return np.nan
 
