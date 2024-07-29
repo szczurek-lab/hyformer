@@ -15,6 +15,7 @@ class BaseMetric(ABC):
         input: Any,
         mask: Optional[Any] = None,
         target: Optional[Any] = None,
+        return_detached: Optional[bool] = False,
         ) -> Union[float, torch.Tensor]:
         pass
 
@@ -35,6 +36,9 @@ class BaseMetric(ABC):
             return metric
         else:
             raise ValueError("Invalid reduction type. Choose from 'mean', 'sum', 'none'")
+    
+    def _detach(self, x: torch.Tensor) -> float:
+        return x.cpu().detach().values()
 
     def __str__(self) -> str:
         return self.__class__.__name__.lower()
