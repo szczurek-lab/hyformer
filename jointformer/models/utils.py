@@ -39,6 +39,7 @@ class DefaultSmilesEncoderWrapper(SmilesEncoder):
         self._batch_size = batch_size
         self._device = device
 
+    @torch.no_grad
     def encode(self, smiles: list[str]) -> np.ndarray:
         self._model.eval()
         model = self._model.to(self._device)
