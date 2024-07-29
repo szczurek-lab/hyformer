@@ -64,10 +64,13 @@ class ModelOutput(dict):
      
     @property
     def global_embedding(self):
-        if self.attention_mask is not None and self.embedding is not None:
-            return torch.einsum('bsd, bs -> bsd', self.embedding, self.mask.float())
+        if self.attention_mask is None:
+            return self.embeddings.mean(dim=-1)
         else:
-            return None
+            w = self.attention_mask / self.attention_mask.sum(dim=-1, keepdim=True)
+            w = w.unsqueeze(-2)
+            global_embedding = w @ x
+            return global_embedding.squeeze(-2)
 
 
 def lm_loss(logits, labels, ignore_index, reduction):
@@ -80,8 +83,8 @@ def mlm_loss(logits, labels, ignore_index, reduction):
     return F.cross_entropy(logits.view(-1, logits.size(-1)), labels.view(-1), ignore_index=ignore_index, reduction=reduction)
 
 
-def regression_loss(logits, labels, reduction):
-    return F.mse_loss(logits.flatten(), labels.flatten(), reduction=reduction)
+def regression_loss(inputs, labels, reduction):
+    return F.mse_loss(inputs.flatten(), labels.flatten(), reduction=reduction)
 
 def classification_loss(logits, labels, reduction):
     return F.cross_entropy(logits, labels, reduction=reduction)

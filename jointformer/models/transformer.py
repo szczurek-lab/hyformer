@@ -39,12 +39,11 @@ class Transformer(nn.Module):
 
     def forward(
             self,
-            input_ids: Optional[torch.Tensor] = None,
-            attention_mask: Optional[torch.Tensor] = None,
-            is_causal: Optional[bool] = True,
+            input_ids: torch.Tensor,
+            is_causal: bool,
+            attention_mask: torch.Tensor,
             **kwargs
     ):
-        
         x = self.token_embedding(input_ids)
         for _, layer in enumerate(self.layers):
             x = layer(x, is_causal=is_causal, mask=attention_mask)

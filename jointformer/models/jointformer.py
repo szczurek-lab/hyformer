@@ -10,7 +10,7 @@ from jointformer.models.transformer import Transformer
 from jointformer.utils.tokenizers.base import TOKEN_DICT
 from jointformer.models.utils import DefaultGuacamolModelWrapper
 from jointformer.models.trainable import TrainableModel
-from jointformer.models.layers.prediction import RegressionHead
+from jointformer.models.layers.prediction import RegressionHead, ClassificationHead
 from jointformer.models.utils import ModelOutput
 
 from jointformer.models.utils import lm_loss, mlm_loss, regression_loss, classification_loss
@@ -54,7 +54,7 @@ class Jointformer(Transformer, TrainableModel):
 
         # Init prediction head depending on task type
         if prediction_task_type == 'classification':
-            self.prediction_head = nn.Linear(self.embedding_dim, num_prediction_tasks)
+            self.prediction_head = ClassificationHead(embedding_dim=self.embedding_dim, output_dim=2 if num_prediction_tasks == 1 else num_prediction_tasks) # binary or multiclass classification
         elif prediction_task_type == 'regression':
             self.prediction_head = RegressionHead(embedding_dim=self.embedding_dim, prediction_hidden_dim=prediction_hidden_dim, output_dim=num_prediction_tasks)
         else:
@@ -71,11 +71,12 @@ class Jointformer(Transformer, TrainableModel):
 
     def forward(
             self,
-            input_ids: Optional[torch.Tensor] = None,
+            input_ids: torch.Tensor,
+            task: str,
             attention_mask: Optional[torch.Tensor] = None,
-            task: Optional[str] = None,
             next_token_only: Optional[bool] = False,
-            **kwargs):
+            **kwargs
+            ):
         
         if task == 'generation':
             _is_causal = True

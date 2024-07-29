@@ -9,6 +9,7 @@ from jointformer.models.utils import ModelInput
 TOKEN_DICT = {
     'prediction': '[CLS]',
     'generation': '[BOS]',
+    'mlm': '[REC]',
     'pad': '[PAD]',
     'mask': '[MASK]',
     'sep': '[EOS]',
@@ -98,7 +99,7 @@ class BaseTokenizer:
         elif task == 'generation':
             task_token = TOKEN_DICT['generation']
         elif task == 'mlm':
-            task_token = TOKEN_DICT['prediction']
+            task_token = TOKEN_DICT['mlm']
         else:
             raise ValueError('Variable `task` must be either `generation`, `mlm` or `prediction`.')
         return self._set_task_token(batch, task_token)

@@ -14,3 +14,14 @@ class RegressionHead(nn.Module):
 
     def forward(self, x):
         return self.net(x)
+
+
+class ClassificationHead(nn.Module):
+
+    def __init__(self, embedding_dim: int, output_dim: int):
+        super().__init__()
+        self.net = nn.Linear(self.embedding_dim, output_dim)
+
+    def forward(self, x):
+        return self.net(x)
+    

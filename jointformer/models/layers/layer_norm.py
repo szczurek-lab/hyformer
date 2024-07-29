@@ -11,7 +11,7 @@ class RMSNorm(nn.Module):
         self.weight = nn.Parameter(torch.ones(embedding_dim))
 
     def _norm(self, x):
-        return x * torch.rsqrt(torch.mean(x * x, dim=-1, keepdim=True) + self.epsilon)
+        return x * torch.rsqrt(torch.mean(x.pow(2), dim=-1, keepdim=True) + self.epsilon)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         output = self._norm(x.float()).type_as(x)

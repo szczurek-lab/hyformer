@@ -25,8 +25,7 @@ class Attention(nn.Module):
         self.out = nn.Linear(self.embedding_dim, self.embedding_dim, bias=bias)
         self.relative_embedding = RotaryPositionalEmbedding(self.head_dim)
   
-        if not hasattr(torch.nn.functional, 'scaled_dot_product_attention'):
-            raise ImportError("The `scaled_dot_product_attention` function is not available in PyTorch < 2.0.0.")
+        assert hasattr(torch.nn.functional, 'scaled_dot_product_attention'), "The `scaled_dot_product_attention` function is not available in PyTorch < 2.0.0."
 
     def forward(self, x: torch.Tensor, attn_mask: torch.Tensor, is_causal: bool) -> torch.Tensor:
         """ Forward pass of the attention layer.
