@@ -30,11 +30,11 @@ conda deactivate
 conda activate jointformer-experiments
 
 srun python experiments/joint_training/train.py \
-    --out_dir /lustre/groups/aih/jointformer/results/lm_psychem/no_separate_token/cls_emb/bs_512/drop_0/ \
+    --out_dir /lustre/groups/aih/jointformer/results/lm_psychem/separate_task_token/cls_emb/bs_512/drop_0/ \
     --data_dir /lustre/groups/aih/jointformer/data \
     --path_to_dataset_config configs/datasets/guacamol \
     --path_to_tokenizer_config configs/tokenizers/smiles \
-    --path_to_model_config configs/models/jointformer \
+    --path_to_model_config configs/models/jointformer_separate_task_token \
     --path_to_trainer_config configs/trainers/joint \
     --path_to_logger_config configs/loggers/wandb \
     
