@@ -3,7 +3,7 @@ import torch
 from deepchem.feat.smiles_tokenizer import SmilesTokenizer as DeepChemSmilesTokenizer
 from typing import List, Tuple, Any, Optional, Union
 
-from jointformer.utils.tokenizers.base import BaseTokenizer, TOKEN_DICT
+from jointformer.utils.tokenizers.base import BaseTokenizer, TOKEN_DICT, TASK_TOKEN_DICT
 
 
 class SmilesTokenizer(BaseTokenizer):
@@ -28,21 +28,25 @@ class SmilesTokenizer(BaseTokenizer):
     def _init_tokenizer(self, path_to_vocabulary: str):
         self.tokenizer = DeepChemSmilesTokenizer(
             vocab_file=path_to_vocabulary,
-            cls_token=TOKEN_DICT['generation'],
+            cls_token=TOKEN_DICT['cls'],
             sep_token=TOKEN_DICT['sep'],
             mask_token=TOKEN_DICT['mask'],
             pad_token=TOKEN_DICT['pad'],
-            unk_token=TOKEN_DICT['unknown'],
-            additional_special_tokens=[TOKEN_DICT['prediction']])
+            unk_token=TOKEN_DICT['unknown'])
+
+    def _init_separate_task_tokens(self):
+        special_tokens_dict = {'additional_special_tokens': list(TASK_TOKEN_DICT.values())}
+        self.tokenizer.add_special_tokens(special_tokens_dict)
+        self.max_molecule_length = self.max_molecule_length - 1
 
     def __len__(self):
         return len(self.tokenizer)
 
-    def _tokenize(self, data: str or List[str]):
+    def _tokenize(self, data: Union[str, List[str]]):
         return self.tokenizer(
             data, truncation=True, padding='max_length', max_length=self.max_molecule_length,
             return_special_tokens_mask=True, return_token_type_ids=False, return_tensors='pt')
-
+        
     @classmethod
     def from_config(cls, config):
         return cls(
