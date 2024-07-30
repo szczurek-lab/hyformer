@@ -9,9 +9,10 @@
   "max_seq_len": 128,
   "num_heads": 1,
   "num_layers": 1,
-  "vocab_size": 593,
+  "vocab_size": 595,
   "prediction_task_type": "regression",
   "num_prediction_tasks": 1,
   "num_physchem_tasks": 200,
-  "prediction_hidden_dim": 256
+  "prediction_hidden_dim": 256,
+  "set_separate_task_tokens": true
 }
