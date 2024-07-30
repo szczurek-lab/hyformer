@@ -113,11 +113,14 @@ class BaseTokenizer:
     @staticmethod
     def _set_task_token(batch: List[str], task_token_id: int) -> List[str]:
         for key in batch.keys():
-            if key in ['input_ids', 'input_labels']:
-                appended = torch.cat([torch.full(size=(batch[key].size(0), 1), fill_value=task_token_id, dtype=batch[key].dtype), batch[key]], dim=1)
-                batch[key] = appended.contiguous()
-            if key in ['attention_mask']:
-                appended = torch.cat([torch.full(size=(batch[key].size(0), 1), fill_value=True, dtype=batch[key].dtype), batch[key]], dim=1)
+            if key in ['input_ids', 'input_labels', 'attention_mask']:
+                if key == 'input_ids':
+                    fill_value = task_token_id
+                elif key == 'input_labels':
+                    fill_value = TOKEN_DICT['ignore']
+                else:
+                    fill_value = True
+                appended = torch.cat([torch.full(size=(batch[key].size(0), 1), fill_value=fill_value, dtype=batch[key].dtype), batch[key]], dim=1)
                 batch[key] = appended.contiguous()
         return batch
         

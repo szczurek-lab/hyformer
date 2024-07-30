@@ -17,7 +17,6 @@ from jointformer.models.utils import lm_loss, mlm_loss, regression_loss, classif
 from jointformer.utils.chemistry import is_valid
 
 DEFAULT_NUM_PHYCHEM_TASKS = 200
-IGNORE_INDEX = TOKEN_DICT['ignore']
 
 
 class Jointformer(Transformer, TrainableModel):
@@ -39,7 +38,8 @@ class Jointformer(Transformer, TrainableModel):
             num_prediction_tasks: int,
             num_physchem_tasks: Optional[int] = DEFAULT_NUM_PHYCHEM_TASKS,
             init_weights: bool = True,
-            tie_weights: bool = True
+            tie_weights: bool = True,
+            set_separate_task_tokens: bool = False
     ):
 
         super().__init__(
@@ -68,12 +68,14 @@ class Jointformer(Transformer, TrainableModel):
         # Weight initialization
         if init_weights:
             self.initialize_parameters()
+        
+        self.set_separate_task_tokens = set_separate_task_tokens
 
     def forward(
             self,
             input_ids: torch.Tensor,
             task: str,
-            attention_mask: Optional[torch.Tensor] = None,
+            attention_mask: torch.Tensor,
             next_token_only: Optional[bool] = False,
             **kwargs
             ):
@@ -111,11 +113,12 @@ class Jointformer(Transformer, TrainableModel):
 
     def get_loss(
             self,
-            input_ids: Optional[torch.Tensor] = None,
-            attention_mask: Optional[torch.Tensor] = None,
+            input_ids: torch.Tensor,
+            attention_mask: torch.Tensor,
+            task: str,
             input_labels: Optional[torch.Tensor] = None,
-            properties: Optional[torch.Tensor] = None,
-            task: Optional[str] = None):
+            properties: Optional[torch.Tensor] = None
+            ):
         if task == 'lm' or task == 'generation':
             return self.get_loss_lm(input_ids, attention_mask, input_labels)
         elif task == 'mlm':
@@ -127,85 +130,69 @@ class Jointformer(Transformer, TrainableModel):
         else:
             raise ValueError('Variable `task` must be either `lm`, `mlm`, `prediction` or `finetune`.')
 
-    def get_loss_lm(
-            self,
-            input_ids: Optional[torch.Tensor] = None,
-            attention_mask: Optional[torch.Tensor] = None,
-            input_labels: Optional[torch.Tensor] = None,
-            **kwargs):
+    def get_loss_lm(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, input_labels: torch.Tensor, **kwargs):
         outputs = self(input_ids=input_ids, attention_mask=attention_mask, task='generation', next_token_only=False)
         if input_labels is not None:
-            outputs["loss"] = lm_loss(outputs["logits_generation"], input_labels, IGNORE_INDEX, 'mean')
+            if self.set_separate_task_tokens:
+                logits = outputs['logits_generation'][:, 1:-1, :].contiguous()
+                labels = input_labels[:, 2:].contiguous() 
+            else:
+                logits = outputs['logits_generation'][:, :-1, :].contiguous()
+                labels = input_labels[:, 1:].contiguous()
+            batch_size, seq_length, vocab_size = logits.size()
+            outputs["loss"] = F.cross_entropy(
+                logits.view(batch_size * seq_length, vocab_size),
+                labels.view(batch_size * seq_length),
+                ignore_index=TOKEN_DICT['ignore'],
+                reduction='mean'
+                )
         return outputs
 
-    def get_loss_mlm(
-            self,
-            input_ids: Optional[torch.Tensor] = None,
-            attention_mask: Optional[torch.Tensor] = None,
-            input_labels: Optional[torch.Tensor] = None,
-            **kwargs
-            ):
-
+    def get_loss_mlm(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, input_labels: torch.Tensor, **kwargs):
         outputs = self.forward(input_ids=input_ids, attention_mask=attention_mask, task='mlm')
         outputs["logits_generation"] = self.mlm_head(outputs['embeddings'])
         if input_labels is not None:
-            outputs["loss"] = mlm_loss(outputs["logits_generation"], input_labels, IGNORE_INDEX, 'mean')
+            if self.set_separate_task_tokens:
+                logits = outputs['logits_generation'][:, 1:, :].contiguous()
+                labels = input_labels[:, 1:].contiguous() 
+            else:
+                logits = outputs['logits_generation']
+                labels = input_labels
+            batch_size, seq_length, vocab_size = logits.size()
+            outputs["loss"] = F.cross_entropy(
+                logits.view(batch_size * seq_length, vocab_size),
+                labels.view(batch_size * seq_length),
+                ignore_index=TOKEN_DICT['ignore'],
+                reduction='mean'
+                )
         return outputs
 
-    def get_loss_physchem(
-            self,
-            input_ids: Optional[torch.Tensor] = None,
-            attention_mask: Optional[torch.Tensor] = None,
-            properties: Optional[torch.Tensor] = None,
-            **kwargs
-            ):
+    def get_loss_physchem(self, input_ids: torch.Tensor, attention_mask:  torch.Tensor, properties: torch.Tensor, **kwargs):
         outputs = self.predict(input_ids=input_ids, attention_mask=attention_mask)
         if properties is not None:
-            outputs["loss"] = regression_loss(outputs["logits_physchem"], properties, 'mean')
+            outputs["loss"] = F.mse_loss(outputs["logits_physchem"].flatten(), properties.flatten(), reduction='mean')
         return outputs
 
-    def get_loss_prediction(
-            self,
-            input_ids: Optional[torch.Tensor] = None,
-            attention_mask: Optional[torch.Tensor] = None,
-            properties: Optional[torch.Tensor] = None,
-            **kwargs):
+    def get_loss_prediction(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, properties: torch.Tensor, **kwargs):
         outputs = self.predict(input_ids=input_ids, attention_mask=attention_mask)
         if properties is not None:
             if self.prediction_task_type == 'classification':
-                outputs["loss"] = classification_loss(outputs["logits_prediction"], properties, reduction='mean')
+                outputs["loss"] = F.cross_entropy(outputs["logits_prediction"], properties, reduction='mean')
             elif self.prediction_task_type == 'regression':
-                outputs["loss"] = regression_loss(outputs["logits_prediction"], properties, 'mean')
+                outputs["loss"] = F.mse_loss(outputs["logits_prediction"].flatten(), properties.flatten(), 'mean')
             else:
                 raise ValueError('Variable `prediction_task_type` must be either `classification` or `regression`.')
         return outputs
 
-    def calculate_perplexity(
-            self,
-            input_ids: Optional[torch.Tensor] = None,
-            attention_mask: Optional[torch.Tensor] = None,
-            **kwargs
-    ):
-        """Compute perplexity of the model on the input sequence.
-        Reference: https://github.com/ETHmodlab/CLM_perplexity/blob/main/src/python/helper.py
-        """
-        outputs = self(input_ids=input_ids, attention_mask=None, task='generation')
-        log_probs = F.log_softmax(outputs["logits_generation"], dim=-1).max(dim=-1).values
-        perplexity = torch.zeros(size=(input_ids.size(0),))
-
-        #TODO: verify correctness
-        for idx, (log_prob, mask) in enumerate(zip(log_probs, attention_mask)):
-            log_prob = log_prob[mask.bool()]
-            log_prob = log_prob[:-2]  # Ignore the last two tokens, as they correspond to special tokens in generation
-            log_prob = 2 ** (-log_prob.sum() / log_prob.size(0))
-            perplexity[idx] = log_prob
-        return perplexity
-
-    def generate(self, bos_token_id, eos_token_id, pad_token_id, input_length, batch_size, temperature=1.0, top_k=None, device='cpu'):
+    def generate(self, bos_token_id, eos_token_id, pad_token_id, input_length, batch_size, temperature=1.0, top_k=None, device='cpu', generate_token_id=None):
         """
         Generate complete sequences of indices using the model.
         """
-        idx = torch.full((batch_size, 1), bos_token_id, device=device, dtype=torch.long)    
+        idx = torch.full((batch_size, 1), bos_token_id, device=device, dtype=torch.long)
+        if self.set_separate_task_tokens:
+            assert generate_token_id is not None, "If set_separate_task_tokens is True, task_token_id must be provided."
+            idx_task_token = torch.full((batch_size, 1), generate_token_id, device=device, dtype=torch.long)  
+            idx = torch.cat([idx_task_token, idx], dim=1)
 
         # TODO: implement caching
         idx = self.generate_single_token(idx, input_length - 1, temperature, top_k, eos_token_id, pad_token_id)
@@ -280,5 +267,6 @@ class Jointformer(Transformer, TrainableModel):
             prediction_hidden_dim=config.prediction_hidden_dim,
             num_prediction_tasks=config.num_prediction_tasks,
             num_physchem_tasks=config.num_physchem_tasks,
-            layer_norm_eps=config.layer_norm_eps
+            layer_norm_eps=config.layer_norm_eps,
+            set_separate_task_tokens=config.set_separate_task_tokens
         )
