@@ -328,6 +328,7 @@ class Trainer:
                     losses[k] = perplexity.mean()
                 out[split]['perplexity'] = losses.mean().item() if torch.nan not in losses else torch.nan
 
+        if hasattr(self.model, 'generate'):
             for _ in range(self.eval_iters):
                 samples = []
                 samples.extend(self.generate())
