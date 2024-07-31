@@ -1,4 +1,5 @@
 from guacamol.assess_distribution_learning import DistributionMatchingGenerator
+from jointformer.models.base import SmilesEncoder
 import torch
 
 import torch.nn as nn
@@ -12,6 +13,7 @@ from jointformer.models.utils import DefaultGuacamolModelWrapper
 from jointformer.models.trainable import TrainableModel
 from jointformer.models.layers.prediction import RegressionHead, ClassificationHead
 from jointformer.models.utils import ModelOutput
+
 
 DEFAULT_NUM_PHYCHEM_TASKS = 200
 
@@ -267,3 +269,9 @@ class Jointformer(Transformer, TrainableModel):
             layer_norm_eps=config.layer_norm_eps,
             set_separate_task_tokens=config.set_separate_task_tokens
         )
+
+    def to_guacamole_generator(self, tokenizer, batch_size, temperature, top_k, device) -> DistributionMatchingGenerator:
+        return DefaultGuacamolModelWrapper(self, tokenizer, batch_size, temperature, top_k, device)
+    
+    def to_smiles_encoder(self, tokenizer, batch_size, device) -> SmilesEncoder:
+        return DefaultSmilesEncoderWrapper(self, tokenizer, batch_size, device)
