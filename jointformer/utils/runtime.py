@@ -111,3 +111,11 @@ def flatten(dictionary, parent_key='', separator='_'):
         else:
             items.append((new_key, value))
     return dict(items)
+
+
+def find_multiple(n: int, k: int) -> int:
+    """ Find the smallest multiple of k that is greater than or equal to n.
+    """
+    if n % k == 0:
+        return n
+    return int(n + k - (n % k))

@@ -1,0 +1,10 @@
+{
+  "dataset_name": "sequence_dataset",
+  "path_to_train_data": "datasets/guacamol/train/smiles.txt",
+  "path_to_train_properties": "datasets/guacamol/train/physchem.pt",
+  "path_to_val_data": "datasets/guacamol/val/smiles.txt",
+  "path_to_val_properties": "datasets/guacamol/val/physchem.pt",
+  "path_to_test_data": "datasets/guacamol/test/smiles.txt",
+  "path_to_test_properties": "datasets/guacamol/test/physchem.pt",
+  "task_type": "regression"
+}

@@ -29,15 +29,15 @@ class MosesDataset(SmilesDataset):
     ) -> None:
 
         data_dir = self._get_data_dir(data_dir, split, num_samples)
-        data_filename = os.path.join(data_dir, DATA_FILE_NAME)
-        if not os.path.isfile(data_filename):
+        data_filepath = os.path.join(data_dir, DATA_FILE_NAME)
+        if not os.path.isfile(data_filepath):
             self._download_data(data_dir=data_dir, split=split, num_samples=num_samples)
-        target_filename = os.path.join(data_dir, f'{target_label}.pt') if target_label else None
-        if target_label and not os.path.isfile(target_filename):
-            self._download_target(data_filename=data_filename, target_filename=target_filename, target_label=target_label)
+        target_filepath = os.path.join(data_dir, f'{target_label}.pt') if target_label else None
+        if target_label and not os.path.isfile(target_filepath):
+            self._download_target(data_filepath=data_filepath, target_filepath=target_filepath, target_label=target_label)
 
         super().__init__(
-            data_filename=data_filename, target_filename=target_filename,
+            data_filepath=data_filepath, target_filepath=target_filepath,
             transform=transform, target_transform=target_transform,
             num_samples=num_samples, validate=validate
         )
@@ -45,9 +45,9 @@ class MosesDataset(SmilesDataset):
     @staticmethod
     def _download_data(split: str, num_samples: int, data_dir: str) -> None:
         """ Downloads and saves MOSES data. """
-        data_filename = os.path.join(data_dir, DATA_FILE_NAME)
+        data_filepath = os.path.join(data_dir, DATA_FILE_NAME)
 
-        print(f"Downloading data into {data_filename}")
+        print(f"Downloading data into {data_filepath}")
         os.makedirs(data_dir, exist_ok=True)
 
         if split in ['train', 'test', 'test_scaffolds']:
@@ -62,15 +62,15 @@ class MosesDataset(SmilesDataset):
         if num_samples and len(data) > num_samples:
             data = data[:num_samples]
 
-        save_strings_to_file(data, data_filename)
+        save_strings_to_file(data, data_filepath)
 
     @staticmethod
-    def _download_target(data_filename: str, target_filename: str, target_label: str) -> None:
-        print(f"Downloading target into {target_filename}")
-        data = read_strings_from_file(data_filename)
+    def _download_target(data_filepath: str, target_filepath: str, target_label: str) -> None:
+        print(f"Downloading target into {target_filepath}")
+        data = read_strings_from_file(data_filepath)
         oracle = AutoTarget.from_target_label(target_label)
         target = oracle(data)
-        torch.save(target, target_filename)
+        torch.save(target, target_filepath)
 
     @staticmethod
     def _get_data_dir(data_dir: str, split: str = None, num_samples: int = None) -> str:

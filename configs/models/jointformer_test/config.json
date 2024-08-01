@@ -1,14 +1,18 @@
 {
   "model_name": "Jointformer",
   "bias": false,
-  "dropout": 0.2,
+  "attention_dropout": 0.0,
+  "feed_forward_dropout": 0.0,
   "embedding_dim": 16,
+  "embedding_hidden_dim": null,
   "layer_norm_eps": 1e-05,
   "max_seq_len": 128,
-  "num_heads": 2,
+  "num_heads": 1,
   "num_layers": 1,
-  "vocab_size": 593,
-  "prediction_task": "regression",
+  "vocab_size": 595,
+  "prediction_task_type": "regression",
   "num_prediction_tasks": 1,
-  "num_physchem_tasks": 200
+  "num_physchem_tasks": 200,
+  "prediction_hidden_dim": 256,
+  "set_separate_task_tokens": true
 }

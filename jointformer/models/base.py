@@ -1,7 +1,10 @@
-from torch import nn
 import abc
-from guacamol.assess_distribution_learning import DistributionMatchingGenerator
+
 import numpy as np
+
+from guacamol.assess_distribution_learning import DistributionMatchingGenerator
+from torch import nn
+from typing import Optional
 
 
 class SmilesEncoder(abc.ABC):
@@ -26,4 +29,3 @@ class BaseModel(nn.Module, abc.ABC):
     @abc.abstractmethod
     def from_config(cls, config):
         pass
-

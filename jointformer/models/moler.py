@@ -41,7 +41,7 @@ class Moler(BaseModel, DistributionMatchingGenerator, SmilesEncoder):
             for _ in tqdm(range(0, number_samples, self._batch_size), "Generating samples"):
                 samples = model.sample(self._batch_size)
                 generated.extend(samples)
-        return generated
+        return generated[:number_samples]
 
     def encode(self, smiles: list[str]) -> np.ndarray:
         rets = []
@@ -50,7 +50,7 @@ class Moler(BaseModel, DistributionMatchingGenerator, SmilesEncoder):
             enc = _encode_from_smiles(self._dataset, self._model, batch)
             rets.extend(enc)
         return np.stack(rets, axis=0)
-        
+
     def load_pretrained(self, filename, *args, **kwargs):
         self._dataset, self._model = load_vae_model_and_dataset(filename)
         assert isinstance(self._model, MoLeRVae), self._model
