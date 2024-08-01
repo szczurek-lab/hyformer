@@ -1,7 +1,7 @@
 import torch
 
 from torch.distributions.categorical import Categorical
-
+from jointformer.models.utils import ModelInput
 
 class DataCollator:
 
@@ -13,13 +13,7 @@ class DataCollator:
     def _sample_task(self):
         return list(self.tasks.keys())[self._task_dist.sample().item()]
 
-    def __call__(self, items):
+    def __call__(self, batch):
         task = self._sample_task()
-        if isinstance(items[0], tuple):
-            data = [item[0] for item in items]
-            properties = [item[1] for item in items]
-            inputs = self.tokenizer(data=data, properties=properties, task=task)
-        else:
-            inputs = self.tokenizer(data=items, task=task)
-            inputs['properties'] = None
-        return inputs
+        return self.tokenizer(batch, task=task)
+        
