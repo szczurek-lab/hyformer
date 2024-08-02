@@ -126,7 +126,7 @@ def get_parser():
 def eval_linear(args, train_loader, val_loader, test_loader, writer, ckpt_dir):
     D = next(iter(train_loader))[0].shape[-1]
     model = nn.Sequential(nn.Linear(D, D), nn.ReLU(), nn.Linear(D, 1))
-    optimizer = AdamW(model.parameters(), weight_decay=0, lr=args.lr * args.batch_size / 256)
+    optimizer = SGD(model.parameters(), momentum=0.9, weight_decay=0, lr=args.lr * args.batch_size / 256)
     model = model.to(args.device)
     best_val_score = 1e8
     patience_rest = args.patience
