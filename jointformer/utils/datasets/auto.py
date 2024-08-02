@@ -7,7 +7,7 @@ This module contains the AutoDataset class, which is used to automatically selec
 
 import importlib
 
-from jointformer.configs.task import TaskConfig
+from jointformer.configs.dataset import DatasetConfig
 from jointformer.utils.datasets.base import BaseDataset
 
 
@@ -16,13 +16,14 @@ class AutoDataset:
     @classmethod
     def from_config(
             cls,
-            config: TaskConfig,
+            config: DatasetConfig,
             split: 'str' = None,
             num_samples: int = None,
             target_label: str = None,
             validate: bool = None,
             standardize: bool = None,
-            data_dir: str = None
+            data_dir: str = None,
+            seed: int = None
     ) -> BaseDataset:
 
         # Override config values if available
@@ -47,11 +48,15 @@ class AutoDataset:
                 "MosesDataset").from_config(config)
         elif config.dataset_name == 'guacamol':
             return getattr(importlib.import_module(
-                "jointformer.utils.datasets.smiles.guacamol"),
-                "GuacamolDataset").from_config(config, data_dir=data_dir)
+                "jointformer.utils.datasets.guacamol"),
+                "GuacamolDataset").from_config(config, root=data_dir, seed=seed)
         elif config.dataset_name == 'molecule_net':
             return getattr(importlib.import_module(
                 "jointformer.utils.datasets.smiles.molecule_net"),
-                "MoleculeNetDataset").from_config(config, data_dir=data_dir)
+                "MoleculeNetDataset").from_config(config, data_dir=data_dir, seed=seed)
+        elif config.dataset_name == 'sequence_dataset':
+            return getattr(importlib.import_module(
+                "jointformer.utils.datasets.sequence"),
+                "SequentialDataset").from_config(config, data_dir=data_dir, seed=seed)
         else:
             raise ValueError(f"Dataset {config.dataset_name} not available.")

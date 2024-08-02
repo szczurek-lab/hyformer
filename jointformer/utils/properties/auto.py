@@ -20,5 +20,9 @@ class AutoTarget:
             return getattr(importlib.import_module(
                 "jointformer.utils.properties.smiles.physchem"),
                 "PhysChem")()
+        elif target == 'plogp':
+            return getattr(importlib.import_module(
+                "jointformer.utils.properties.smiles.plogp"),
+                "PlogP")()
         else:
             raise ValueError(f"Target {target} not available.")
