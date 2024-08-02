@@ -23,6 +23,7 @@ def get_parser():
     parser.add_argument("--batch_size", type=int, default=64)
     parser.add_argument("--chunk_size", type=int, default=100000)
     parser.add_argument("--device", type=str, default="cuda:0")
+    parser.add_argument("--parallel", action="store_true")
     return parser
 
 def worker(model_factory, chunk, id, ret_dict):
@@ -87,9 +88,10 @@ def main(args):
         model.load_pretrained(args.path_to_model_ckpt)
         model = model.to_smiles_encoder(tokenizer, args.batch_size, args.device)
         return model
-    
-    #extract_features(model_factory(), dataset.data, args.output, args.chunk_size)
-    extract_features_parallel(model_factory, dataset.data, args.output, args.chunk_size)
+    if args.parallel:
+        extract_features_parallel(model_factory, dataset.data, args.output, args.chunk_size)
+    else:
+        extract_features(model_factory(), dataset.data, args.output, args.chunk_size)
 
 
 
