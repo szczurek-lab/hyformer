@@ -85,6 +85,7 @@ class DefaultSmilesEncoderWrapper(SmilesEncoder):
         self._batch_size = batch_size
         self._device = device
 
+    @torch.no_grad
     def encode(self, smiles: list[str]) -> np.ndarray:
         self._model.eval()
         model = self._model.to(self._device)
@@ -95,7 +96,7 @@ class DefaultSmilesEncoderWrapper(SmilesEncoder):
             for k,v in batch_input.items():
                 if isinstance(v, torch.Tensor):
                     batch_input[k] = v.to(self._device)
-            output = model(**batch_input, is_causal=False)
-            embeddings.append(output["global_embedding"].detach().cpu().numpy())
+            output: ModelOutput = model(**batch_input, is_causal=False)
+            embeddings.append(output.global_embedding.detach().cpu().numpy())
         ret = np.concatenate(embeddings, axis=0)
         return ret
