@@ -26,6 +26,6 @@
   "tasks":
     {
       "generation":  1,
-      "physchem": 1
+      "prediction": 1
     }
 }
