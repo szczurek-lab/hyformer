@@ -8,7 +8,7 @@ import math
 
 def get_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--target", choices=["qed", "plogp"], required=True)
+    parser.add_argument("--target", choices=["qed", "plogp", "guacamol_mpo", "physchem"], required=True)
     parser.add_argument("--data_path", type=str, required=True)
     parser.add_argument("--output", type=str, required=True)
     parser.add_argument("--n_workers", type=int, default=1)
@@ -21,7 +21,7 @@ def main(args):
     dname = os.path.dirname(args.output)
     os.makedirs(dname, exist_ok=True)
 
-    oracle = AutoTarget.from_target_label(args.target)
+    oracle = AutoTarget.from_target_label(args.target, dtype='np')
 
     with open(args.data_path) as f:
         data = f.readlines()
@@ -37,8 +37,8 @@ def main(args):
     for p in processes:
         p.join()
     
-    ret = torch.cat([v for _, v in sorted(ret_dict.items())], dim=0)
-    np.save(args.output, ret.numpy())
+    ret = np.concatenate([v for _, v in sorted(ret_dict.items())], axis=0)
+    np.save(args.output, ret)
     
 if __name__ == "__main__":
     parser = get_parser()

@@ -26,3 +26,6 @@ class QED(BaseTarget):
 
     def __str__(self):
         return "QED"
+    
+    def __len__(self):
+        return 1

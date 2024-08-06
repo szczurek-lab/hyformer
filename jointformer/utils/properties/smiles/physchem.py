@@ -7,7 +7,6 @@ from jointformer.utils.properties.smiles.molbert.featurizer import PhysChemFeatu
 
 from jointformer.utils.properties.smiles.base import BaseTarget
 
-
 NORMALIZE = True
 
 
@@ -28,13 +27,13 @@ class PhysChem(BaseTarget):
 
     @property
     def target_names(self):
-        return ["physchem"]
+        return self.descriptor_list
 
     def __repr__(self):
-        return "PhysChem"
+        return f"Physicochemical properties: {self.descriptor_list}"
 
     def __str__(self):
-        return "PhysChem"
+        return f"Physicochemical properties: {self.descriptor_list}"
 
     def __len__(self):
         return 200
