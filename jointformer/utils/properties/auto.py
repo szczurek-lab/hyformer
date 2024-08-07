@@ -2,14 +2,13 @@ import importlib
 
 from typing import Union, Optional
 
-from jointformer.utils.properties.smiles.qed import QED
-from jointformer.utils.properties.smiles.physchem import PhysChem
+from jointformer.utils.properties.smiles.base import BaseTarget
 
 
 class AutoTarget:
 
     @classmethod
-    def from_target_label(cls, target: str, dtype: Optional[str] = None) -> Union[QED, PhysChem]:
+    def from_target_label(cls, target: str, dtype: Optional[str] = None) -> BaseTarget:
         """ Returns the target class based on the target label. """
 
         if target == 'qed':

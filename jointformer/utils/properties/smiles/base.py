@@ -1,25 +1,23 @@
 """ Base class for all properties. """
 
+import sys
 import numpy as np
 
 from tqdm import tqdm
 from typing import List, Union
 
+from jointformer.utils.properties.smiles.utils import TorchConvertMixin
 
-class BaseTarget:
+class BaseTarget(TorchConvertMixin):
 
-    def __init__(self, dtype='pt', verbose=True):
-        self.dtype = dtype
-        if self.dtype not in ['pt', 'np']:
-            raise ValueError(f"Invalid dtype: {self.dtype}. Must be one of ['pt', 'np']")
-        if self.dtype == 'pt':
-            import torch  # Conditional import torch, as it is not available in all environments
+    def __init__(self, dtype=None, verbose=True):
+        self.dtype = dtype if dtype is not None else 'pt'  # Default to torch.Tensor
         self.verbose = verbose
 
-    def __call__(self, examples: List[str]) -> Union['torch.Tensor', List[float], np.ndarray]:
+    def __call__(self, examples: List[str]) -> Union['torch.Tensor', np.ndarray]:
         targets = self.get_targets(examples)
-        if self.dtype == 'pt' and not isinstance(targets, torch.Tensor):
-            return torch.from_numpy(targets)
+        if self.dtype == 'pt':
+            return self.to_tensor(targets)
         return targets
 
     def get_targets(self, examples: Union[List[str], str]) -> np.ndarray:
