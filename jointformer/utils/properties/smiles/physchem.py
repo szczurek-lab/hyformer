@@ -1,5 +1,4 @@
 import numpy as np
-import torch
 
 from rdkit import Chem
 from rdkit.Chem.QED import qed

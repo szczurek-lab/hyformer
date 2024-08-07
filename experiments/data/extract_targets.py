@@ -1,4 +1,3 @@
-import torch
 from jointformer.utils.properties.auto import AutoTarget
 import argparse
 import multiprocessing as mp
