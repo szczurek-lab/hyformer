@@ -8,13 +8,13 @@ from typing import List, Union
 
 class BaseTarget:
 
-    def __init__(self, dtype='pt'):
+    def __init__(self, dtype='pt', verbose=True):
         self.dtype = dtype
         if self.dtype not in ['pt', 'np']:
             raise ValueError(f"Invalid dtype: {self.dtype}. Must be one of ['pt', 'np']")
         if self.dtype == 'pt':
             import torch  # Conditional import torch, as it is not available in all environments
-
+        self.verbose = verbose
 
     def __call__(self, examples: List[str]) -> Union['torch.Tensor', List[float], np.ndarray]:
         targets = self.get_targets(examples)
@@ -28,7 +28,7 @@ class BaseTarget:
             examples = [examples]
         
         targets = np.zeros(shape=(len(examples), len(self)), dtype=np.float32)  # initialize targets
-        for idx, example in enumerate(tqdm(examples, desc="Calculating target data")):
+        for idx, example in enumerate(tqdm(examples, desc="Calculating target data", disable=(not self.verbose))):
             targets[idx, :] = self._get_target(example)
         return targets
 

@@ -12,8 +12,8 @@ NORMALIZE = True
 class PhysChem(BaseTarget):
     """ PhysChem target. """
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.descriptor_set = 'all'
         self.num_physchem = 200
         self.descriptor_list = PhysChemFeaturizer.get_descriptor_subset(self.descriptor_set, self.num_physchem)
