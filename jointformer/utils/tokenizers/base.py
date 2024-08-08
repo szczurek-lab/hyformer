@@ -1,9 +1,9 @@
 import torch
 
-from dataclasses import dataclass
 from torch.utils.data._utils.collate import default_collate
 from typing import List, Tuple, Any, Optional, Union
 from jointformer.models.utils import ModelInput
+
 
 TOKEN_DICT = {
     'cls': '[BOS]',
@@ -14,11 +14,6 @@ TOKEN_DICT = {
     'ignore': -100
 }
 
-TASK_TOKEN_DICT = {
-    'generation': '[GEN]',
-    'prediction': '[PRED]'
-}
-
 
 class BaseTokenizer:
 
@@ -27,25 +22,18 @@ class BaseTokenizer:
         path_to_vocabulary: str,
         max_molecule_length: int,
         mlm_probability: Optional[float] = 0.15,
-        ignore_index: Optional[int] = TOKEN_DICT['ignore'],
-        set_separate_task_tokens: Optional[bool] = False
+        ignore_index: Optional[int] = TOKEN_DICT['ignore']
     ):
 
         self.tokenizer = None        
         self.max_molecule_length = max_molecule_length
         self.mlm_probability = mlm_probability
         self.ignore_index = ignore_index
-        self.set_separate_task_tokens = set_separate_task_tokens
         self._init_tokenizer(path_to_vocabulary)
-        if self.set_separate_task_tokens:
-            self._init_separate_task_tokens()
-
+        
     def _init_tokenizer(self, path_to_vocabulary: str):
         raise NotImplementedError
     
-    def _init_separate_task_tokens(self):
-        raise NotImplementedError
-
     def __len__(self):
         return len(self.tokenizer)
 
@@ -73,6 +61,8 @@ class BaseTokenizer:
             labels = batch["input_ids"].clone()
             if self.tokenizer.pad_token_id is not None:
                 labels[labels == self.tokenizer.pad_token_id] = self.ignore_index
+            if self.tokenizer.cls_token_id is not None:
+                labels[labels == self.tokenizer.cls_token_id] = self.ignore_index
             batch["input_labels"] = labels
 
         elif task == 'mlm':
@@ -89,9 +79,6 @@ class BaseTokenizer:
             batch["properties"] = default_collate(properties)
             assert len(batch["properties"].shape) == 2 and isinstance(batch["properties"], torch.Tensor)
 
-        if self.set_separate_task_tokens:
-            batch = self.set_task_token(batch, task)
-
         return ModelInput(
             input_ids=batch["input_ids"],
             attention_mask=batch["attention_mask"],
@@ -99,30 +86,6 @@ class BaseTokenizer:
             input_labels=batch.get("input_labels", None),
             properties=batch.get("properties", None)
         )
-
-    def set_task_token(self, batch: dict, task: str) -> dict:
-        if task in ['prediction', 'physchem', 'mlm']:
-            task_token = TASK_TOKEN_DICT['prediction']
-        elif task == 'generation':
-            task_token = TASK_TOKEN_DICT['generation']
-        else:
-            raise ValueError('Variable `task` must be either `generation`, `mlm` or `prediction`.')
-        task_token_id = self.tokenizer.convert_tokens_to_ids(task_token)
-        return self._set_task_token(batch, task_token_id)
-
-    @staticmethod
-    def _set_task_token(batch: List[str], task_token_id: int) -> List[str]:
-        for key in batch.keys():
-            if key in ['input_ids', 'input_labels', 'attention_mask']:
-                if key == 'input_ids':
-                    fill_value = task_token_id
-                elif key == 'input_labels':
-                    fill_value = TOKEN_DICT['ignore']
-                else:
-                    fill_value = True
-                appended = torch.cat([torch.full(size=(batch[key].size(0), 1), fill_value=fill_value, dtype=batch[key].dtype), batch[key]], dim=1)
-                batch[key] = appended.contiguous()
-        return batch
         
     def mask_tokens(self, inputs: Any, special_tokens_mask: Optional[Any] = None) -> Tuple[Any, Any]:
         """
@@ -137,7 +100,7 @@ class BaseTokenizer:
         probability_matrix = torch.full(labels.shape, self.mlm_probability)
         if special_tokens_mask is None:
             special_tokens_mask = [
-                self.get_special_tokens_mask(val, already_has_special_tokens=True) for val in labels.tolist()
+                self.tokenizer.get_special_tokens_mask(val, already_has_special_tokens=True) for val in labels.tolist()
             ]
             special_tokens_mask = torch.tensor(special_tokens_mask, dtype=torch.bool)
         else:
