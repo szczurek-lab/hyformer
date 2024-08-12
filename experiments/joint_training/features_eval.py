@@ -13,21 +13,7 @@ from datetime import datetime
 import json
 from torch.utils.tensorboard import SummaryWriter
 from argparse import ArgumentParser, BooleanOptionalAction
-
-
-class NumpyDataset(Dataset):
-    def __init__(self, data_path, target_path) -> None:
-        super().__init__()
-        self.data = torch.from_numpy(np.load(data_path))
-        self.target = torch.from_numpy(np.load(target_path))
-        assert len(self.data) == len(self.target)
-
-    def __len__(self):
-        return len(self.data)
-    
-    def __getitem__(self, index):
-        return self.data[index], self.target[index]
-
+from torch.utils.data import TensorDataset
 
 def step(model: nn.Module,
          optimizer: Optimizer,
@@ -157,7 +143,7 @@ def eval_linear(args, train_loader, val_loader, test_loader, writer, ckpt_dir):
         "rmse": loss.sqrt().item(),
     }
 
-def eval_knn(args, train_dataset: NumpyDataset, val_dataset: NumpyDataset, test_dataset: NumpyDataset):
+def eval_knn(args, train_dataset: TensorDataset, val_dataset: TensorDataset, test_dataset: TensorDataset):
     best_loss = 1e8
     best_k = 3
     for k in tqdm([5,10,20,100,200], "[KNN] Choosing best k"):
@@ -176,9 +162,9 @@ def eval_knn(args, train_dataset: NumpyDataset, val_dataset: NumpyDataset, test_
     
 def main(args):
         
-    train_dataset = NumpyDataset(args.train_data_path, args.train_target_path)
-    val_dataset = NumpyDataset(args.val_data_path, args.val_target_path)
-    test_dataset = NumpyDataset(args.test_data_path, args.test_target_path)
+    train_dataset = TensorDataset(torch.from_numpy(np.load(args.train_data_path)), torch.from_numpy(np.load(args.train_target_path)))
+    val_dataset = TensorDataset(torch.from_numpy(np.load(args.val_data_path)), torch.from_numpy(np.load(args.val_target_path)))
+    test_dataset = TensorDataset(torch.from_numpy(np.load(args.test_data_path)), torch.from_numpy(np.load(args.test_target_path)))
     train_loader = DataLoader(train_dataset, args.batch_size, shuffle=True, num_workers=args.num_workers)
     val_loader = DataLoader(val_dataset, args.batch_size, shuffle=False, num_workers=args.num_workers)
     test_loader = DataLoader(test_dataset, args.batch_size, shuffle=False, num_workers=args.num_workers)
