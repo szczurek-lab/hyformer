@@ -25,7 +25,7 @@ class ModelOutput(dict):
 
     @property
     def global_embeddings(self):
-        _is_cls_token_embedding = True if self['cls_embeddings'] is not None and len(self['cls_embeddings']) == 2 else False
+        _is_cls_token_embedding = True if self['cls_embeddings'] is not None else False
         if _is_cls_token_embedding:
             return self['cls_embeddings']
         elif self['attention_mask'] is not None:
@@ -41,6 +41,4 @@ class ModelOutput(dict):
             return self.global_embeddings
         else:
             return super().__getitem__(key)
-    
-    
     
