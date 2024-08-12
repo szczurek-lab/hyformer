@@ -1,5 +1,6 @@
 from guacamol.assess_distribution_learning import DistributionMatchingGenerator
 from jointformer.models.base import SmilesEncoder
+from jointformer.models.defaults import DefaultSmilesEncoderWrapper
 import torch
 
 import torch.nn as nn
@@ -9,7 +10,7 @@ from typing import Optional
 
 from jointformer.models.transformer import Transformer
 from jointformer.utils.tokenizers.base import TOKEN_DICT
-from jointformer.models.utils import DefaultGuacamolModelWrapper
+from jointformer.models.defaults import DefaultSmilesGeneratorsWrapper
 from jointformer.models.trainable import TrainableModel
 from jointformer.models.layers.prediction import RegressionHead, ClassificationHead
 from jointformer.models.utils import ModelOutput
@@ -248,7 +249,7 @@ class Jointformer(Transformer, TrainableModel):
         return idx
 
     def to_guacamole_generator(self, tokenizer, batch_size, temperature, top_k, device) -> DistributionMatchingGenerator:
-        return DefaultGuacamolModelWrapper(self, tokenizer, batch_size, temperature, top_k, device)
+        return DefaultSmilesGeneratorsWrapper(self, tokenizer, batch_size, temperature, top_k, device)
 
     @classmethod
     def from_config(cls, config):
@@ -271,7 +272,7 @@ class Jointformer(Transformer, TrainableModel):
         )
 
     def to_guacamole_generator(self, tokenizer, batch_size, temperature, top_k, device) -> DistributionMatchingGenerator:
-        return DefaultGuacamolModelWrapper(self, tokenizer, batch_size, temperature, top_k, device)
+        return DefaultSmilesGeneratorsWrapper(self, tokenizer, batch_size, temperature, top_k, device)
     
     def to_smiles_encoder(self, tokenizer, batch_size, device) -> SmilesEncoder:
         return DefaultSmilesEncoderWrapper(self, tokenizer, batch_size, device)

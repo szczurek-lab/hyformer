@@ -10,7 +10,7 @@ from jointformer.utils.datasets.sequence import SequentialDataset
 from jointformer.utils.data import read_strings_from_file
 
 
-DEFAULT_DATA_SUBDIR = 'datasets/guacamol'
+DEFAULT_DATA_SUBDIR = 'data/guacamol'
 DATA_FILENAME = 'smiles.txt'
 
 GUACAMOL_URL = {
@@ -42,13 +42,16 @@ class GuacamolDataset(SequentialDataset):
         torch.save(target, target_filepath)
         
     @classmethod
-    def from_config(cls, config: DatasetConfig, split: Optional[str] = None, seed: Optional[int] = None, root: str = None):
+    def from_config(cls, config: DatasetConfig, split: Optional[str] = None, seed: Optional[int] = None, root: Optional[str] = None):
         
         # Set split
         if split is None:
             split = config.split
         else:
             raise ValueError("Provide a correct split value.")
+
+        if root is None:
+            root = "."
 
         # Download data and target
         data_filepath = os.path.join(root, DEFAULT_DATA_SUBDIR, split, DATA_FILENAME)

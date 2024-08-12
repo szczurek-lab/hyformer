@@ -1,7 +1,7 @@
 import os
 import json
 import copy
-
+from typing_extensions import Self
 from typing import Dict, Any
 
 
@@ -30,11 +30,11 @@ class Config:
         return copy.deepcopy(self.__dict__)
 
     @classmethod
-    def from_dict(cls, config_dict: Dict[str, Any]) -> 'Config':
+    def from_dict(cls, config_dict: Dict[str, Any]) -> Self:
         return cls(**config_dict)
 
     @classmethod
-    def from_config_file(cls, config_file_dir: str) -> 'Config':
+    def from_config_file(cls, config_file_dir: str) -> Self:
         config_path = os.path.join(config_file_dir, CONFIG_NAME)
         if not os.path.exists(config_path):
             raise FileNotFoundError(f"Configuration file {config_path} not found.")

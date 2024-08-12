@@ -1,7 +1,7 @@
 from argparse import ArgumentParser
-from jointformer.configs.task import TaskConfig
+from jointformer.configs.tokenizer import TokenizerConfig
 from jointformer.configs.model import ModelConfig
-from typing import Callable
+from jointformer.configs.dataset import DatasetConfig
 from jointformer.utils.tokenizers.auto import AutoTokenizer
 from jointformer.utils.datasets.auto import AutoDataset
 from jointformer.models.auto import AutoModel
@@ -12,13 +12,15 @@ import numpy as np
 from tqdm import tqdm
 from jointformer.models.base import SmilesEncoder
 import multiprocessing as mp
+from typing import Callable
 
 def get_parser():
     parser = ArgumentParser()
     parser.add_argument("--path_to_model_ckpt", type=str, required=True)
     parser.add_argument("--split", choices=["train", "test", "val"], required=True)
     parser.add_argument("--path_to_model_config", type=str, required=True)
-    parser.add_argument("--path_to_task_config", type=str, required=True)
+    parser.add_argument("--path_to_tokenizer_config", type=str, required=True)
+    parser.add_argument("--path_to_dataset_config", type=str, required=True)
     parser.add_argument("--output", type=str, required=True)
     parser.add_argument("--batch_size", type=int, default=64)
     parser.add_argument("--chunk_size", type=int, default=100000)
@@ -79,10 +81,18 @@ def extract_features(model: SmilesEncoder, data: list[str], output_path: str, ch
 def main(args):
     logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
     model_config = ModelConfig.from_config_file(args.path_to_model_config)
-    task_config = TaskConfig.from_config_file(args.path_to_task_config)
-    task_config.target_label = None
-    tokenizer = AutoTokenizer.from_config(task_config)
-    dataset = AutoDataset.from_config(task_config, args.split)
+    model = AutoModel.from_config(model_config)
+
+    tokenizer_config = TokenizerConfig.from_config_file(args.path_to_tokenizer_config)
+    tokenizer = AutoTokenizer.from_config(tokenizer_config)
+    
+    dataset_config = DatasetConfig.from_config_file(args.path_to_dataset_config)
+    dataset_config.target_label = None
+    dataset = AutoDataset.from_config(dataset_config, args.split)
+    
+    model.load_pretrained(args.path_to_model_ckpt)
+    model = model.to_smiles_encoder(tokenizer, args.batch_size, args.device)
+    
     def model_factory():
         model = AutoModel.from_config(model_config)
         model.load_pretrained(args.path_to_model_ckpt)
