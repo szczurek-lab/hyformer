@@ -1,6 +1,7 @@
 from argparse import ArgumentParser
-from jointformer.configs.task import TaskConfig
+from jointformer.configs.tokenizer import TokenizerConfig
 from jointformer.configs.model import ModelConfig
+from jointformer.configs.dataset import DatasetConfig
 
 from jointformer.utils.tokenizers.auto import AutoTokenizer
 from jointformer.utils.datasets.auto import AutoDataset
@@ -17,7 +18,8 @@ def get_parser():
     parser.add_argument("--path_to_model_ckpt", type=str, required=True)
     parser.add_argument("--split", choices=["train", "test"], required=True)
     parser.add_argument("--path_to_model_config", type=str, required=True)
-    parser.add_argument("--path_to_task_config", type=str, required=True)
+    parser.add_argument("--path_to_tokenizer_config", type=str, required=True)
+    parser.add_argument("--path_to_dataset_config", type=str, required=True)
     parser.add_argument("--output", type=str, required=True)
     parser.add_argument("--batch_size", type=int, default=64)
     parser.add_argument("--chunk_size", type=int, default=100000)
@@ -52,13 +54,17 @@ def extract_features(model: SmilesEncoder, data: list[str], output_path: str, ch
 def main(args):
     logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
     model_config = ModelConfig.from_config_file(args.path_to_model_config)
-    task_config = TaskConfig.from_config_file(args.path_to_task_config)
-    task_config.target_label = None
     model = AutoModel.from_config(model_config)
-    tokenizer = AutoTokenizer.from_config(task_config)
+
+    tokenizer_config = TokenizerConfig.from_config_file(args.path_to_tokenizer_config)
+    tokenizer = AutoTokenizer.from_config(tokenizer_config)
+    
+    dataset_config = DatasetConfig.from_config_file(args.path_to_dataset_config)
+    dataset_config.target_label = None
+    dataset = AutoDataset.from_config(dataset_config, args.split)
+    
     model.load_pretrained(args.path_to_model_ckpt)
     model = model.to_smiles_encoder(tokenizer, args.batch_size, args.device)
-    dataset = AutoDataset.from_config(task_config, args.split)
     
     extract_features(model, dataset.data, args.output, args.chunk_size)
 
