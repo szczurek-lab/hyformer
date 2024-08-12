@@ -53,12 +53,11 @@ class BaseTokenizer:
         raise NotImplementedError
 
     def __call__(self, x: Union[str, List[str], Tuple[str, torch.Tensor], List[Tuple[str, torch.Tensor]]], task: str) -> ModelInput:
-       
         if isinstance(x[0], tuple):
             data, properties = zip(*x)
         elif isinstance(x, tuple):
             data, properties = x[0], [x[1]]
-        elif isinstance(x, str):
+        elif isinstance(x, str) or (isinstance(x, list) and isinstance(x[0], str)):
             data = x
             properties = None
         else:

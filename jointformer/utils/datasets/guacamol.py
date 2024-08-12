@@ -25,7 +25,8 @@ class GuacamolDataset(SequentialDataset):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.target = self.target.squeeze(1) # TODO: delete __init__ - hotfix
+        if self.target is not None:
+            self.target = self.target.squeeze(1) # TODO: delete __init__ - hotfix
 
     @staticmethod
     def _download_data(data_filepath: str, split: str) -> None:

@@ -128,6 +128,8 @@ class SequentialDataset(BaseDataset):
             data = cls._load_data(data_filepath)
         if target_filepath is not None:
             target = cls._load_target(target_filepath, task_type)
+        else:
+            target = None
         
         return cls(
             data = data,
