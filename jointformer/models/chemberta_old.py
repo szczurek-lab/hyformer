@@ -8,7 +8,7 @@ from transformers import RobertaForSequenceClassification
 from guacamol.assess_distribution_learning import DistributionMatchingGenerator
 
 from jointformer.models.base import BaseModel
-from jointformer.models.utils import DefaultGuacamolModelWrapper
+from jointformer.models.wrappers import DefaultGuacamolModelWrapper
 from jointformer.configs.model import ModelConfig
 
 console = logging.getLogger(__name__)

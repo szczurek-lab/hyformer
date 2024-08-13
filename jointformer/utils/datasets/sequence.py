@@ -91,7 +91,7 @@ class SequentialDataset(BaseDataset):
         target_extension = target_filepath.split('.')[-1]
         if target_extension == 'pt':
             target = torch.load(target_filepath)
-        elif target_extension == 'npy' or target_extension == 'npz':
+        elif target_extension == 'npy':
             target = np.load(target_filepath)
             target = torch.from_numpy(target)
         else:

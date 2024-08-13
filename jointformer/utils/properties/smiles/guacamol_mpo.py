@@ -22,7 +22,7 @@ class GuacamolMPO(BaseTarget):
     """ Guacamol MPO targets.
     """
     
-    def _get_target(self, example: str, dtype: Optional[np.dtype] = GUACAMOL_MPO_DEFAULT_DTYPE) -> float:
+    def _get_target(self, example: str, dtype: Optional[np.dtype] = GUACAMOL_MPO_DEFAULT_DTYPE) -> np.ndarray:
         try: 
             target = np.array(list(map(lambda fn: fn.objective.score(example), GUACAMOL_MPO_TASK_FN.values())), dtype=dtype)
             target[target < 0] = np.nan
@@ -39,3 +39,6 @@ class GuacamolMPO(BaseTarget):
 
     def __str__(self):
         return "GuacamolMPO"
+    
+    def __len__(self):
+        return len(GUACAMOL_MPO_TASK_FN)

@@ -269,7 +269,7 @@ class Trainer:
         for _, batch in enumerate(self.test_loader):
             batch.to(self.device)
             with self.ctx:
-                outputs = self.model.predict(**batch)["y_pred"].cpu()
+                outputs = self.model.predict(**batch)["logits_prediction"].cpu()
             
             batch['properties'] = batch['properties'].cpu()
             if outputs.dtype != torch.float32:

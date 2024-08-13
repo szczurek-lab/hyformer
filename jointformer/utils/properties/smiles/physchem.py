@@ -1,5 +1,4 @@
 import numpy as np
-import torch
 
 from rdkit import Chem
 from rdkit.Chem.QED import qed
@@ -7,15 +6,14 @@ from jointformer.utils.properties.smiles.molbert.featurizer import PhysChemFeatu
 
 from jointformer.utils.properties.smiles.base import BaseTarget
 
-
 NORMALIZE = True
 
 
 class PhysChem(BaseTarget):
     """ PhysChem target. """
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.descriptor_set = 'all'
         self.num_physchem = 200
         self.descriptor_list = PhysChemFeaturizer.get_descriptor_subset(self.descriptor_set, self.num_physchem)
@@ -28,13 +26,13 @@ class PhysChem(BaseTarget):
 
     @property
     def target_names(self):
-        return ["physchem"]
+        return self.descriptor_list
 
     def __repr__(self):
-        return "PhysChem"
+        return f"Physicochemical properties: {self.descriptor_list}"
 
     def __str__(self):
-        return "PhysChem"
+        return f"Physicochemical properties: {self.descriptor_list}"
 
     def __len__(self):
         return 200
