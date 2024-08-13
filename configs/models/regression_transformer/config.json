@@ -1,0 +1,9 @@
+{
+    "model_name": "RegressionTransformer",
+    "algorithm_version": "qed",
+    "search": "sample",  
+    "temperature": 1.0, 
+    "tolerance": 100,
+    "fraction_to_mask": 0.4
+}
+  
