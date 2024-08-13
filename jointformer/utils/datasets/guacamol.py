@@ -25,8 +25,6 @@ class GuacamolDataset(SequentialDataset):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if self.target is not None:
-            self.target = self.target.squeeze(1) # TODO: delete __init__ - hotfix
 
     @staticmethod
     def _download_data(data_filepath: str, split: str) -> None:
@@ -43,29 +41,25 @@ class GuacamolDataset(SequentialDataset):
         torch.save(target, target_filepath)
         
     @classmethod
-    def from_config(cls, config: DatasetConfig, split: Optional[str] = None, seed: Optional[int] = None, root: Optional[str] = None):
+    def from_config(cls, config: DatasetConfig, split: Optional[str] = None, seed: Optional[int] = None, root: str = None, num_samples: Optional[int] = None):
         
-        # Set split
         if split is None:
             split = config.split
-        else:
-            raise ValueError("Provide a correct split value.")
+        
+        if num_samples is None:
+            num_samples = config.num_samples if config.num_samples is not None else ''  # treathed as None by os.path.join
 
-        if root is None:
-            root = "."
-
-        # Download data and target
-        data_filepath = os.path.join(root, DEFAULT_DATA_SUBDIR, split, DATA_FILENAME)
+        data_filepath = os.path.join(root, DEFAULT_DATA_SUBDIR, split, str(num_samples),'' if seed is None else f'seed_{seed}', DATA_FILENAME)
         if not os.path.exists(data_filepath):
             cls._download_data(data_filepath, split)
+
         if config.target_label is not None:
-            target_filepath = os.path.join(root, DEFAULT_DATA_SUBDIR, split, f"{config.target_label}.pt")
+            target_filepath = os.path.join(root, DEFAULT_DATA_SUBDIR, split, str(num_samples),'' if seed is None else f'seed_{seed}', f"{config.target_label}.npy")
             if not os.path.exists(target_filepath):
                 cls._download_target(data_filepath, target_filepath, config.target_label)
         else:
             target_filepath = None
         
-        # Init
         return cls._from_filepath(
             root=None,
             data_filepath=data_filepath,

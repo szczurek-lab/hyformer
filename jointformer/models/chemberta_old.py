@@ -8,7 +8,7 @@ from transformers import RobertaForSequenceClassification
 from guacamol.assess_distribution_learning import DistributionMatchingGenerator
 
 from jointformer.models.base import BaseModel
-from jointformer.models.defaults import DefaultSmilesGeneratorsWrapper
+from jointformer.models.wrappers import DefaultSmilesGeneratorWrapper
 from jointformer.configs.model import ModelConfig
 
 console = logging.getLogger(__name__)
@@ -20,7 +20,7 @@ class ChemBERTa(RobertaForSequenceClassification, BaseModel):
         self.from_pretrained(filename)
 
     def to_guacamole_generator(self, tokenizer, batch_size, temperature, top_k, device) -> DistributionMatchingGenerator:
-        return DefaultSmilesGeneratorsWrapper(self, tokenizer, batch_size, temperature, top_k, device)
+        return DefaultSmilesGeneratorWrapper(self, tokenizer, batch_size, temperature, top_k, device)
 
     def get_num_params(self):
         return self.num_parameters()

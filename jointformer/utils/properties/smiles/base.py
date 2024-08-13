@@ -1,36 +1,36 @@
 """ Base class for all properties. """
 
-import torch
-from tqdm import tqdm
+import sys
+import numpy as np
 
+from tqdm import tqdm
 from typing import List, Union
 
-DTYPE_OBJECTIVE = torch.float32
+from jointformer.utils.properties.smiles.utils import TorchConvertMixin
 
+class BaseTarget(TorchConvertMixin):
 
-class BaseTarget:
+    def __init__(self, dtype=None, verbose=True):
+        self.dtype = dtype if dtype is not None else 'pt'  # Default to torch.Tensor
+        self.verbose = verbose
 
-    def __init__(self, dtype=DTYPE_OBJECTIVE):
-        self.dtype = dtype
-
-    def __call__(self, examples: List[str], dtype='pt') -> Union[torch.Tensor, List[float]]:
+    def __call__(self, examples: List[str]) -> Union['torch.Tensor', np.ndarray]:
         targets = self.get_targets(examples)
-        if dtype == 'pt':
-            if not isinstance(targets, torch.Tensor):
-                targets = torch.Tensor(targets)
-            return targets.to(DTYPE_OBJECTIVE).unsqueeze(1)
-        else:
-            return targets
+        if self.dtype == 'pt':
+            return self.to_tensor(targets)
+        return targets
 
-    def get_targets(self, examples: Union[List[str], str]) -> List[float]:
+    def get_targets(self, examples: Union[List[str], str]) -> np.ndarray:
+
         if isinstance(examples, str):
             examples = [examples]
-        objective_values = []
-        for example in tqdm(examples, desc="Calculating target data"):
-            objective_values.append(self._get_target(example))
-        return objective_values
+        
+        targets = np.zeros(shape=(len(examples), len(self)), dtype=np.float32)  # initialize targets
+        for idx, example in enumerate(tqdm(examples, desc="Calculating target data", disable=(not self.verbose))):
+            targets[idx, :] = self._get_target(example)
+        return targets
 
-    def _get_target(self, example: str) -> float:
+    def _get_target(self, example: str) -> Union[float, np.ndarray]:
         raise NotImplementedError
 
     @property

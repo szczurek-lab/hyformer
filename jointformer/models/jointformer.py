@@ -10,7 +10,7 @@ from typing import Optional
 
 from jointformer.models.transformer import Transformer
 from jointformer.utils.tokenizers.base import TOKEN_DICT
-from jointformer.models.defaults import DefaultSmilesGeneratorsWrapper
+from jointformer.models.wrappers import DefaultSmilesGeneratorWrapper
 from jointformer.models.trainable import TrainableModel
 from jointformer.models.layers.prediction import RegressionHead, ClassificationHead
 from jointformer.models.utils import ModelOutput
@@ -46,6 +46,7 @@ class Jointformer(Transformer, TrainableModel):
             vocab_size=vocab_size, max_seq_len=max_seq_len, embedding_dim=embedding_dim, embedding_hidden_dim=embedding_hidden_dim, attention_dropout=attention_dropout,
             feed_forward_dropout=feed_forward_dropout, num_layers=num_layers, bias=bias, num_heads=num_heads, layer_norm_eps=layer_norm_eps
             )
+        
         # Hardcoding all tasks into the model definition for easier serialization
         self.prediction_task_type = prediction_task_type
         self.lm_head = nn.Linear(self.embedding_dim, self.vocab_size, bias=False)
@@ -90,18 +91,19 @@ class Jointformer(Transformer, TrainableModel):
             raise ValueError('Variable `task` must be either `generation`, `mlm`, `prediction` or `physchem`. Passed value: {}'.format(task))
         
         outputs = super().forward(input_ids=input_ids, attention_mask=_attention_mask, is_causal=_is_causal)
+        cls_embeddings = outputs['embeddings'][:, 0, :]
+        lm_embeddings = outputs['embeddings'][:, [-1], :] if next_token_only else outputs['embeddings']
         if _is_causal:
-            if next_token_only:
-                outputs["logits_generation"] = self.lm_head(outputs['embeddings'][:, [-1], :])
-            else:
-                outputs["logits_generation"] = self.lm_head(outputs["embeddings"])
+            outputs["logits_generation"] = self.lm_head(lm_embeddings)
         else:
-            outputs["logits_physchem"] = self.physchem_head(outputs['embeddings'][:, 0, :])
-            outputs["logits_prediction"] = self.prediction_head(outputs['embeddings'][:, 0, :])
+            outputs["logits_physchem"] = self.physchem_head(cls_embeddings)
+            outputs["logits_prediction"] = self.prediction_head(cls_embeddings)
 
         return ModelOutput(
             attention_mask=attention_mask,
             embeddings=outputs['embeddings'],
+            cls_embeddings=cls_embeddings,
+            lm_embeddings=lm_embeddings,
             logits_generation=outputs.get('logits_generation', None),
             logits_physchem=outputs.get('logits_physchem', None),
             logits_prediction=outputs.get('logits_prediction', None),
@@ -249,7 +251,7 @@ class Jointformer(Transformer, TrainableModel):
         return idx
 
     def to_guacamole_generator(self, tokenizer, batch_size, temperature, top_k, device) -> DistributionMatchingGenerator:
-        return DefaultSmilesGeneratorsWrapper(self, tokenizer, batch_size, temperature, top_k, device)
+        return DefaultSmilesGeneratorWrapper(self, tokenizer, batch_size, temperature, top_k, device)
 
     @classmethod
     def from_config(cls, config):
@@ -272,7 +274,7 @@ class Jointformer(Transformer, TrainableModel):
         )
 
     def to_guacamole_generator(self, tokenizer, batch_size, temperature, top_k, device) -> DistributionMatchingGenerator:
-        return DefaultSmilesGeneratorsWrapper(self, tokenizer, batch_size, temperature, top_k, device)
+        return DefaultSmilesGeneratorWrapper(self, tokenizer, batch_size, temperature, top_k, device)
     
     def to_smiles_encoder(self, tokenizer, batch_size, device) -> SmilesEncoder:
         return DefaultSmilesEncoderWrapper(self, tokenizer, batch_size, device)

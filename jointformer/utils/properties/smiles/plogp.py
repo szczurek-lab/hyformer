@@ -56,3 +56,6 @@ class PlogP(BaseTarget):
 
     def __str__(self):
         return "PenalizedLogP"
+    
+    def __len__(self):
+        return 1
