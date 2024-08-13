@@ -59,7 +59,8 @@ class ModelConfig(Config):
         self.predictor_num_heads = predictor_num_heads
         self.prediction_hidden_dim = prediction_hidden_dim
         self.set_separate_task_tokens = set_separate_task_tokens
-        self._post_init()
+        if self.model_name not in ["Moler"]:
+            self._post_init()
 
     def _post_init(self):
         assert self.embedding_dim % self.num_heads == 0, "Embedding dimension must be 0 modulo number of heads."

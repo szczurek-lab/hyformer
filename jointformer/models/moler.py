@@ -8,7 +8,7 @@ import torch
 import numpy as np
 from molecule_generation.utils.model_utils import load_vae_model_and_dataset
 from molecule_generation.utils.moler_inference_server import _encode_from_smiles
-
+import tensorflow as tf
 
 class Moler(BaseModel, DistributionMatchingGenerator, SmilesEncoder):
     def __init__(self) -> None:

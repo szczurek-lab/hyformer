@@ -1,12 +1,12 @@
 import torch
-import numpy as np
-
 from guacamol.assess_distribution_learning import DistributionMatchingGenerator
-from jointformer.models.base import SmilesEncoder, DistributionMatchingGenerator
-from jointformer.utils.tokenizers.auto import SmilesTokenizer
 from tqdm import tqdm
 from typing import List
-
+from jointformer.models.base import SmilesEncoder, DistributionMatchingGenerator
+from tqdm import tqdm
+from jointformer.utils.tokenizers.auto import SmilesTokenizer
+import numpy as np
+from jointformer.models.utils import ModelOutput
 
 class DefaultSmilesGeneratorWrapper(DistributionMatchingGenerator):
     def __init__(self, model, tokenizer, batch_size, temperature, top_k, device):
@@ -33,8 +33,8 @@ class DefaultSmilesGeneratorWrapper(DistributionMatchingGenerator):
                                         self._device)
             generated.extend(self._tokenizer.decode(samples))
         return generated[:number_samples]
-    
-    
+
+
 class DefaultSmilesEncoderWrapper(SmilesEncoder):
     def __init__(self, model, tokenizer, batch_size, device):
         self._model = model
@@ -52,7 +52,7 @@ class DefaultSmilesEncoderWrapper(SmilesEncoder):
             for k,v in batch_input.items():
                 if isinstance(v, torch.Tensor):
                     batch_input[k] = v.to(self._device)
-            output = model(**batch_input, is_causal=False)
-            embeddings.append(output["global_embedding"].detach().cpu().numpy())
+            output: ModelOutput = model(**batch_input, is_causal=False)
+            embeddings.append(output.global_embeddings.detach().cpu().numpy())
         ret = np.concatenate(embeddings, axis=0)
         return ret
