@@ -56,8 +56,8 @@ def parse_args():
     parser.add_argument("--path_to_model_ckpt", type=str, nargs='?')
     parser.add_argument("--num_epochs", type=int, default=DEFAULT_NUM_EPOCHS)
     parser.add_argument("--fraction_training_examples", type=float, default=1.)
-    parser.add_argument("--dry_run", default=False, action=argparse.BooleanOptionalAction)
     parser.add_argument("--prepare_data", default=False, action=argparse.BooleanOptionalAction)
+    parser.add_argument("--test", default=False, action=argparse.BooleanOptionalAction)
     args = parser.parse_args()
     return args
 
@@ -78,6 +78,13 @@ def main(args):
     model_config = ModelConfig.from_config_file(args.path_to_model_config)
     trainer_config = TrainerConfig.from_config_file(args.path_to_trainer_config)
     logger_config = LoggerConfig.from_config_file(args.path_to_logger_config) if args.path_to_logger_config else None
+
+    if args.test:
+        console.info("Running in test mode")
+        trainer_config.max_iters = 2
+        trainer_config.batch_size = 2
+        trainer_config.eval_iters = 1
+        trainer_config.log_interval = 1
 
     dump_configs(args.out_dir, dataset_config, tokenizer_config, model_config, trainer_config, logger_config)
     ###
@@ -114,14 +121,6 @@ def main(args):
         tokenizer=tokenizer,
         logger=logger
         )
-    trainer._init_data_loaders()
-    assert trainer.test_loader is not None
-    # max_iters_from_epochs = 1000
-    # # max_iters_from_epochs = int(len(train_dataset) / trainer_config.batch_size * trainer_config.max_epochs) + 1
-    # max_iters = min(max_iters_from_epochs, trainer_config.max_iters)
-    # trainer.max_iters = max_iters
-    # trainer.warmup_iters = int(0.1 * max_iters)
-    # trainer.lr_decay_iters = trainer.max_iters
     console.info(f"Max iters is set to: {trainer.max_iters}")
 
     try:
@@ -133,14 +132,11 @@ def main(args):
             console.info(f"Resuming pre-trained model from {args.path_to_model_ckpt}")
         else:
             console.info("Training from scratch")
-
-    if args.dry_run:
-        trainer.max_iters = 2
-        trainer.eval_iters = 2
     
     trainer.train()
 
-    trainer.resume_from_file(os.path.join(tmp_out_dir, 'ckpt.pt')) #reload best model
+    # reload best model
+    trainer.resume_from_file(os.path.join(tmp_out_dir, 'ckpt.pt')) 
     return trainer.test()
 
 
