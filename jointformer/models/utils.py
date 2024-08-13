@@ -1,9 +1,6 @@
 import torch
-<<<<<<< HEAD
-=======
 from typing import Any
 
->>>>>>> add-cls-embeddings
 
 class ModelInput(dict):
 
@@ -39,13 +36,9 @@ class ModelOutput(dict):
         else:
             return self['cls_embeddings'].mean(dim=-1)
     
-<<<<<<< HEAD
-    
-=======
     def __getitem__(self, key: Any) -> Any:
         if key == 'global_embeddings':
             return self.global_embeddings
         else:
             return super().__getitem__(key)
     
->>>>>>> add-cls-embeddings

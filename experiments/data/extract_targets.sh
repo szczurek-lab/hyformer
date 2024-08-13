@@ -1,17 +1,3 @@
-<<<<<<< HEAD
-splits=(train test val)
-
-target=$1
-
-for split in ${splits[@]}; do
-
-python3 experiments/data/extract_targets.py \
-        --target $target \
-        --output outputs/common/${split}/${target}.npy \
-        --data_path data/guacamol/${split}/smiles.txt \
-        --n_workers 32
-done
-=======
 #!/bin/bash
 
 splits=("train" "val" "test")
@@ -32,4 +18,3 @@ do
         --n_workers 32
   done
 done
->>>>>>> add-cls-embeddings
