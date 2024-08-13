@@ -1,4 +1,4 @@
-splits=(val) #(train test val)
+splits=(train test val)
 
 model=$1
 ckpt=$2

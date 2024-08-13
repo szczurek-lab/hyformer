@@ -53,6 +53,6 @@ class DefaultSmilesEncoderWrapper(SmilesEncoder):
                 if isinstance(v, torch.Tensor):
                     batch_input[k] = v.to(self._device)
             output: ModelOutput = model(**batch_input, is_causal=False)
-            embeddings.append(output.global_embedding.detach().cpu().numpy())
+            embeddings.append(output.global_embeddings.detach().cpu().numpy())
         ret = np.concatenate(embeddings, axis=0)
         return ret
