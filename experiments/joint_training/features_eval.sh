@@ -1,6 +1,7 @@
-models=(moler jointformer)
-targets=(plogp qed)
-evals=(eval_linear)
+models=(jointformer_lm_features jointformer_cls_features jointformer_old moler)
+#targets=()
+targets=(plogp qed amlodipine fexofenadine osimertinib perindopril sitagliptin ranolazine zaleplon)
+evals=(eval_linear eval_mlp)
 
 for model in ${models[@]}; do
     train_data_path="outputs/${model}/train/guacamol_v1_features.npy"
@@ -15,8 +16,7 @@ for model in ${models[@]}; do
         if [[ $target -eq "qed" ]]; then
             lr=0.001
         elif [[ $target -eq "plogp" ]]; then 
-            lr=0.0001
-            #lr=0.001
+            lr=0.001
         else
             lr=""
         fi
@@ -31,7 +31,8 @@ for model in ${models[@]}; do
             --output_dir=$output_dir \
             --target=$target \
             --lr=$lr \
-            --evals ${evals[@]}
+            --evals ${evals[@]} \
+            --epochs 0
 
 
     done

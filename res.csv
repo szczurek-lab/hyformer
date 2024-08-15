@@ -1,0 +1,13 @@
+,model,eval,plogp,qed,amlodipine,fexofenadine,osimertinib,perindopril,sitagliptin,ranolazine,zaleplon
+1,jointformer_lm_features,eval_knn,4.0231,0.2017,0.1713,0.2498,0.2564,0.1725,0.0269,0.1463,0.0895
+4,jointformer_cls_features,eval_knn,1.9597,0.0718,0.0414,0.1131,0.1201,0.021,0.0226,0.0609,0.0538
+7,jointformer_old,eval_knn,3.3403,0.1737,0.1259,0.2737,0.2467,0.141,0.0266,0.1268,0.0971
+10,moler,eval_knn,3.9488,0.2102,0.1465,0.165,0.1543,0.1062,0.026,0.1093,0.088
+0,jointformer_lm_features,eval_linear,3.4213,0.1106,0.1544,0.2263,0.2301,0.12,0.0266,0.1423,0.0925
+3,jointformer_cls_features,eval_linear,3.5186,0.1038,0.1544,0.2263,0.2301,0.12,0.0266,0.1423,0.0924
+6,jointformer_old,eval_linear,2.9386,0.101,0.1544,0.2263,0.2302,0.12,0.0266,0.1423,0.0924
+9,moler,eval_linear,3.4981,0.1134,0.1545,0.2264,0.2302,0.1202,0.027,0.1424,0.0925
+2,jointformer_lm_features,eval_mlp,1.645,0.0601,0.1545,0.2263,0.2302,0.12,0.0267,0.1423,0.0925
+5,jointformer_cls_features,eval_mlp,1.9792,0.0517,0.1544,0.2263,0.2302,0.1201,0.0266,0.1423,0.0925
+8,jointformer_old,eval_mlp,1.1778,0.0537,0.1544,0.2263,0.2302,0.12,0.0266,0.1423,0.0925
+11,moler,eval_mlp,1.9327,0.0536,0.1544,0.2263,0.2302,0.12,0.0266,0.1423,0.0925

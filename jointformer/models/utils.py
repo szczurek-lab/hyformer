@@ -26,15 +26,18 @@ class ModelOutput(dict):
     @property
     def global_embeddings(self):
         _is_cls_token_embedding = True if self['cls_embeddings'] is not None else False
-        if _is_cls_token_embedding:
+        if _is_cls_token_embedding and False:
             return self['cls_embeddings']
         elif self['attention_mask'] is not None:
-            w = self['attention_mask'] / self['attention_mask'].sum(dim=-1, keepdim=True)
+            attn_mask = self["attention_mask"]
+            if _is_cls_token_embedding:
+                attn_mask = attn_mask[:, 1:]
+            w = attn_mask / attn_mask.sum(dim=-1, keepdim=True)
             w = w.unsqueeze(-2)
-            global_embedding = w @ self['cls_embeddings']
+            global_embedding = w @ self['lm_embeddings']
             return global_embedding.squeeze(-2)
         else:
-            return self['cls_embeddings'].mean(dim=-1)
+            assert False
     
     def __getitem__(self, key: Any) -> Any:
         if key == 'global_embeddings':
