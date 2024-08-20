@@ -1,6 +1,4 @@
 {
-    "model_name": "RegressionTransformer",
-    "temperature": 1.0, 
-    "fraction_to_mask": 0.4
+    "model_name": "RegressionTransformer" 
 }
   

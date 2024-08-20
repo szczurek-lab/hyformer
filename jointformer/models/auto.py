@@ -35,8 +35,8 @@ class AutoModel:
         
         if config.model_name == "RegressionTransformer":
             return getattr(importlib.import_module(
-                "jointformer.models.moler"),
-                "Moler").from_config(config)
+                "jointformer.models.regression_transformer"),
+                "RegressionTransformer").from_config(config)
         
         else:
             raise ValueError(f"Model {config.model_name} not supported.")

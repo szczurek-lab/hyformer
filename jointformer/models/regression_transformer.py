@@ -32,11 +32,12 @@ class RegressionTransformer(BaseModel, DistributionMatchingGenerator, SmilesEnco
         self._target = None
         self._fraction_to_mask = None
 
-    def to_guacamole_generator(self, temperature, fraction_to_mask, device, target, *args, **kwargs) -> DistributionMatchingGenerator:
+    def to_guacamole_generator(self, temperature, fraction_to_mask, device, seed_dataset_file, *args, **kwargs) -> DistributionMatchingGenerator:
+        self._dataset = self._load_regression_transformer_dataset(seed_dataset_file)
         self._temperature = temperature
-        self._device = device
-        self._target = target
         self._fraction_to_mask = fraction_to_mask
+        self._seed_dataset_file = seed_dataset_file
+        self._device = device
         return self
     
     def to_smiles_encoder(self, tokenizer, batch_size, device) -> SmilesEncoder:
@@ -51,12 +52,12 @@ class RegressionTransformer(BaseModel, DistributionMatchingGenerator, SmilesEnco
         
         generator = RegressionTransformerGeneratorWrapper(
             configuration=RegressionTransformerMolecules(
-                algorithm_version=self._target,
+                algorithm_version=self._model,
                 search="sample",
                 temperature=self._temperature, 
                 tolerance=100,
                 sampling_wrapper={
-                    'property_goal': {'<qed>': seed_property}, 
+                    'property_goal': {'<qed>': seed_property},  # TODO: property_goal qed to be change
                     'fraction_to_mask': self._fraction_to_mask
                 }),
             target=seed_example)
@@ -73,16 +74,23 @@ class RegressionTransformer(BaseModel, DistributionMatchingGenerator, SmilesEnco
         return generated[:number_samples]
 
     def encode(self, smiles: list[str]) -> np.ndarray:
-        pass #TODO: implement
-        # rets = []
-        # for i in tqdm(range(0, len(smiles), self._batch_size), "Encoding samples"):
-        #     batch = smiles[i:i+self._batch_size]
-        #     enc = _encode_from_smiles(self._dataset, self._model, batch)
-        #     rets.extend(enc)
-        # return np.stack(rets, axis=0)
+        #pass #TODO: implement
+        rets = []
+        for i in tqdm(range(0, len(smiles), self._batch_size), "Encoding samples"):
+             batch = smiles[i:i+self._batch_size]
+             enc = self._encode_from_smiles(self._dataset, self._model, batch)
+             rets.extend(enc)
+        return np.stack(rets, axis=0)
 
     def load_pretrained(self, filename, *args, **kwargs):
-        self._dataset = self._load_regression_transformer_dataset(filename)
+        self._model = self._load_regression_transformer_model(filename)
+
+    @staticmethod
+    def _load_regression_transformer_model(filename):
+        if filename == 'qed':
+            return 'qed'
+        else:
+            raise NotImplementedError(f"Model {filename} not implemented")
 
     @staticmethod
     def _load_regression_transformer_dataset(filename):

@@ -19,6 +19,8 @@ class ModelConfig(Config):
         head_dim: Optional[int] = None,
         num_layers: Optional[int] = None,
         bias: Optional[bool] = None,
+        temperature: Optional[int] = None,
+        fraction_to_mask:Optional[float] = None,
         attention_dropout: Optional[float] = None,
         feed_forward_dropout: Optional[float] = None,
         prediction_dropout: Optional[float] = None,
@@ -44,6 +46,8 @@ class ModelConfig(Config):
         self.head_dim = head_dim
         self.num_layers = num_layers
         self.bias = bias
+        self.temperature = temperature
+        self.fraction_to_mask = fraction_to_mask
         self.attention_dropout = attention_dropout
         self.feed_forward_dropout = feed_forward_dropout
         self.prediction_dropout = prediction_dropout
@@ -59,7 +63,9 @@ class ModelConfig(Config):
         self.predictor_num_heads = predictor_num_heads
         self.prediction_hidden_dim = prediction_hidden_dim
         self.set_separate_task_tokens = set_separate_task_tokens
-        self._post_init()
+        if self.model_name not in ["Moler", "RegressionTransformer"]:
+            self._post_init()
+        
 
     def _post_init(self):
         assert self.embedding_dim % self.num_heads == 0, "Embedding dimension must be 0 modulo number of heads."
