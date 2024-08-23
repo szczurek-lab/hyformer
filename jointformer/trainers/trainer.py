@@ -402,17 +402,12 @@ class Trainer:
 
     @torch.no_grad()
     def generate(self, temperature=1.0, top_k=25):
-        generate_token_id = self.tokenizer.tokenizer.convert_tokens_to_ids('GEN') if self.tokenizer.set_separate_task_tokens else None
         samples = self.model.generate(
-            bos_token_id=self.tokenizer.tokenizer.cls_token_id,
-            eos_token_id=self.tokenizer.tokenizer.sep_token_id,
-            pad_token_id=self.tokenizer.tokenizer.pad_token_id,
-            input_length=self.model.max_seq_len,
+            tokenizer=self.tokenizer,
             batch_size=self.batch_size,
             temperature = temperature,
             top_k = top_k,
-            device = self.device,
-            generate_token_id = generate_token_id)
+            device = self.device)
         samples = self.tokenizer.decode(samples)
         return samples
 
