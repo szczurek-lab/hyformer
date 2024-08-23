@@ -138,7 +138,7 @@ class ChemBERTa(RobertaPreTrainedModel, BaseModel):
     def from_config(cls, config: ModelConfig) -> PreTrainedModel:
         roberta_config = RobertaConfig.from_pretrained(config.pretrained_filepath)
         roberta_config.num_labels = config.predictor_num_heads
-        return cls.from_pretrained(config.pretrained_filepath, config=roberta_config)
+        return cls.from_pretrained(config.pretrained_filepath, config=roberta_config, ignore_mismatched_sizes=True)
 
 
 class RobertaForSequenceClassification(ChemBERTa):
