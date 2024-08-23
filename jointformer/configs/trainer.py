@@ -26,6 +26,7 @@ class TrainerConfig(Config):
         always_save_checkpoint,
         save_checkpoint,
         save_checkpoint_every,
+        save_snapshot,
         eval_only,
         eval_interval,
         log_interval,
@@ -65,6 +66,7 @@ class TrainerConfig(Config):
         self.always_save_checkpoint = always_save_checkpoint
         self.save_checkpoint_every = save_checkpoint_every
         self.save_checkpoint = save_checkpoint
+        self.save_snapshot = save_snapshot
 
         # others
         self.block_size = block_size

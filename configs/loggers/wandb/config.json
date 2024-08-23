@@ -2,9 +2,9 @@
   "logger_name": "wandb",
   "enable_logging": true,
   "user": "adam-izdebski1",
-  "project": "jointformer-pretrain",
+  "project": "jointformer-pretrain-23082024",
   "resume": "allow",
   "display_name": null,
   "watch": true,
-  "watch_freq": 1000
+  "watch_freq": 2500
 }

@@ -87,6 +87,7 @@ class Trainer:
         self.always_save_checkpoint = config.always_save_checkpoint
         self.save_checkpoint = config.save_checkpoint
         self.save_checkpoint_every = config.save_checkpoint_every
+        self.save_snapshot = config.save_snapshot
         self.eval_only = config.eval_only
         self.eval_interval = config.eval_interval
         self.max_iters = config.max_iters
@@ -474,6 +475,7 @@ class Trainer:
                         + 
                         f" time {dt * 1000:.2f}ms, mfu {self._running_mfu * 100:.2f}%"
                         )
-                    self._save_ckpt(SNAPSHOT_FILENAME)
+                    if self.save_snapshot:
+                        self._save_ckpt(SNAPSHOT_FILENAME)
             self._iter_num += 1
             local_iter_num += 1
