@@ -19,8 +19,6 @@ class ModelConfig(Config):
         head_dim: Optional[int] = None,
         num_layers: Optional[int] = None,
         bias: Optional[bool] = None,
-        temperature: Optional[int] = None,
-        fraction_to_mask:Optional[float] = None,
         attention_dropout: Optional[float] = None,
         feed_forward_dropout: Optional[float] = None,
         prediction_dropout: Optional[float] = None,
@@ -46,8 +44,6 @@ class ModelConfig(Config):
         self.head_dim = head_dim
         self.num_layers = num_layers
         self.bias = bias
-        self.temperature = temperature
-        self.fraction_to_mask = fraction_to_mask
         self.attention_dropout = attention_dropout
         self.feed_forward_dropout = feed_forward_dropout
         self.prediction_dropout = prediction_dropout

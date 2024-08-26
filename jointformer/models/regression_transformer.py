@@ -88,19 +88,16 @@ class RegressionTransformer(BaseModel, DistributionMatchingGenerator, SmilesEnco
     def encode(self, smiles: list[str]) -> np.ndarray:
 
         rets = []
-        for i in tqdm(range(0, len(smiles), self._batch_size), "Encoding samples"):
+        for i in tqdm(range(0, len(smiles)), "Encoding samples"):
              #batch = smiles[i:i+self._batch_size]
-             batch = smiles
+             batch = smiles[i]
              enc = self._encode_from_smiles(self._model,batch,self._device)
              rets.extend(enc)
         return rets 
         #return np.stack(rets, axis=0)
 
     def load_pretrained(self, filename, *args, **kwargs):
-        if filename == 'qed':
-            self._model = self._load_regression_transformer_tokenizer_and_model(filename, self._device)
-        else:
-            self._tokenizer, self._model = self._load_regression_transformer_tokenizer_and_model(filename, self._device)
+        self._tokenizer, self._model = self._load_regression_transformer_tokenizer_and_model(filename, self._device)
     
     
     def _encode_from_smiles(self,model,smiles,device):
@@ -117,7 +114,7 @@ class RegressionTransformer(BaseModel, DistributionMatchingGenerator, SmilesEnco
     @staticmethod
     def _load_regression_transformer_tokenizer_and_model(filename, device):
         if filename == 'qed':
-            return 'qed'
+            return None, 'qed'
         
         else:
             _interface = ConditionalGenerator(resources_path=filename, device=device, tolerance=100)
