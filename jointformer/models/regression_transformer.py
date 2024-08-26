@@ -20,7 +20,7 @@ from gt4sd.algorithms.conditional_generation.regression_transformer.implementati
 from gt4sd.frameworks.torch import map_tensor_dict
  
 from jointformer.models.base import BaseModel, SmilesEncoder
-from jointformer.models.utils import InferenceRTWrapper
+
 
 
 class RegressionTransformer(BaseModel, DistributionMatchingGenerator, SmilesEncoder):
@@ -71,8 +71,10 @@ class RegressionTransformer(BaseModel, DistributionMatchingGenerator, SmilesEnco
                     'fraction_to_mask': self._fraction_to_mask
                 }),
             target=seed_example)
+        
         generation = generator.sample(1)
         generated_value = next(generation)
+
         return generated_value[0]
 
     @torch.no_grad()
@@ -84,26 +86,29 @@ class RegressionTransformer(BaseModel, DistributionMatchingGenerator, SmilesEnco
         return generated[:number_samples]
 
     def encode(self, smiles: list[str]) -> np.ndarray:
-        #pass #TODO: implement
 
         rets = []
         for i in tqdm(range(0, len(smiles), self._batch_size), "Encoding samples"):
              #batch = smiles[i:i+self._batch_size]
              batch = smiles
-             enc = self._encode_from_smiles(self._model,batch)
+             enc = self._encode_from_smiles(self._model,batch,self._device)
              rets.extend(enc)
-        return np.stack(rets, axis=0)
+        return rets 
+        #return np.stack(rets, axis=0)
 
     def load_pretrained(self, filename, *args, **kwargs):
-        self._tokenizer, self._model = self._load_regression_transformer_tokenizer_and_model(filename,self._device)
+        if filename == 'qed':
+            self._model = self._load_regression_transformer_tokenizer_and_model(filename, self._device)
+        else:
+            self._tokenizer, self._model = self._load_regression_transformer_tokenizer_and_model(filename, self._device)
     
     
-    def _encode_from_smiles(self,smiles,model):
+    def _encode_from_smiles(self,model,smiles,device):
         assert self._tokenizer is not None," Use load_pretrained to initialize the tokenizer"
         tokens = self._tokenizer(smiles)
         collator = collator = MaskedTextCollator(self._tokenizer)
         inputs = collator([tokens] * self.batch_size)
-        output = model(map_tensor_dict(inputs, self.device),output_hidden_states=True)
+        output = model(map_tensor_dict(inputs,device),output_hidden_states=True)
         final_hidden_state = output.hidden_states[-1]
         return final_hidden_state.detach().cpu().numpy()
 
@@ -113,6 +118,7 @@ class RegressionTransformer(BaseModel, DistributionMatchingGenerator, SmilesEnco
     def _load_regression_transformer_tokenizer_and_model(filename, device):
         if filename == 'qed':
             return 'qed'
+        
         else:
             _interface = ConditionalGenerator(resources_path=filename, device=device, tolerance=100)
             xlnet_model, config = _interface.load_model(resources_path=filename)
