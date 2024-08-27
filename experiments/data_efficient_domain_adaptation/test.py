@@ -47,7 +47,7 @@ def parse_args():
     parser.add_argument("--path_to_logger_config", type=str, nargs='?')
     parser.add_argument("--model_seed", type=int, required=True)
     parser.add_argument("--metric", type=str, required=True)
-    parser.add_argument("--remove_ckpt", default=False, action=argparse.BooleanOptionalAction)
+    parser.add_argument("--destroy_ckpt", default=False, action=argparse.BooleanOptionalAction)
     args = parser.parse_args()
     return args
 
@@ -79,7 +79,7 @@ def main(args):
 
     objective_metric = trainer.test(metric=args.metric)
     print(f"Test {args.metric}: {objective_metric}")
-    if args.remove_ckpt:
+    if args.destroy_ckpt:
         os.remove(path_to_model_ckpt)
     return objective_metric
 

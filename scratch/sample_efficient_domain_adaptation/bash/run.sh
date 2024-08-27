@@ -33,6 +33,7 @@ for dataset_name in "${dataset_names[@]}"; do
                --path_to_model_config configs/models/jointformer \
                --path_to_trainer_config configs/trainers/finetune \
                --model_seed $model_seed \
+               --remove
                --metric rmse
 
          done
