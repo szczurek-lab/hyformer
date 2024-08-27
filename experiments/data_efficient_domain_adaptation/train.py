@@ -50,7 +50,6 @@ def parse_args():
     parser.add_argument("--test", default=False, action=argparse.BooleanOptionalAction)
     parser.add_argument("--dataset_seed", type=int, required=True)
     parser.add_argument("--model_seed", type=int, required=True)
-    parser.add_argument("--num_epochs", type=int, required=True)
     args = parser.parse_args()
     return args
 
@@ -80,9 +79,9 @@ def main(args):
     train_dataset = AutoDataset.from_config(dataset_config, split='train', data_dir=args.data_dir)
     num_subsamples =  int(len(train_dataset) * args.fraction_train_dataset)
     train_dataset._subset(num_samples=num_subsamples, seed=args.dataset_seed)
+    console.info(f"Selected {len(train_dataset)} training examples")
     val_dataset = AutoDataset.from_config(dataset_config, split='val', data_dir=args.data_dir)
-    trainer_config.correct_for_num_train_examples(num_train_examples=len(train_dataset))
-    console.info(f"Selected Train: {len(train_dataset)} examples")
+    trainer_config.correct_for_num_train_examples(num_train_examples=len(train_dataset))  # adjust trainer config to dataset size
 
     tokenizer = AutoTokenizer.from_config(tokenizer_config)
     model = AutoModel.from_config(model_config)
@@ -95,13 +94,17 @@ def main(args):
         train_dataset=train_dataset, val_dataset=val_dataset, test_dataset=val_dataset,
         tokenizer=tokenizer, logger=logger)
 
-    return 0.0
+    if os.path.exists(args.path_to_model_ckpt):
+        trainer.resume_from_file(args.path_to_model_ckpt)
+        console.info(f"Resuming from {args.path_to_model_ckpt}")
 
-    assert os.isfile(args.path_to_model_ckpt), "Model checkpoint not found"
-    trainer.resume_from_file(args.path_to_model_ckpt)
     trainer.train()
+    
+    objective_metric = trainer.test()
+    print(f"Objective metric: {objective_metric}")
+    
+    return objective_metric
 
-    return trainer.test()
 
 if __name__ == "__main__":
     args = parse_args()

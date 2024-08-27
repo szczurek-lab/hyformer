@@ -257,10 +257,12 @@ class Trainer:
         return self.tokenizer(sampled, task=task)
 
     @torch.no_grad()
-    def test(self):
+    def test(self, metric: str = 'rmse'):
         
         self.model.eval()
-        criterion = nn.MSELoss(reduction='sum')
+        assert metric in ['rmse', 'mae'], f"Metric {metric} not supported."
+        
+        criterion = nn.MSELoss(reduction='sum') if metric == 'rmse' else nn.L1Loss(reduction='sum')
 
         if self.logger is not None:
             self.logger.init_run()
@@ -268,23 +270,26 @@ class Trainer:
         n = 0
         loss = 0.
         for _, batch in enumerate(self.test_loader):
+            properties = batch['properties']
             batch.to(self.device)
+            
             with self.ctx:
                 outputs = self.model.predict(**batch)["logits_prediction"].cpu()
             
-            batch['properties'] = batch['properties'].cpu()
             if outputs.dtype != torch.float32:
                 outputs = torch.tensor(outputs, dtype=torch.float32)
+
             if hasattr(self.test_dataset, '_target_transform'):
-                batch["properties"] = self.test_dataset.undo_target_transform(batch["properties"])
+                properties = self.test_dataset.undo_target_transform(properties)
                 outputs = self.test_dataset.undo_target_transform(outputs)
-            loss += criterion(batch["properties"], outputs)
+            
+            loss += criterion(properties, outputs)
             n += len(outputs)
         
-        test_metric = torch.sqrt(loss / n).item()
+        test_metric = torch.sqrt(loss / n).item() if metric == 'rmse' else (loss / n).item()
 
         if self.logger is not None:
-            self.logger.log({"test/rmse": test_metric})
+            self.logger.log({f"test/{metric}": test_metric})
             
         return test_metric
 

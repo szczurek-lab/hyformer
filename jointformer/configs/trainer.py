@@ -1,7 +1,8 @@
 import math
-
+import logging
 from jointformer.configs.base import Config
 
+console = logging.getLogger(__file__)
 
 class TrainerConfig(Config):
 
@@ -89,5 +90,6 @@ class TrainerConfig(Config):
             self.lr_decay_iters = self.max_iters
             self.eval_interval = num_iters_single_epoch
             self.log_interval = min(self.log_interval, self.eval_interval)
+            console.info(f"Corrected max iters to {self.max_iters}")
         else:
             raise ValueError("Argument `max epochs` not specified in config file.")
