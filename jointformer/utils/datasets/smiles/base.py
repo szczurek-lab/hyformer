@@ -9,7 +9,7 @@ import numpy as np
 from tqdm import tqdm
 from typing import List, Callable, Optional, Union
 
-from jointformer.configs.task import TaskConfig
+from jointformer.configs.dataset import DatasetConfig
 from jointformer.utils.datasets.base import BaseDataset
 from jointformer.utils.data import read_strings_from_file
 from jointformer.utils.chemistry import is_valid, standardize

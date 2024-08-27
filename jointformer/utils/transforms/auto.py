@@ -2,7 +2,6 @@ import importlib
 
 from torchvision import transforms
 from typing import Any, List
-from jointformer.configs.task import TaskConfig
 
 
 class AutoTransform:

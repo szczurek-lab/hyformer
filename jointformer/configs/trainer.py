@@ -26,13 +26,13 @@ class TrainerConfig(Config):
         always_save_checkpoint,
         save_checkpoint,
         save_checkpoint_every,
-        save_snapshot,
         eval_only,
         eval_interval,
         log_interval,
         max_iters,
         max_epochs,
-        tasks
+        tasks,
+        save_snapshot=False
     ):
         super().__init__()
 

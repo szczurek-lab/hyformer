@@ -5,7 +5,7 @@ import argparse
 
 from tqdm import tqdm
 
-from jointformer.configs.task import TaskConfig
+from jointformer.configs.dataset import DatasetConfig
 
 from jointformer.utils.datasets.auto import AutoDataset
 from jointformer.utils.tokenizers.smiles.regex import RegexSmilesTokenizer
@@ -25,9 +25,9 @@ def main():
 
     args = parse_args()
 
-    task_config = TaskConfig.from_config_file(args.path_to_task_config)
+    dataset_config = DatasetConfig.from_config_file(args.path_to_dataset_config)
 
-    dataset = AutoDataset.from_config(task_config, split='all')
+    dataset = AutoDataset.from_config(dataset_config, split='all')
     print(f"Number of SMILES strings: {len(dataset)}")
     tokenizer = RegexSmilesTokenizer()
 

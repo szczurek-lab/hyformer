@@ -5,7 +5,7 @@ from typing import List, Optional, Union, Callable
 
 import torch
 
-from jointformer.configs.task import TaskConfig
+from jointformer.configs.dataset import DatasetConfig
 from jointformer.utils.datasets.smiles.base import SmilesDataset
 from jointformer.utils.data import save_strings_to_file, read_strings_from_file
 from jointformer.utils.properties.auto import AutoTarget
@@ -81,7 +81,7 @@ class MosesDataset(SmilesDataset):
         return data_dir
 
     @classmethod
-    def from_config(cls, config: TaskConfig, split: str = None):
+    def from_config(cls, config: DatasetConfig, split: str = None):
 
         split = config.split if split is None else split
 
