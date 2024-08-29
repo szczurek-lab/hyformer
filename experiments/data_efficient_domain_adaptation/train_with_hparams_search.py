@@ -35,6 +35,26 @@ logging.captureWarnings(True)
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
+# Outputs directory
+OUTPUTS_DIR: 'hyperparam_tuning_data/hyperparam_tuning_output'
+
+# Path to hyperparameters grid in JSON format
+HYPERPARAMETERS_GRID_FILEPATH: 'hyperparam_tuning_data/example_hyperparameters_grid.json'
+
+# Here, setup fixed hyperparams for your training-evaluation procedure - single Optuna trial. Example hyperparams below
+NUM_FOLDS: 5
+NUM_EPOCHS: 10
+BATCH_SIZE: 4
+CROSS_VAL_VAL_SIZE: 0.2
+NUM_WORKERS: 1
+ACCELERATOR: "cpu"   # "gpu" or "tpu"
+
+# Setup hyperparams corresponding to actual model's hyperparameters search
+# Hyperparams for hyperparameter tuning
+OPTUNA_METRIC_DIRECTION: 'minimize'   # 'minimize' or 'maximize'
+OPTUNA_N_TRIALS: 2   # Number of trials to run
+OPTUNA_N_JOBS: 1   # Number of parallel jobs
+OPTUNA_SEED: 42
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -54,7 +74,12 @@ def parse_args():
     return args
 
 
-def main(args):
+def model_objective(trial, hyperparameters_grid, args):
+
+    hyperparams = get_hparam_search_space(trial, hyperparameters_grid)
+
+    # Example of how to access hyperparameters
+    current_learning_rate = hyperparams['learning_rate']
 
     # Load configs
     dataset_config = DatasetConfig.from_config_file(args.path_to_dataset_config)
@@ -63,6 +88,8 @@ def main(args):
     trainer_config = TrainerConfig.from_config_file(args.path_to_trainer_config)
     logger_config = LoggerConfig.from_config_file(args.path_to_logger_config) if args.path_to_logger_config else None
 
+
+    trainer_config.update(hyperparams) # print lr for sanit check return lr ** 2 - lr ** 4
     # Test
     if args.test:
         console.info("Running in test mode")
@@ -108,7 +135,26 @@ def main(args):
 
 if __name__ == "__main__":
     args = parse_args()
+
     if not os.path.exists(args.out_dir):
         os.makedirs(args.out_dir, exist_ok=False)
-    main(args)
+
+    if not os.path.exists(OUTPUTS_DIR):
+        os.makedirs(OUTPUTS_DIR)
+
+    # Create actual objective function using partial - pass in the hyperparameters grid
+    objective_func = partial(model_objective, hyperparameters_grid=hyperparameters_grid, args=args)
+
+    # Create a study object
+    study = optuna.create_study(direction=OPTUNA_METRIC_DIRECTION, 
+                                sampler=optuna.samplers.TPESampler(seed=OPTUNA_SEED))   # Default sampler is TPESampler, providing seed for reproducibility
+
+    # Start the hyperparameter tuning
+    study.optimize(objective_func, n_trials=OPTUNA_N_TRIALS, n_jobs=OPTUNA_N_JOBS)
+    study_df = study.trials_dataframe()
+
+    # Save study dataframe
+    study_df.to_csv(os.path.join(OUTPUTS_DIR, "study_results.csv"), index=False)
+    # Save best params
+    save_json(os.path.join(OUTPUTS_DIR, "best_params.json"), study.best_params)
            
