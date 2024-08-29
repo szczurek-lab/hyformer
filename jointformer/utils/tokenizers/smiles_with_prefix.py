@@ -44,12 +44,13 @@ class SmilesTokenizerWithPrefix(SmilesTokenizer):
     def _set_generation_prefix(self):
         self.generation_prefix = [self.prefix_token_id, self.tokenizer.cls_token_id]
 
-    def _init_tokenizer(self, path_to_vocabulary: str):
+    def _init_tokenizer(self, path_to_vocabulary: str, add_prefix_token: bool = True):
         super()._init_tokenizer(path_to_vocabulary)
-        self.tokenizer.add_special_tokens({'additional_special_tokens': [PREFIX_TOKEN_DICT['prefix']]})
+        if add_prefix_token:
+            self.tokenizer.add_special_tokens({'additional_special_tokens': [PREFIX_TOKEN_DICT['prefix']]})
 
     def _tokenize(self, data: Union[str, List[str]]):
-        prefix = [' ' for _ in range(len(data))]
+        prefix = [' ' for _ in range(len(data))] if isinstance(data, list) or isinstance(data, tuple) else ' '
         inputs = self.tokenizer(
             text=prefix, text_pair=data, truncation=True, padding='max_length', max_length=self.max_molecule_length,
             return_special_tokens_mask=True, return_token_type_ids=False, return_tensors='pt')

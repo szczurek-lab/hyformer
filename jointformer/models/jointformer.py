@@ -167,7 +167,6 @@ class Jointformer(Transformer, TrainableModel):
 
     def get_loss_physchem(self, input_ids: torch.Tensor, attention_mask:  torch.Tensor, properties: torch.Tensor, **kwargs):
         outputs = self.predict(input_ids=input_ids, attention_mask=attention_mask)
-        logits = outputs["logits_physchem"]
         if properties is not None:
             outputs["loss"] = F.mse_loss(outputs["logits_physchem"].flatten(), properties.flatten(), reduction='mean')
         return outputs
