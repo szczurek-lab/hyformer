@@ -93,6 +93,7 @@ class Trainer:
         self.max_iters = config.max_iters
         self.log_interval = config.log_interval
         self.tasks = config.tasks
+        self.eval_generation = config.eval_generation
 
         self._iter_num = 0
         self._best_val_loss = 1e9
@@ -145,7 +146,7 @@ class Trainer:
         self.task_distribution = Categorical(torch.Tensor(list(self.tasks.values())))
         self.tokens_per_iter = self.gradient_accumulation_steps * self.ddp_world_size * self.batch_size * self.block_size
 
-        if self.tokenizer is not None and hasattr(self.tokenizer, '__len__'):
+        if self.tokenizer is not None and hasattr(self.tokenizer, '__len__') and hasattr(self.model, 'vocab_size'):
             if len(self.tokenizer) != self.model.vocab_size:
                 raise ValueError(f"Tokenizer and model not compatible. Tokenizer is of length {len(self.tokenizer)}"
                                  f" while model expects vocab size {self.model.vocab_size}")
@@ -323,7 +324,7 @@ class Trainer:
                 else:
                     out[split]['combined'] = out[split][task]
 
-        if hasattr(self.model, 'calculate_perplexity'):
+        if hasattr(self.model, 'calculate_perplexity') and self.eval_generation:
             for split in splits:
                 out[split]['perplexity'] = {}
                 losses = torch.zeros(self.eval_iters)
@@ -334,7 +335,7 @@ class Trainer:
                     losses[k] = perplexity.mean()
                 out[split]['perplexity'] = losses.mean().item() if torch.nan not in losses else torch.nan
 
-        if hasattr(self.model, 'generate'):
+        if hasattr(self.model, 'generate') and self.eval_generation:
             for _ in range(self.eval_iters):
                 samples = []
                 samples.extend(self.generate())

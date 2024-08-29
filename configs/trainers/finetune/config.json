@@ -26,5 +26,6 @@
   "tasks":
     {
       "prediction": 1
-    }
+    },
+  "eval_generation": false
 }

@@ -3,7 +3,7 @@
 model_seeds=(1337)
 dataset_seeds=(0)
 fractions_train_dataset=(1.0)
-dataset_names=("freesolv")
+dataset_names=("lipo")
 python_test_script="experiments/data_efficient_domain_adaptation/test.py"
 results_aggregation_script="experiments/data_efficient_domain_adaptation/aggregate_results.py"
 

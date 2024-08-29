@@ -33,7 +33,8 @@ class TrainerConfig(Config):
         max_iters,
         max_epochs,
         tasks,
-        save_snapshot=False
+        save_snapshot=False,
+        eval_generation=True
     ):
         super().__init__()
 
@@ -68,6 +69,7 @@ class TrainerConfig(Config):
         self.save_checkpoint_every = save_checkpoint_every
         self.save_checkpoint = save_checkpoint
         self.save_snapshot = save_snapshot
+        self.eval_generation = eval_generation
 
         # others
         self.block_size = block_size
