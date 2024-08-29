@@ -7,8 +7,8 @@
 #SBATCH -p gpu_p
 #SBATCH --qos gpu_long
 
-#SBATCH --nodes=1                # node count
-#SBATCH --ntasks=2               # total number of tasks across all nodes    
+#SBATCH --nodes=1               
+#SBATCH --ntasks=1                   
 #SBATCH --cpus-per-task=8                                   
 #SBATCH --mem=20G                                           
 #SBATCH --gres=gpu:1                                        
