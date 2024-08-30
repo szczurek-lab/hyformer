@@ -9,9 +9,13 @@ import pandas as pd
 
 from typing import Any, Dict, Union
 from tqdm import tqdm
+from transformers import XLNetTokenizer
 from terminator.inference import InferenceRT
 from terminator.tokenization import InferenceBertTokenizer
 from terminator.collators import MaskedTextCollator, PropertyCollator
+from terminator.tokenization import ExpressionBertTokenizer
+from terminator.property_predictors import predict_qed
+from terminator.search import Search
 from guacamol.distribution_matching_generator import DistributionMatchingGenerator
 from guacamol.assess_distribution_learning import DistributionMatchingGenerator
 from gt4sd.algorithms.conditional_generation.regression_transformer import  RegressionTransformer as RegressionTransformerGeneratorWrapper
@@ -24,6 +28,7 @@ from jointformer.models.base import BaseModel, SmilesEncoder
 
 
 class RegressionTransformer(BaseModel, DistributionMatchingGenerator, SmilesEncoder):
+    search: Search
     def __init__(self) -> None:
         super().__init__()
         self._model: RegressionTransformerGeneratorWrapper = None
@@ -41,6 +46,8 @@ class RegressionTransformer(BaseModel, DistributionMatchingGenerator, SmilesEnco
         self._target = None
         self._fraction_to_mask = None
         self._tolerance = 100
+        self._interface = None
+        
 
     def to_guacamole_generator(self, temperature, fraction_to_mask, device, seed_dataset_file, *args, **kwargs) -> DistributionMatchingGenerator:
         self._dataset = self._load_regression_transformer_dataset(seed_dataset_file)
@@ -51,9 +58,8 @@ class RegressionTransformer(BaseModel, DistributionMatchingGenerator, SmilesEnco
         return self
     
     def to_smiles_encoder(self, tokenizer, batch_size, device) -> SmilesEncoder:
-        self._tokenizer = tokenizer
-        self._batch_size = batch_size
-        self._device = device # TODO: move to device
+        self._batch_size = 1  # supports only batch size = 1
+        self._device = device
         return self
 
     def _generate_single_example(self) -> str:
@@ -79,50 +85,76 @@ class RegressionTransformer(BaseModel, DistributionMatchingGenerator, SmilesEnco
 
     @torch.no_grad()
     def generate(self, number_samples: int):
+        assert self._model is not None, " Use load_pretrained to initialize the model"
         generated = []
         for _ in tqdm(range(0, number_samples), "Generating samples"):
             sample = self._generate_single_example()
             generated.append(sample)
         return generated[:number_samples]
-
+    
+    @torch.no_grad()
     def encode(self, smiles: list[str]) -> np.ndarray:
-
+        self._model.model.eval()
+        self._model.model.to(self._device)
         rets = []
         for i in tqdm(range(0, len(smiles)), "Encoding samples"):
-             #batch = smiles[i:i+self._batch_size]
              batch = smiles[i]
-             enc = self._encode_from_smiles(self._model,batch,self._device)
+             enc = self._encode_from_smiles(batch)
              rets.extend(enc)
-        return rets 
-        #return np.stack(rets, axis=0)
+        return np.vstack(rets)
+    
+    @torch.no_grad()
+    def predict(self, smiles: list[str]) -> np.ndarray:
+        self._model.model.eval()
+        self._model.model.to(self._device)
+        rets = []
+        for i in tqdm(range(0, len(smiles)), "Encoding samples"):
+             batch = smiles[i]
+             enc = self._predict_from_smiles(batch)
+             rets.extend(enc)
+        return np.vstack(rets)
 
     def load_pretrained(self, filename, *args, **kwargs):
-        self._tokenizer, self._model = self._load_regression_transformer_tokenizer_and_model(filename, self._device)
-    
-    
-    def _encode_from_smiles(self,model,smiles,device):
+            self._tokenizer, self._collator, self._interface, self._model = self._load_regression_transformer(filename, self._device)
+
+    def _predict_from_smiles(self, batch):
         assert self._tokenizer is not None," Use load_pretrained to initialize the tokenizer"
-        tokens = self._tokenizer(smiles)
-        collator = collator = MaskedTextCollator(self._tokenizer)
-        inputs = collator([tokens] * self.batch_size)
-        output = model(map_tensor_dict(inputs,device),output_hidden_states=True)
-        final_hidden_state = output.hidden_states[-1]
+        qed, _ = predict_qed(batch)
+        assert qed != -1, f"qed cannot be calculated for the following smiles : {batch}"
+        smiles = f'<qed>{qed}|{batch}'
+        sequence = self._interface.sample_sequence(smiles)
+        sequence = self._interface.normalize_sequence(sequence)   
+        tokens = self._tokenizer(sequence)
+        inputs = self._collator([tokens] * self._batch_size)
+        input_ids = inputs["input_ids"].cpu()
+        output = self._model(map_tensor_dict(inputs, self._device), output_hidden_states=True)
+        prediction = self.search(output["logits"].detach())
+        return self.compile_regression_result(input_ids, prediction)
+    
+    def _encode_from_smiles(self, batch):
+        assert self._tokenizer is not None," Use load_pretrained to initialize the tokenizer"
+        qed, _ = predict_qed(batch)
+        assert qed != -1, f"qed cannot be calculated for the following smiles : {batch}"
+        smiles = f'<qed>{qed}|{batch}'
+        sequence = self._interface.sample_sequence(smiles)
+        sequence = self._interface.normalize_sequence(sequence)   
+        tokens = self._tokenizer(sequence)
+        inputs = self._collator([tokens] * self._batch_size)
+        output = self._model(map_tensor_dict(inputs, self._device), output_hidden_states=True)
+        final_hidden_state = output.hidden_states[-1].mean(1) #taking the mean of the embeddings
         return final_hidden_state.detach().cpu().numpy()
 
 
-
     @staticmethod
-    def _load_regression_transformer_tokenizer_and_model(filename, device):
+    def _load_regression_transformer(filename, device):
         if filename == 'qed':
-            return None, 'qed'
-        
+            return  None, None, None, 'qed' 
         else:
-            _interface = ConditionalGenerator(resources_path=filename, device=device, tolerance=100)
-            xlnet_model, config = _interface.load_model(resources_path=filename)
-            tokenizer = InferenceBertTokenizer.from_pretrained(
-            resources_path =filename, pad_even=False)
-            
-            return tokenizer, InferenceRTWrapper(xlnet_model, tokenizer, config)
+            interface = ConditionalGenerator(resources_path=filename, device=device, tolerance=100.0)
+            xlnet_model, config = interface.load_model(resources_path=filename)
+            tokenizer = InferenceBertTokenizer.from_pretrained('/Users/pankhilgawade/.gt4sd/algorithms/conditional_generation/RegressionTransformer/RegressionTransformerMolecules/qed')
+            collator = MaskedTextCollator(tokenizer)
+            return tokenizer, collator, interface, InferenceRTWrapper(xlnet_model, tokenizer, config)
         
     @staticmethod
     def _load_regression_transformer_dataset(filename):
@@ -143,6 +175,7 @@ class RegressionTransformer(BaseModel, DistributionMatchingGenerator, SmilesEnco
     
 
 class InferenceRTWrapper(InferenceRT):
+
     def __call__(self, inputs: Dict[str, Union[torch.Tensor, Any]], output_hidden_states: bool = True) -> Dict[str, Union[torch.Tensor, Any]]:
         """
         Forward pass with additional handling for `output_hidden_states`.
@@ -167,6 +200,3 @@ class InferenceRTWrapper(InferenceRT):
             outputs = self.model(output_hidden_states=output_hidden_states, **inputs)
 
         return outputs
-
-
-
