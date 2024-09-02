@@ -15,7 +15,7 @@ from terminator.tokenization import InferenceBertTokenizer
 from terminator.collators import MaskedTextCollator, PropertyCollator
 from terminator.tokenization import ExpressionBertTokenizer
 from terminator.property_predictors import predict_qed
-from terminator.search import Search
+from terminator.search import SEARCH_FACTORY, Search
 from guacamol.distribution_matching_generator import DistributionMatchingGenerator
 from guacamol.assess_distribution_learning import DistributionMatchingGenerator
 from gt4sd.algorithms.conditional_generation.regression_transformer import  RegressionTransformer as RegressionTransformerGeneratorWrapper
@@ -28,7 +28,10 @@ from jointformer.models.base import BaseModel, SmilesEncoder
 
 
 class RegressionTransformer(BaseModel, DistributionMatchingGenerator, SmilesEncoder):
-    search: Search
+
+    search:Search
+
+    
     def __init__(self) -> None:
         super().__init__()
         self._model: RegressionTransformerGeneratorWrapper = None
@@ -37,12 +40,12 @@ class RegressionTransformer(BaseModel, DistributionMatchingGenerator, SmilesEnco
         self._tokenizer = None
         self._collator = None
         self._batch_size = None
+        self._search = None
         self._temperature = None
         self._top_k = None
         self._device = None
         self._tolerence  = None
         self._algorithm_version = None
-        self._search_strategy = None 
         self._target = None
         self._fraction_to_mask = None
         self._tolerance = 100
@@ -57,9 +60,10 @@ class RegressionTransformer(BaseModel, DistributionMatchingGenerator, SmilesEnco
         self._device = device
         return self
     
-    def to_smiles_encoder(self, tokenizer, batch_size, device) -> SmilesEncoder:
+    def to_smiles_encoder(self, tokenizer, batch_size, search, device) -> SmilesEncoder:
         self._batch_size = 1  # supports only batch size = 1
         self._device = device
+        self._search = SEARCH_FACTORY[search](temperature=1)
         return self
 
     def _generate_single_example(self) -> str:
@@ -108,7 +112,7 @@ class RegressionTransformer(BaseModel, DistributionMatchingGenerator, SmilesEnco
         self._model.model.eval()
         self._model.model.to(self._device)
         rets = []
-        for i in tqdm(range(0, len(smiles)), "Encoding samples"):
+        for i in tqdm(range(0, len(smiles)), "Predicting qed"):
              batch = smiles[i]
              enc = self._predict_from_smiles(batch)
              rets.extend(enc)
@@ -128,8 +132,9 @@ class RegressionTransformer(BaseModel, DistributionMatchingGenerator, SmilesEnco
         inputs = self._collator([tokens] * self._batch_size)
         input_ids = inputs["input_ids"].cpu()
         output = self._model(map_tensor_dict(inputs, self._device), output_hidden_states=True)
-        prediction = self.search(output["logits"].detach())
-        return self.compile_regression_result(input_ids, prediction)
+        #prediction = self.search(output["logits"].detach())
+        predictions = self._search(output["logits"].detach())
+        return self._interface.compile_regression_result(input_ids, predictions)
     
     def _encode_from_smiles(self, batch):
         assert self._tokenizer is not None," Use load_pretrained to initialize the tokenizer"
@@ -200,3 +205,6 @@ class InferenceRTWrapper(InferenceRT):
             outputs = self.model(output_hidden_states=output_hidden_states, **inputs)
 
         return outputs
+
+
+
