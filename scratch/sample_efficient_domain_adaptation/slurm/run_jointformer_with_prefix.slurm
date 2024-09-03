@@ -10,7 +10,7 @@
 #SBATCH --cpus-per-task=12                                   
 #SBATCH --mem=20G                                           
 #SBATCH --gres=gpu:1                                        
-#SBATCH --time=4:00:00                                    
+#SBATCH --time=2:00:00                                    
 
 #SBATCH --mail-type=begin                                   
 #SBATCH --mail-type=end                                     
@@ -40,22 +40,22 @@ for dataset_name in "${dataset_names[@]}"; do
             
             python "experiments/data_efficient_domain_adaptation/train.py" \
                --data_dir /lustre/groups/aih/jointformer/data \
-               --out_dir /lustre/groups/aih/jointformer/results/sample_efficient_domain_adaptation/jointformer/molecule_net/scaffold/$dataset_name/$fraction_train_dataset/$dataset_seed \
+               --out_dir /lustre/groups/aih/jointformer/results/sample_efficient_domain_adaptation/jointformer_with_prefix/molecule_net/scaffold/$dataset_name/$fraction_train_dataset/$dataset_seed \
                --path_to_dataset_config configs/datasets/molecule_net/scaffold/$dataset_name \
-               --path_to_tokenizer_config configs/tokenizers/smiles \
-               --path_to_model_config configs/models/jointformer \
+               --path_to_tokenizer_config configs/tokenizers/smiles_with_prefix \
+               --path_to_model_config configs/models/jointformer_with_prefix \
                --path_to_trainer_config configs/trainers/sample_efficient_domain_adaptation \
                --fraction_train_dataset $fraction_train_dataset \
                --dataset_seed $dataset_seed \
                --model_seed $model_seed \
-               --path_to_model_ckpt /lustre/groups/aih/jointformer/results/mood-experiments/pretrained/jointformer/ckpt.pt
+               --path_to_model_ckpt /lustre/groups/aih/jointformer/results/pre-train/3lm_psychem_long/prefix_token/cls_emb/bs_512/drop_0/seed_1337/ckpt.pt \
 
             python "experiments/data_efficient_domain_adaptation/test.py" \
                --data_dir /lustre/groups/aih/jointformer/data \
-               --out_dir /lustre/groups/aih/jointformer/results/sample_efficient_domain_adaptation/jointformer/molecule_net/scaffold/$dataset_name/$fraction_train_dataset/$dataset_seed \
+               --out_dir /lustre/groups/aih/jointformer/results/sample_efficient_domain_adaptation/jointformer_with_prefix/molecule_net/scaffold/$dataset_name/$fraction_train_dataset/$dataset_seed \
                --path_to_dataset_config configs/datasets/molecule_net/scaffold/$dataset_name \
-               --path_to_tokenizer_config configs/tokenizers/smiles \
-               --path_to_model_config configs/models/jointformer \
+               --path_to_tokenizer_config configs/tokenizers/smiles_with_prefix \
+               --path_to_model_config configs/models/jointformer_with_prefix \
                --path_to_trainer_config configs/trainers/sample_efficient_domain_adaptation \
                --model_seed $model_seed \
                --destroy_ckpt \
@@ -68,7 +68,7 @@ for dataset_name in "${dataset_names[@]}"; do
    echo "Aggregating results for $dataset_name dataset."
    
    python "experiments/data_efficient_domain_adaptation/aggregate_results.py" \
-      --out_dir /lustre/groups/aih/jointformer/results/sample_efficient_domain_adaptation/jointformer/molecule_net/scaffold/$dataset_name \
+      --out_dir /lustre/groups/aih/jointformer/results/sample_efficient_domain_adaptation/jointformer_with_prefix/molecule_net/scaffold/$dataset_name \
       --metric rmse
 
 done

@@ -31,7 +31,7 @@ logging.basicConfig(
     format=f'{gethostname()}, rank {int(os.environ.get("SLURM_PROCID", 0))}: %(asctime)s %(name)s %(levelname)s %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S',
 )
-logging.captureWarnings(True)
+logging.captureWarnings(False)
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 

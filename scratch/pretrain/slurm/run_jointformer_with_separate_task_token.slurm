@@ -7,20 +7,17 @@
 #SBATCH -p gpu_p
 #SBATCH --qos gpu_long
 
-#SBATCH --nodes=1               
-#SBATCH --ntasks=1                   
-#SBATCH --cpus-per-task=8                                   
+#SBATCH --cpus-per-task=12                                   
 #SBATCH --mem=20G                                           
 #SBATCH --gres=gpu:1                                        
-#SBATCH --time=96:00:00                                    
+#SBATCH --time=48:00:00                                     
 
 #SBATCH --mail-type=begin                                   
 #SBATCH --mail-type=end                                     
 #SBATCH --mail-type=fail                                    
 #SBATCH --mail-user=adam.izdebski@helmholtz-munich.de
 
-#SBATCH --nice=100                                        
-#SBATCH --reservation=res_adam.izdebski                       
+#SBATCH --nice=100                                                            
 
 
 source $HOME/.bashrc
