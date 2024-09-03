@@ -34,8 +34,10 @@ def step(model: nn.Module,
     loss_count = 0
 
     for i, (x, y) in tqdm(enumerate(loader), f"Epoch {epoch}"):
-        x = x.to(device)
-        y = y.to(device)
+        x: torch.Tensor = x.to(device)
+        y: torch.Tensor = y.to(device)
+        if len(y.shape) == 1:
+            y = y.unsqueeze(-1)
         with torch.set_grad_enabled(mode == "train"):
             output = model(x)
         loss = F.mse_loss(output, y)
@@ -196,9 +198,8 @@ def main(args):
 
     for eval_str in args.evals:
         path_prefix = os.path.join(args.output_dir, eval_str, args.target)
-        out_dir = os.path.join(path_prefix, os.listdir(path_prefix)[0])
-        #out_dir = os.path.join(path_prefix, "_".join(str(datetime.now()).split()))
-        #os.makedirs(out_dir, exist_ok=False)
+        out_dir = os.path.join(path_prefix, "_".join(str(datetime.now()).split()))
+        os.makedirs(out_dir, exist_ok=False)
         writer = SummaryWriter(out_dir)
         if eval_str == "eval_linear":
             ret = eval_linear(args, train_loader, val_loader, test_loader, writer, out_dir)

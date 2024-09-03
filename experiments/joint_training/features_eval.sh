@@ -13,14 +13,7 @@ for model in ${models[@]}; do
         val_target_path="outputs/common/val/${target}.npy"
         test_target_path="outputs/common/test/${target}.npy"
         output_dir="outputs/${model}/runs"
-        if [[ $target -eq "qed" ]]; then
-            lr=0.001
-        elif [[ $target -eq "plogp" ]]; then 
-            lr=0.001
-        else
-            lr=""
-        fi
-
+        
         python3 experiments/joint_training/features_eval.py \
             --train_data_path=$train_data_path \
             --val_data_path=$val_data_path \
@@ -30,10 +23,7 @@ for model in ${models[@]}; do
             --test_target_path=$test_target_path \
             --output_dir=$output_dir \
             --target=$target \
-            --lr=$lr \
             --evals ${evals[@]} \
-            --epochs 0
-
 
     done
 done
