@@ -1,9 +1,9 @@
 """Source: https://github.com/seyonechithrananda/bert-loves-chemistry/blob/master/chemberta/utils/roberta_regression.py#L138"""
 
-import math
-from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
 
+import numpy as np
+
+from tqdm import tqdm
 import torch
 import torch.nn as nn
 import torch.utils.checkpoint
@@ -20,16 +20,19 @@ import torch
 import logging
 import inspect
 
+from jointformer.models.utils import ModelOutput
+
 from typing import Optional
 from torch import nn
-from transformers import RobertaForSequenceClassification
-from guacamol.assess_distribution_learning import DistributionMatchingGenerator
 
-from jointformer.models.base import BaseModel
-from jointformer.models.utils import DefaultGuacamolModelWrapper
+from jointformer.models.trainable import TrainableModel
+
 from jointformer.configs.model import ModelConfig
 
+from jointformer.models.base import BaseModel, SmilesEncoder
+
 console = logging.getLogger(__name__)
+
 
 class ChemBERTa(RobertaPreTrainedModel, BaseModel):
 
@@ -38,20 +41,73 @@ class ChemBERTa(RobertaPreTrainedModel, BaseModel):
         self.num_labels = config.num_labels
         self.roberta = RobertaModel(config, add_pooling_layer=False)
     
-    def load_pretrained(self, filename: str):
-        self.from_pretrained(filename)
+    def forward(
+            self,
+            input_ids: torch.Tensor,
+            attention_mask: torch.Tensor,
+            **kwargs
+            ):
+        
+        outputs = self.roberta(
+            input_ids=input_ids, attention_mask=attention_mask, return_dict=True,
+            token_type_ids=None, position_ids=None, head_mask=None, inputs_embeds=None, output_attentions=None, output_hidden_states=True
+        )
 
-    def to_guacamole_generator(self, tokenizer, batch_size, temperature, top_k, device) -> DistributionMatchingGenerator:
-        return DefaultGuacamolModelWrapper(self, tokenizer, batch_size, temperature, top_k, device)
+        return ModelOutput(
+            attention_mask=attention_mask,
+            embeddings=outputs.hidden_states[-1],
+            cls_embeddings=outputs.last_hidden_state[:, 0, :]  # take <s> token (equiv. to [CLS])
+        )
+    
+    def get_loss(
+        self,
+        input_ids: Optional[torch.Tensor] = None,
+        attention_mask: Optional[torch.Tensor] = None,
+        properties: Optional[torch.Tensor] = None,
+        **kwargs
+    ):
+        return self.forward(input_ids=input_ids, attention_mask=attention_mask, properties=properties)
 
+    def to_guacamole_generator(self, tokenizer, batch_size, temperature, top_k, device) -> NotImplementedError:
+        raise NotImplementedError("ChemBERTa is not a valid generative model.")
+    
+    def to_smiles_encoder(self, tokenizer, batch_size, device) -> SmilesEncoder:
+        self._tokenizer = tokenizer
+        self._batch_size = batch_size
+        self._device = device
+        self.eval()
+        self.to(self._device)
+        return self
+    
+    @torch.no_grad
+    def encode(self, smiles: list[str]) -> np.ndarray:
+        """Source: https://github.com/valence-labs/mood-experiments/blob/30650c24f8518a05acd574664eec94bfaa04c047/mood/representations.py#L236 """
+        hidden_states = []
+        for i in tqdm(range(0, len(smiles), self._batch_size), "Encoding samples"):
+            batch = smiles[i:i+self._batch_size]
+            inputs = self._tokenizer(batch, task='prediction')
+            inputs.to(self._device)
+            outputs = self(**inputs)
+            h = [h_[mask].mean(0) for h_, mask in zip(outputs['embeddings'], inputs['attention_mask'])]
+            h = torch.stack(h)
+            h = h.cpu().numpy()
+            hidden_states.append(h)
+        hidden_states = np.concatenate(hidden_states, axis=0)
+        return hidden_states
+    
+    def load_pretrained(self, filename: str, from_hf: bool = False, map_location: str = 'cpu'):
+        if from_hf:
+            self.from_pretrained(filename)
+        else:
+            ckpt = torch.load(filename, map_location=map_location)
+            self.load_state_dict(ckpt)
+            del ckpt
+    
     def get_num_params(self):
         return self.num_parameters()
 
     def initialize_parameters(self): # Parameters are initialized upon initializing the class by HF constructor
         self.init_weights()
-
-    def estimate_mfu(self, fwdbwd_per_iter, dt):
-        return 0.0
 
     def configure_optimizers(self, weight_decay, learning_rate, betas, device_type):
         # start with all of the candidate parameters
@@ -80,16 +136,12 @@ class ChemBERTa(RobertaPreTrainedModel, BaseModel):
     
     @classmethod
     def from_config(cls, config: ModelConfig) -> PreTrainedModel:
-
         roberta_config = RobertaConfig.from_pretrained(config.pretrained_filepath)
         roberta_config.num_labels = config.predictor_num_heads
-        #roberta_config.hidden_size = config.predictor_hidden_size,
-        #roberta_config.hidden_dropout_prob = config.predictor_dropout,
-  
-        return cls.from_pretrained(config.pretrained_filepath, config=roberta_config)
+        return cls.from_pretrained(config.pretrained_filepath, config=roberta_config, ignore_mismatched_sizes=True)
 
 
-class RobertaForSequenceClassification(ChemBERTa, BaseModel):
+class RobertaForSequenceClassification(ChemBERTa):
     _keys_to_ignore_on_load_missing = ["position_ids"]
 
     def __init__(self, config):
@@ -99,159 +151,81 @@ class RobertaForSequenceClassification(ChemBERTa, BaseModel):
 
     def forward(
         self,
-        input_ids=None,
-        attention_mask=None,
-        token_type_ids=None,
-        position_ids=None,
-        head_mask=None,
-        inputs_embeds=None,
-        labels=None,
-        output_attentions=None,
-        output_hidden_states=None,
-        return_dict=None,
+        input_ids: torch.Tensor,
+        attention_mask: torch.Tensor,
+        properties: Optional[torch.Tensor] = None,
         **kwargs
-    ):
-        """
-        labels (:obj:`torch.LongTensor` of shape :obj:`(batch_size,)`, `optional`):
-            Labels for computing the sequence classification/regression loss. Indices should be in :obj:`[0, ...,
-            config.num_labels - 1]`. If :obj:`config.num_labels == 1` a regression loss is computed (Mean-Square loss),
-            If :obj:`config.num_labels > 1` a classification loss is computed (Cross-Entropy).
-        """
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
-        )
+        ):
+    
+        outputs = super().forward(input_ids=input_ids, attention_mask=attention_mask, **kwargs)
+        logits_prediction = self.regression(outputs['cls_embeddings'])
 
-        outputs = self.roberta(
-            input_ids,
-            attention_mask=attention_mask,
-            token_type_ids=token_type_ids,
-            position_ids=position_ids,
-            head_mask=head_mask,
-            inputs_embeds=inputs_embeds,
-            output_attentions=output_attentions,
-            output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
-        )
-        sequence_output = outputs[0]
-        logits = self.classifier(sequence_output)
+        if properties is not None:
+            loss_fct = MSELoss()
+            loss_fct = CrossEntropyLoss()
+            loss = loss_fct(logits_prediction.view(-1, self.num_labels), properties.long().view(-1))
+        else:
+            loss = None
 
-        if labels is None:
-            return logits
-
-        loss = None
-        if labels is not None:
-            if self.num_labels == 1:
-                #  We are doing regression
-                loss_fct = MSELoss()
-                loss = loss_fct(logits.view(-1), labels.view(-1))
-            else:
-                loss_fct = CrossEntropyLoss()
-                loss = loss_fct(
-                    logits.view(-1, self.num_labels), labels.long().view(-1)
-                )
-
-        if not return_dict:
-            output = (logits,) + outputs[2:]
-            return ((loss,) + output) if loss is not None else output
-
-        return SequenceClassifierOutput(
-            loss=loss,
-            logits=logits,
-            hidden_states=outputs.hidden_states,
-            attentions=outputs.attentions,
+        return ModelOutput(
+            attention_mask=outputs.get('attention_mask', None),
+            embeddings=outputs.get('embeddings', None),
+            cls_embeddings=outputs.get('cls_embeddings', None),
+            lm_embeddings=None,
+            logits_generation=outputs.get('logits_generation', None),
+            logits_physchem=outputs.get('logits_physchem', None),
+            logits_prediction=logits_prediction,
+            loss=loss
         )
 
 
-class RobertaForRegression(ChemBERTa, BaseModel):
+class RobertaForRegression(ChemBERTa):
     _keys_to_ignore_on_load_missing = ["position_ids"]
 
     def __init__(self, config):
         super().__init__(config)
         self.regression = RobertaRegressionHead(config)
         # self.init_weights()
-
-    def get_loss(
-            self,
-            input_ids: Optional[torch.Tensor] = None,
-            attention_mask: Optional[torch.Tensor] = None,
-            properties: Optional[torch.Tensor] = None,
-            **kwargs
-    ):
-        output = self.forward(input_ids=input_ids, attention_mask=attention_mask, labels=properties, return_dict=True)
-        return {
-            "loss": output.loss,
-            "Y_pred": output.logits,
-        }
-    
+        
     def predict(
             self,
             input_ids: Optional[torch.Tensor] = None,
             attention_mask: Optional[torch.Tensor] = None,
             **kwargs
     ):
+        """DEPRETICATED: Use forward instead."""
         output = self.forward(input_ids=input_ids, attention_mask=attention_mask,)
         return {
             "loss": None,
             "y_pred": output,
         }
-
+    
     def forward(
         self,
-        input_ids=None,
-        attention_mask=None,
-        token_type_ids=None,
-        position_ids=None,
-        head_mask=None,
-        inputs_embeds=None,
-        labels=None,
-        output_attentions=None,
-        output_hidden_states=None,
-        return_dict=None,
+        input_ids: torch.Tensor,
+        attention_mask: torch.Tensor,
+        properties: Optional[torch.Tensor] = None,
         **kwargs
-    ):
-        """
-        labels (:obj:`torch.LongTensor` of shape :obj:`(batch_size,)`, `optional`):
-            Labels for computing the sequence classification/regression loss. Indices should be in :obj:`[0, ...,
-            config.num_labels - 1]`. If :obj:`config.num_labels == 1` a regression loss is computed (Mean-Square loss),
-            If :obj:`config.num_labels > 1` a classification loss is computed (Cross-Entropy).
-        """
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
-        )
+        ):
+    
+        outputs = super().forward(input_ids=input_ids, attention_mask=attention_mask, **kwargs)
+        logits_prediction = self.regression(outputs['cls_embeddings'])
 
-        outputs = self.roberta(
-            input_ids,
-            attention_mask=attention_mask,
-            token_type_ids=token_type_ids,
-            position_ids=position_ids,
-            head_mask=head_mask,
-            inputs_embeds=inputs_embeds,
-            output_attentions=output_attentions,
-            output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
-        )
-
-        sequence_output = (
-            outputs.last_hidden_state
-        )  # shape = (batch, seq_len, hidden_size)
-        logits = self.regression(sequence_output)
-
-        if labels is None:
-            return logits
-
-        if labels is not None:
+        if properties is not None:
             loss_fct = MSELoss()
-            loss = loss_fct(logits.view(-1), labels.view(-1))
+            loss = loss_fct(logits_prediction.view(-1), properties.view(-1))
+        else:
+            loss = None
 
-            # if not return_dict:
-            #     output = (logits,) + outputs[2:]
-            #     return ((loss,) + output) if loss is not None else output
-
-        return RegressionOutput(
-            loss=loss,
-            logits=logits,
-            hidden_states=outputs.hidden_states,
-            attentions=outputs.attentions,
+        return ModelOutput(
+            attention_mask=outputs.get('attention_mask', None),
+            embeddings=outputs.get('embeddings', None),
+            cls_embeddings=outputs.get('cls_embeddings', None),
+            lm_embeddings=None,
+            logits_generation=outputs.get('logits_generation', None),
+            logits_physchem=outputs.get('logits_physchem', None),
+            logits_prediction=logits_prediction,
+            loss=loss
         )
     
 
@@ -264,9 +238,8 @@ class RobertaClassificationHead(nn.Module):
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.out_proj = nn.Linear(config.hidden_size, config.num_labels)
 
-    def forward(self, features, **kwargs):
-        x = features[:, 0, :]  # take <s> token (equiv. to [CLS])
-        x = self.dropout(x)
+    def forward(self, features, **kwargs): 
+        x = self.dropout(features)
         x = self.dense(x)
         x = torch.tanh(x)
         x = self.dropout(x)
@@ -284,66 +257,9 @@ class RobertaRegressionHead(nn.Module):
         self.out_proj = nn.Linear(config.hidden_size, config.num_labels)
 
     def forward(self, features, **kwargs):
-        x = features[:, 0, :]  # take <s> token (equiv. to [CLS])
-        x = self.dropout(x)
+        x = self.dropout(features)
         x = self.dense(x)
         x = torch.relu(x)
         x = self.dropout(x)
         x = self.out_proj(x)
         return x
-
-
-@dataclass
-class SequenceClassifierOutput(ModelOutput):
-    """
-    Base class for outputs of sentence classification models.
-
-    Args:
-        loss (:obj:`torch.FloatTensor` of shape :obj:`(1,)`, `optional`, returned when :obj:`labels` is provided):
-            Classification (or regression if config.num_labels==1) loss.
-        logits (:obj:`torch.FloatTensor` of shape :obj:`(batch_size, config.num_labels)`):
-            Classification (or regression if config.num_labels==1) scores (before SoftMax).
-        hidden_states (:obj:`tuple(torch.FloatTensor)`, `optional`, returned when ``output_hidden_states=True`` is passed or when ``config.output_hidden_states=True``):
-            Tuple of :obj:`torch.FloatTensor` (one for the output of the embeddings + one for the output of each layer)
-            of shape :obj:`(batch_size, sequence_length, hidden_size)`.
-
-            Hidden-states of the model at the output of each layer plus the initial embedding outputs.
-        attentions (:obj:`tuple(torch.FloatTensor)`, `optional`, returned when ``output_attentions=True`` is passed or when ``config.output_attentions=True``):
-            Tuple of :obj:`torch.FloatTensor` (one for each layer) of shape :obj:`(batch_size, num_heads,
-            sequence_length, sequence_length)`.
-
-            Attentions weights after the attention softmax, used to compute the weighted average in the self-attention
-            heads.
-    """
-
-    loss: Optional[torch.FloatTensor] = None
-    logits: torch.FloatTensor = None
-    hidden_states: Optional[Tuple[torch.FloatTensor]] = None
-    attentions: Optional[Tuple[torch.FloatTensor]] = None
-
-
-@dataclass
-class RegressionOutput(ModelOutput):
-    """
-    Base class for outputs of regression models. Supports single and multi-task regression.
-
-    Args:
-        loss (:obj:`torch.FloatTensor` of shape :obj:`(1,)`, `optional`, returned when :obj:`labels` is provided)
-        logits (:obj:`torch.FloatTensor` of shape :obj:`(batch_size, config.num_labels)`):
-            Regression scores for each task (before SoftMax).
-        hidden_states (:obj:`tuple(torch.FloatTensor)`, `optional`, returned when ``output_hidden_states=True`` is passed or when ``config.output_hidden_states=True``):
-            Tuple of :obj:`torch.FloatTensor` (one for the output of the embeddings + one for the output of each layer)
-            of shape :obj:`(batch_size, sequence_length, hidden_size)`.
-            Hidden-states of the model at the output of each layer plus the initial embedding outputs.
-        attentions (:obj:`tuple(torch.FloatTensor)`, `optional`, returned when ``output_attentions=True`` is passed or when ``config.output_attentions=True``):
-            Tuple of :obj:`torch.FloatTensor` (one for each layer) of shape :obj:`(batch_size, num_heads,
-            sequence_length, sequence_length)`.
-
-            Attentions weights after the attention softmax, used to compute the weighted average in the self-attention
-            heads.
-    """
-
-    loss: Optional[torch.FloatTensor] = None
-    logits: torch.FloatTensor = None
-    hidden_states: Optional[Tuple[torch.FloatTensor]] = None
-    attentions: Optional[Tuple[torch.FloatTensor]] = None

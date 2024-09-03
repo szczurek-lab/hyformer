@@ -1,5 +1,6 @@
 from guacamol.assess_distribution_learning import DistributionMatchingGenerator
 from jointformer.models.base import SmilesEncoder
+from jointformer.models.defaults import DefaultSmilesEncoderWrapper
 import torch
 
 import torch.nn as nn
@@ -9,10 +10,11 @@ from typing import Optional
 
 from jointformer.models.transformer import Transformer
 from jointformer.utils.tokenizers.base import TOKEN_DICT
-from jointformer.models.wrappers import DefaultGuacamolModelWrapper
+from jointformer.models.wrappers import DefaultSmilesGeneratorWrapper
 from jointformer.models.trainable import TrainableModel
 from jointformer.models.layers.prediction import RegressionHead, ClassificationHead
 from jointformer.models.utils import ModelOutput
+from jointformer.models.wrappers import DefaultSmilesEncoderWrapper
 
 
 DEFAULT_NUM_PHYCHEM_TASKS = 200
@@ -38,7 +40,7 @@ class Jointformer(Transformer, TrainableModel):
             num_physchem_tasks: Optional[int] = DEFAULT_NUM_PHYCHEM_TASKS,
             init_weights: bool = True,
             tie_weights: bool = True,
-            set_separate_task_tokens: bool = False
+            set_separate_task_tokens = False,
     ):
 
         super().__init__(
@@ -68,8 +70,6 @@ class Jointformer(Transformer, TrainableModel):
         # Weight initialization
         if init_weights:
             self.initialize_parameters()
-        
-        self.set_separate_task_tokens = set_separate_task_tokens
 
     def forward(
             self,
@@ -90,8 +90,8 @@ class Jointformer(Transformer, TrainableModel):
             raise ValueError('Variable `task` must be either `generation`, `mlm`, `prediction` or `physchem`. Passed value: {}'.format(task))
         
         outputs = super().forward(input_ids=input_ids, attention_mask=_attention_mask, is_causal=_is_causal)
-        cls_embeddings = outputs['embeddings'][:, 0, :]
-        lm_embeddings = outputs['embeddings'][:, [-1], :] if next_token_only else outputs['embeddings']
+        cls_embeddings = outputs['embeddings'][:, 0]
+        lm_embeddings = outputs['embeddings'][:, [-1]] if next_token_only else outputs['embeddings']
         if _is_causal:
             outputs["logits_generation"] = self.lm_head(lm_embeddings)
         else:
@@ -102,7 +102,7 @@ class Jointformer(Transformer, TrainableModel):
             attention_mask=attention_mask,
             embeddings=outputs['embeddings'],
             cls_embeddings=cls_embeddings,
-            lm_embeddings=lm_embeddings,
+            lm_embeddings=lm_embeddings[:, 1:],
             logits_generation=outputs.get('logits_generation', None),
             logits_physchem=outputs.get('logits_physchem', None),
             logits_prediction=outputs.get('logits_prediction', None),
@@ -133,13 +133,9 @@ class Jointformer(Transformer, TrainableModel):
 
     def get_loss_lm(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, input_labels: torch.Tensor, **kwargs):
         outputs = self(input_ids=input_ids, attention_mask=attention_mask, task='generation', next_token_only=False)
-        if input_labels is not None:
-            if self.set_separate_task_tokens:
-                logits = outputs['logits_generation'][:, 1:-1, :].contiguous()
-                labels = input_labels[:, 2:].contiguous() 
-            else:
-                logits = outputs['logits_generation'][:, :-1, :].contiguous()
-                labels = input_labels[:, 1:].contiguous()
+        if input_labels is not None: 
+            logits = outputs['logits_generation'][:, :-1, :].contiguous()
+            labels = input_labels[:, 1:].contiguous()
             batch_size, seq_length, vocab_size = logits.size()
             outputs["loss"] = F.cross_entropy(
                 logits.view(batch_size * seq_length, vocab_size),
@@ -250,7 +246,7 @@ class Jointformer(Transformer, TrainableModel):
         return idx
 
     def to_guacamole_generator(self, tokenizer, batch_size, temperature, top_k, device) -> DistributionMatchingGenerator:
-        return DefaultGuacamolModelWrapper(self, tokenizer, batch_size, temperature, top_k, device)
+        return DefaultSmilesGeneratorWrapper(self, tokenizer, batch_size, temperature, top_k, device)
 
     @classmethod
     def from_config(cls, config):
@@ -268,12 +264,11 @@ class Jointformer(Transformer, TrainableModel):
             prediction_hidden_dim=config.prediction_hidden_dim,
             num_prediction_tasks=config.num_prediction_tasks,
             num_physchem_tasks=config.num_physchem_tasks,
-            layer_norm_eps=config.layer_norm_eps,
-            set_separate_task_tokens=config.set_separate_task_tokens
+            layer_norm_eps=config.layer_norm_eps
         )
 
     def to_guacamole_generator(self, tokenizer, batch_size, temperature, top_k, device) -> DistributionMatchingGenerator:
-        return DefaultGuacamolModelWrapper(self, tokenizer, batch_size, temperature, top_k, device)
+        return DefaultSmilesGeneratorWrapper(self, tokenizer, batch_size, temperature, top_k, device)
     
     def to_smiles_encoder(self, tokenizer, batch_size, device) -> SmilesEncoder:
         return DefaultSmilesEncoderWrapper(self, tokenizer, batch_size, device)

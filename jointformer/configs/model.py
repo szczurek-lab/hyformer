@@ -59,19 +59,19 @@ class ModelConfig(Config):
         self.predictor_num_heads = predictor_num_heads
         self.prediction_hidden_dim = prediction_hidden_dim
         self.set_separate_task_tokens = set_separate_task_tokens
-        if self.model_name not in ["Moler", "RegressionTransformer"]:
+        if self.model_name not in ["Moler", "UniMol", "RegressionTransformer"]:
             self._post_init()
         
-
     def _post_init(self):
-        assert self.embedding_dim % self.num_heads == 0, "Embedding dimension must be 0 modulo number of heads."
-        if self.embedding_hidden_dim is None:
+        if self.embedding_dim is not None and self.num_heads is not None:
+            assert self.embedding_dim % self.num_heads == 0, "Embedding dimension must be 0 modulo number of heads."
+        if self.embedding_hidden_dim is None and self.embedding_dim is not None:
             self.embedding_hidden_dim = find_multiple(self.embedding_dim * EMBEDDING_DIM_HIDDEN_FACTOR, EMBEDDIND_DIM_MULTIPLE_OF)
-        if self.prediction_hidden_dim is None:
+        if self.prediction_hidden_dim is None and self.embedding_dim is not None:
             self.prediction_hidden_dim = self.embedding_dim
-        if self.num_local_heads is None:
+        if self.num_local_heads is None and self.num_heads is not None:
             self.num_local_heads = self.num_heads
-        if self.head_dim is None:
+        if self.head_dim is None and self.embedding_dim is not None and self.num_heads is not None:
             self.head_dim = self.embedding_dim // self.num_heads
         if self.max_seq_len is not None:
             self.max_seq_len = find_multiple(self.max_seq_len, 8)

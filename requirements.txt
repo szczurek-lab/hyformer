@@ -14,3 +14,5 @@ transformers
 wandb
 tensorflow==2.9.1
 molecule-generation
+unimol_tools
+huggingface_hub

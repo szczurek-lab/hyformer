@@ -3,8 +3,10 @@ from typing import List, Optional, Union
 
 from jointformer.utils.tokenizers.base import BaseTokenizer, TOKEN_DICT
 
+from transformers import AutoTokenizer
 
-class SmilesTokenizer(BaseTokenizer):
+
+class HFTokenizer(BaseTokenizer):
 
     def __init__(
         self,
@@ -22,21 +24,21 @@ class SmilesTokenizer(BaseTokenizer):
         )
 
     def _init_tokenizer(self, path_to_vocabulary: str):
-        self.tokenizer = DeepChemSmilesTokenizer(
-            vocab_file=path_to_vocabulary,
-            cls_token=TOKEN_DICT['cls'],
-            sep_token=TOKEN_DICT['sep'],
-            mask_token=TOKEN_DICT['mask'],
-            pad_token=TOKEN_DICT['pad'],
-            unk_token=TOKEN_DICT['unknown'])
+        self.tokenizer = AutoTokenizer.from_pretrained(path_to_vocabulary)
 
     def __len__(self):
         return len(self.tokenizer)
 
     def _tokenize(self, data: Union[str, List[str]]):
         return self.tokenizer(
-            data, truncation=True, padding='max_length', max_length=self.max_molecule_length,
-            return_special_tokens_mask=True, return_token_type_ids=False, return_tensors='pt')
+            data,
+            return_tensors="pt",
+            add_special_tokens=True,
+            truncation=True,
+            padding=True,
+            max_length=self.max_molecule_length,
+            return_special_tokens_mask=False
+        )
         
     @classmethod
     def from_config(cls, config):

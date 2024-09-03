@@ -1,7 +1,6 @@
 {
     "tokenizer": "HFTokenizer",
     "path_to_vocabulary": "DeepChem/SmilesTokenizer_PubChem_1M",
-    "max_molecule_length": 128,
-    "set_separate_task_tokens": false
+    "max_molecule_length": 128
   }
   

@@ -44,6 +44,7 @@ class Transformer(nn.Module):
             attention_mask: torch.Tensor,
             **kwargs
     ):
+        #assert False, (self.token_embedding, input_ids)
         x = self.token_embedding(input_ids)
         for _, layer in enumerate(self.layers):
             x = layer(x, is_causal=is_causal, mask=attention_mask)
@@ -51,7 +52,7 @@ class Transformer(nn.Module):
         return ModelOutput(embeddings=x, attention_mask=attention_mask)
 
     def load_pretrained(self, filename, device='cpu'):
-        state_dict = torch.load(filename, map_location=device)['model']
+        state_dict = torch.load(filename, map_location=device, weights_only=True)['model']
         unwanted_prefix = '_orig_mod.'  # compile
         for k, v in list(state_dict.items()):
             if k.startswith(unwanted_prefix):

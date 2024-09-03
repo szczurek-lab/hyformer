@@ -1,5 +1,4 @@
 from argparse import ArgumentParser
-from jointformer.configs.dataset import DatasetConfig
 from jointformer.configs.tokenizer import TokenizerConfig
 from jointformer.configs.model import ModelConfig
 
@@ -13,7 +12,6 @@ def get_parser():
     parser = ArgumentParser()
     parser.add_argument("--path_to_model_ckpt", type=str, required=True)
     parser.add_argument("--path_to_model_config", type=str, required=True)
-    parser.add_argument("--path_to_dataset_config", type=str, required=False)
     parser.add_argument("--path_to_tokenizer_config", type=str, required=False)
     parser.add_argument("--chembl_training_file", type=str, required=True)
     parser.add_argument("--output", type=str, required=True)
@@ -46,9 +44,8 @@ def main(args):
     assess_distribution_learning(model, args.chembl_training_file, args.output)
 
 
-
-
 if __name__ == "__main__":
     parser = get_parser()
     args = parser.parse_args()
     main(args)
+    
