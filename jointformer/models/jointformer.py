@@ -12,7 +12,7 @@ from jointformer.models.transformer import Transformer
 from jointformer.utils.tokenizers.base import TOKEN_DICT
 from jointformer.models.wrappers import DefaultSmilesGeneratorWrapper
 from jointformer.models.trainable import TrainableModel
-from jointformer.models.layers.prediction import RegressionHead, ClassificationHead, FinetuneHead
+from jointformer.models.layers.prediction import RegressionHead, ClassificationHead
 from jointformer.models.utils import ModelOutput
 from jointformer.models.wrappers import DefaultSmilesEncoderWrapper
 

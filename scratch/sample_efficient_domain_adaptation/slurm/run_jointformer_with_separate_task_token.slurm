@@ -27,7 +27,7 @@ conda activate jointformer-experiments
 
 model_seeds=(1337)
 dataset_seeds=(0 1 2)
-fractions_train_dataset=(0.01)
+fractions_train_dataset=(0.01 0.1 1.0)
 dataset_names=("lipo")
 jointformer="jointformer_separate_task_token"
 tokenizer="smiles_separate_task_token"
