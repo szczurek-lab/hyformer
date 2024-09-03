@@ -26,7 +26,7 @@ class ModelOutput(dict):
     @property
     def global_embeddings(self):
         _is_cls_token_embedding = True if self['cls_embeddings'] is not None else False
-        if _is_cls_token_embedding and False:
+        if _is_cls_token_embedding:
             return self['cls_embeddings']
         elif self['attention_mask'] is not None:
             attn_mask = self["attention_mask"]
