@@ -70,8 +70,6 @@ class Jointformer(Transformer, TrainableModel):
         # Weight initialization
         if init_weights:
             self.initialize_parameters()
-        
-        self.set_separate_task_tokens = set_separate_task_tokens
 
     def forward(
             self,

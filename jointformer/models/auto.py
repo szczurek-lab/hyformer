@@ -18,12 +18,12 @@ class AutoModel:
                 "jointformer.models.gpt"),
                 "GPT").from_config(config)
         
-        elif config.model_name == 'ChemBERTa' and config.prediction_task == 'classification':
+        elif config.model_name == 'ChemBERTa' and config.prediction_task_type == 'classification':
             return getattr(importlib.import_module(
                 "jointformer.models.chemberta"),
                 "RobertaForSequenceClassification").from_config(config)
         
-        elif config.model_name == 'ChemBERTa' and config.prediction_task == 'regression':
+        elif config.model_name == 'ChemBERTa' and config.prediction_task_type == 'regression':
             return getattr(importlib.import_module(
                 "jointformer.models.chemberta"),
                 "RobertaForRegression").from_config(config)

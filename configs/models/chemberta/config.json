@@ -4,5 +4,5 @@
   "predictor_hidden_size": 384,
   "predictor_dropout": 0.144,
   "predictor_num_heads": 1,
-  "prediction_task": "regression"
+  "prediction_task_type": "regression"
 }
