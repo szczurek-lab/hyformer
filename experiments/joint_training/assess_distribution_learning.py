@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
 from jointformer.configs.task import TaskConfig
+from jointformer.configs.tokenizer import TokenizerConfig
 from jointformer.configs.model import ModelConfig
 
 from jointformer.utils.tokenizers.auto import AutoTokenizer
@@ -12,7 +13,7 @@ def get_parser():
     parser = ArgumentParser()
     parser.add_argument("--path_to_model_ckpt", type=str, required=True)
     parser.add_argument("--path_to_model_config", type=str, required=True)
-    parser.add_argument("--path_to_task_config", type=str, required=True)
+    parser.add_argument("--path_to_tokenizer_config", type=str, required=True)
     parser.add_argument("--chembl_training_file", type=str, required=True)
     parser.add_argument("--output", type=str, required=True)
     parser.add_argument("--batch_size", type=int, default=64)
@@ -26,14 +27,12 @@ def main(args):
 
     logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
     model_config = ModelConfig.from_config_file(args.path_to_model_config)
-    task_config = TaskConfig.from_config_file(args.path_to_task_config)
+    tokenizer_config = TokenizerConfig.from_config_file(args.path_to_tokenizer_config)
     model = AutoModel.from_config(model_config)
-    tokenizer = AutoTokenizer.from_config(task_config)
+    tokenizer = AutoTokenizer.from_config(tokenizer_config)
     model.load_pretrained(args.path_to_model_ckpt)
     model = model.to_guacamole_generator(tokenizer, args.batch_size, args.temperature, args.top_k, args.device)
     assess_distribution_learning(model, args.chembl_training_file, args.output)
-
-
 
 
 if __name__ == "__main__":
