@@ -59,7 +59,7 @@ class ModelConfig(Config):
         self.predictor_num_heads = predictor_num_heads
         self.prediction_hidden_dim = prediction_hidden_dim
         self.set_separate_task_tokens = set_separate_task_tokens
-        if self.model_name not in ["Moler", "UniMol"]:
+        if self.model_name not in ["Moler", "UniMol", "MolGPT"]:
             self._post_init()
     def _post_init(self):
         if self.embedding_dim is not None and self.num_heads is not None:
