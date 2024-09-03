@@ -59,6 +59,7 @@ def parse_args():
 def main(args):
 
     assert torch.cuda.is_available(), "CUDA is not available"
+    set_seed(args.dataset_seed)
 
     # Configs
     dataset_config = DatasetConfig.from_config_file(args.path_to_dataset_config)
@@ -87,6 +88,7 @@ def main(args):
     # Dump configs
     dump_configs(args.out_dir, dataset_config, tokenizer_config, model_config, trainer_config, logger_config)
 
+    set_seed(args.model_seed)
     model = AutoModel.from_config(model_config)
     logger = AutoLogger.from_config(logger_config) if logger_config else None
     if logger is not None:

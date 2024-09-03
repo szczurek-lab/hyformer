@@ -67,6 +67,8 @@ def main(args):
     # Init
     test_dataset = AutoDataset.from_config(dataset_config, split='test', data_dir=args.data_dir)
     tokenizer = AutoTokenizer.from_config(tokenizer_config)
+
+    set_seed(args.model_seed)
     model = AutoModel.from_config(model_config)
     logger = AutoLogger.from_config(logger_config) if logger_config else None
     
