@@ -1,7 +1,7 @@
 #!/bin/bash
 
-splits=(train) #splits=("train" "val" "test")
-targets=(guacamol_mpo) #targets=("plogp" "qed" "guacamol_mpo" "physchem")
+splits=("train" "val" "test")
+targets=("plogp" "qed" "guacamol_mpo" "physchem")
 
 for split in "${splits[@]}"
 do
