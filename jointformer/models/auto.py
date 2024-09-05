@@ -33,6 +33,11 @@ class AutoModel:
                 "jointformer.models.moler"),
                 "Moler").from_config(config)
         
+        if config.model_name == "RegressionTransformer":
+            return getattr(importlib.import_module(
+                "jointformer.models.regression_transformer"),
+                "RegressionTransformer").from_config(config)
+        
         if config.model_name == "UniMol":
             return getattr(importlib.import_module(
                 "jointformer.models.unimol"),
