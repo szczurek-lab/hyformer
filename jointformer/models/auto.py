@@ -42,6 +42,11 @@ class AutoModel:
             return getattr(importlib.import_module(
                 "jointformer.models.unimol"),
                 "UniMol").from_config(config)
+        
+        if config.model_name == "MolGPT":
+            return getattr(importlib.import_module(
+                "jointformer.models.molgpt"),
+                "MolGPT").from_config(config)
             
         else:
             raise ValueError(f"Model {config.model_name} not supported.")

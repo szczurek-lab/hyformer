@@ -1,6 +1,5 @@
 
 from jointformer.models.base import BaseModel, SmilesEncoder
-from molecule_generation.models.moler_vae import MoLeRVae
 import os
 import shutil
 from tqdm import tqdm
