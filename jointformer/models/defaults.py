@@ -45,14 +45,11 @@ class DefaultSmilesEncoderWrapper(SmilesEncoder):
     def encode(self, smiles: list[str]) -> np.ndarray:
         self._model.eval()
         model = self._model.to(self._device)
-        embeddings = []
+        embeddings = np.zeros((len(smiles), model.embedding_dim))
         for i in tqdm(range(0, len(smiles), self._batch_size), "Encoding samples"):
             batch = smiles[i:i+self._batch_size]
-            batch_input = self._tokenizer(batch, task="prediction")
-            for k,v in batch_input.items():
-                if isinstance(v, torch.Tensor):
-                    batch_input[k] = v.to(self._device)
-            output: ModelOutput = model(**batch_input, is_causal=False)
-            embeddings.append(output.global_embeddings.detach().cpu().numpy())
-        ret = np.concatenate(embeddings, axis=0)
-        return ret
+            model_input = self._tokenizer(batch, task="prediction")
+            model_input.to(self._device)
+            output: ModelOutput = model(**model_input)
+            embeddings[i:i+self._batch_size] = output.global_embeddings.detach().cpu().numpy()
+        return embeddings

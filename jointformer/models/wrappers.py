@@ -23,14 +23,7 @@ class DefaultSmilesGeneratorWrapper(DistributionMatchingGenerator):
         self._model.eval()
         model = self._model.to(self._device)
         for _ in tqdm(range(0, number_samples, self._batch_size), "Generating samples"):
-            samples = model.generate(self._tokenizer.tokenizer.cls_token_id,
-                                        self._tokenizer.tokenizer.sep_token_id,
-                                        self._tokenizer.tokenizer.pad_token_id,
-                                        self._tokenizer.max_molecule_length,
-                                        self._batch_size,
-                                        self._temperature,
-                                        self._top_k,
-                                        self._device)
+            samples = model.generate(self._tokenizer, self._batch_size, self._temperature, self._top_k, self._device)
             generated.extend(self._tokenizer.decode(samples))
         return generated[:number_samples]
     
@@ -42,6 +35,7 @@ class DefaultSmilesEncoderWrapper(SmilesEncoder):
         self._batch_size = batch_size
         self._device = device
 
+    @torch.no_grad()
     def encode(self, smiles: list[str]) -> np.ndarray:
         self._model.eval()
         model = self._model.to(self._device)
@@ -53,6 +47,6 @@ class DefaultSmilesEncoderWrapper(SmilesEncoder):
                 if isinstance(v, torch.Tensor):
                     batch_input[k] = v.to(self._device)
             output = model(**batch_input, is_causal=False)
-            embeddings.append(output["global_embeddings"].detach().cpu().numpy())
+            embeddings.append(output["global_embeddings"].cpu().numpy())
         ret = np.concatenate(embeddings, axis=0)
         return ret
