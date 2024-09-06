@@ -239,12 +239,12 @@ class Jointformer(Transformer, TrainableModel):
         return idx
 
     def to_guacamole_generator(self, tokenizer, batch_size, temperature, top_k, device) -> 'DistributionMatchingGenerator':
-        from jointformer.models.wrappers import DefaultSmilesGeneratorWrapper
-        return DefaultSmilesGeneratorWrapper(self, tokenizer, batch_size, temperature, top_k, device)
+        from jointformer.models.wrappers import JointformerSmilesGeneratorWrapper
+        return JointformerSmilesGeneratorWrapper(self, tokenizer, batch_size, temperature, top_k, device)
 
     def to_smiles_encoder(self, tokenizer, batch_size, device) -> SmilesEncoder:
-        from jointformer.models.defaults import DefaultSmilesEncoderWrapper
-        return DefaultSmilesEncoderWrapper(self, tokenizer, batch_size, device)
+        from jointformer.models.wrappers import JointformerSmilesEncoderWrapper
+        return JointformerSmilesEncoderWrapper(self, tokenizer, batch_size, device)
 
     def load_pretrained(self, filename, device='cpu'):
         super().load_pretrained(filename, device=device)
