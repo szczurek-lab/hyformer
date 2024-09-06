@@ -1,5 +1,5 @@
 {
-  "model_name": "Jointformer",
+  "model_name": "JointformerWithPrefix",
   "bias": false,
   "attention_dropout": 0.0,
   "feed_forward_dropout": 0.0,

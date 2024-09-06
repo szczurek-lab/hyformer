@@ -1,0 +1,336 @@
+No normalization for SPS. Feature removed!
+No normalization for AvgIpc. Feature removed!
+Skipped loading modules with pytorch-geometric dependency, missing a dependency. No module named 'torch_geometric'
+Skipped loading modules with pytorch-geometric dependency, missing a dependency. cannot import name 'DMPNN' from 'deepchem.models.torch_models' (/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/site-packages/deepchem/models/torch_models/__init__.py)
+Skipped loading modules with pytorch-lightning dependency, missing a dependency. No module named 'lightning'
+Skipped loading some Jax models, missing a dependency. No module named 'jax'
+Some weights of RobertaForRegression were not initialized from the model checkpoint at DeepChem/ChemBERTa-77M-MLM and are newly initialized: ['regression.dense.bias', 'regression.dense.weight', 'regression.out_proj.bias', 'regression.out_proj.weight']
+You should probably TRAIN this model on a down-stream task to be able to use it for predictions and inference.
+Traceback (most recent call last):
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 300, in _run_finalizers
+    finalizer()
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 224, in __call__
+    res = self._callback(*self._args, **self._kwargs)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 133, in _remove_temp_dir
+    rmtree(tempdir)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 740, in rmtree
+    onerror(os.rmdir, path, sys.exc_info())
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 738, in rmtree
+    os.rmdir(path)
+OSError: [Errno 39] Directory not empty: '/tmp/pymp-kqq8axu7'
+Traceback (most recent call last):
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 300, in _run_finalizers
+    finalizer()
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 224, in __call__
+    res = self._callback(*self._args, **self._kwargs)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 133, in _remove_temp_dir
+    rmtree(tempdir)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 740, in rmtree
+    onerror(os.rmdir, path, sys.exc_info())
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 738, in rmtree
+    os.rmdir(path)
+OSError: [Errno 39] Directory not empty: '/tmp/pymp-brmp07uh'
+Traceback (most recent call last):
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 300, in _run_finalizers
+    finalizer()
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 224, in __call__
+    res = self._callback(*self._args, **self._kwargs)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 133, in _remove_temp_dir
+    rmtree(tempdir)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 740, in rmtree
+    onerror(os.rmdir, path, sys.exc_info())
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 738, in rmtree
+    os.rmdir(path)
+OSError: [Errno 39] Directory not empty: '/tmp/pymp-9pj7yznh'
+Traceback (most recent call last):
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 300, in _run_finalizers
+    finalizer()
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 224, in __call__
+    res = self._callback(*self._args, **self._kwargs)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 133, in _remove_temp_dir
+    rmtree(tempdir)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 740, in rmtree
+    onerror(os.rmdir, path, sys.exc_info())
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 738, in rmtree
+    os.rmdir(path)
+OSError: [Errno 39] Directory not empty: '/tmp/pymp-bvnc3g0g'
+Traceback (most recent call last):
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 300, in _run_finalizers
+    finalizer()
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 224, in __call__
+    res = self._callback(*self._args, **self._kwargs)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 133, in _remove_temp_dir
+    rmtree(tempdir)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 740, in rmtree
+    onerror(os.rmdir, path, sys.exc_info())
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 738, in rmtree
+    os.rmdir(path)
+OSError: [Errno 39] Directory not empty: '/tmp/pymp-siy9hiks'
+Traceback (most recent call last):
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 300, in _run_finalizers
+    finalizer()
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 224, in __call__
+    res = self._callback(*self._args, **self._kwargs)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 133, in _remove_temp_dir
+    rmtree(tempdir)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 740, in rmtree
+    onerror(os.rmdir, path, sys.exc_info())
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 738, in rmtree
+    os.rmdir(path)
+OSError: [Errno 39] Directory not empty: '/tmp/pymp-7j9i7c3y'
+Traceback (most recent call last):
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 300, in _run_finalizers
+    finalizer()
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 224, in __call__
+    res = self._callback(*self._args, **self._kwargs)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 133, in _remove_temp_dir
+    rmtree(tempdir)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 740, in rmtree
+    onerror(os.rmdir, path, sys.exc_info())
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 738, in rmtree
+    os.rmdir(path)
+OSError: [Errno 39] Directory not empty: '/tmp/pymp-ugdqsgw9'
+Traceback (most recent call last):
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 300, in _run_finalizers
+    finalizer()
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 224, in __call__
+    res = self._callback(*self._args, **self._kwargs)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 133, in _remove_temp_dir
+    rmtree(tempdir)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 740, in rmtree
+    onerror(os.rmdir, path, sys.exc_info())
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 738, in rmtree
+    os.rmdir(path)
+OSError: [Errno 39] Directory not empty: '/tmp/pymp-x7sc6cha'
+Traceback (most recent call last):
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 300, in _run_finalizers
+    finalizer()
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 224, in __call__
+    res = self._callback(*self._args, **self._kwargs)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 133, in _remove_temp_dir
+    rmtree(tempdir)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 740, in rmtree
+    onerror(os.rmdir, path, sys.exc_info())
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 738, in rmtree
+    os.rmdir(path)
+OSError: [Errno 39] Directory not empty: '/tmp/pymp-yt_dpuqe'
+Traceback (most recent call last):
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 300, in _run_finalizers
+    finalizer()
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 224, in __call__
+    res = self._callback(*self._args, **self._kwargs)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 133, in _remove_temp_dir
+    rmtree(tempdir)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 740, in rmtree
+    onerror(os.rmdir, path, sys.exc_info())
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 738, in rmtree
+    os.rmdir(path)
+OSError: [Errno 39] Directory not empty: '/tmp/pymp-zgw6ydep'
+Traceback (most recent call last):
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 300, in _run_finalizers
+    finalizer()
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 224, in __call__
+    res = self._callback(*self._args, **self._kwargs)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 133, in _remove_temp_dir
+    rmtree(tempdir)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 740, in rmtree
+    onerror(os.rmdir, path, sys.exc_info())
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 738, in rmtree
+    os.rmdir(path)
+OSError: [Errno 39] Directory not empty: '/tmp/pymp-3mkrmjv8'
+Traceback (most recent call last):
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 300, in _run_finalizers
+    finalizer()
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 224, in __call__
+    res = self._callback(*self._args, **self._kwargs)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 133, in _remove_temp_dir
+    rmtree(tempdir)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 740, in rmtree
+    onerror(os.rmdir, path, sys.exc_info())
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 738, in rmtree
+    os.rmdir(path)
+OSError: [Errno 39] Directory not empty: '/tmp/pymp-bklfwex6'
+Traceback (most recent call last):
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 300, in _run_finalizers
+    finalizer()
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 224, in __call__
+    res = self._callback(*self._args, **self._kwargs)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 133, in _remove_temp_dir
+    rmtree(tempdir)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 740, in rmtree
+    onerror(os.rmdir, path, sys.exc_info())
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 738, in rmtree
+    os.rmdir(path)
+OSError: [Errno 39] Directory not empty: '/tmp/pymp-38ghlo2a'
+Traceback (most recent call last):
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 300, in _run_finalizers
+    finalizer()
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 224, in __call__
+    res = self._callback(*self._args, **self._kwargs)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 133, in _remove_temp_dir
+    rmtree(tempdir)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 740, in rmtree
+    onerror(os.rmdir, path, sys.exc_info())
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 738, in rmtree
+    os.rmdir(path)
+OSError: [Errno 39] Directory not empty: '/tmp/pymp-ldkzok1r'
+Traceback (most recent call last):
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 300, in _run_finalizers
+    finalizer()
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 224, in __call__
+    res = self._callback(*self._args, **self._kwargs)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 133, in _remove_temp_dir
+    rmtree(tempdir)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 740, in rmtree
+    onerror(os.rmdir, path, sys.exc_info())
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 738, in rmtree
+    os.rmdir(path)
+OSError: [Errno 39] Directory not empty: '/tmp/pymp-hwj5rl_n'
+No normalization for SPS. Feature removed!
+No normalization for AvgIpc. Feature removed!
+Skipped loading modules with pytorch-geometric dependency, missing a dependency. No module named 'torch_geometric'
+Skipped loading modules with pytorch-geometric dependency, missing a dependency. cannot import name 'DMPNN' from 'deepchem.models.torch_models' (/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/site-packages/deepchem/models/torch_models/__init__.py)
+Skipped loading modules with pytorch-lightning dependency, missing a dependency. No module named 'lightning'
+Skipped loading some Jax models, missing a dependency. No module named 'jax'
+Some weights of RobertaForRegression were not initialized from the model checkpoint at DeepChem/ChemBERTa-77M-MLM and are newly initialized: ['regression.dense.bias', 'regression.dense.weight', 'regression.out_proj.bias', 'regression.out_proj.weight']
+You should probably TRAIN this model on a down-stream task to be able to use it for predictions and inference.
+No normalization for SPS. Feature removed!
+No normalization for AvgIpc. Feature removed!
+Skipped loading modules with pytorch-geometric dependency, missing a dependency. No module named 'torch_geometric'
+Skipped loading modules with pytorch-geometric dependency, missing a dependency. cannot import name 'DMPNN' from 'deepchem.models.torch_models' (/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/site-packages/deepchem/models/torch_models/__init__.py)
+Skipped loading modules with pytorch-lightning dependency, missing a dependency. No module named 'lightning'
+Skipped loading some Jax models, missing a dependency. No module named 'jax'
+Some weights of RobertaForRegression were not initialized from the model checkpoint at DeepChem/ChemBERTa-77M-MLM and are newly initialized: ['regression.dense.bias', 'regression.dense.weight', 'regression.out_proj.bias', 'regression.out_proj.weight']
+You should probably TRAIN this model on a down-stream task to be able to use it for predictions and inference.
+Traceback (most recent call last):
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 300, in _run_finalizers
+    finalizer()
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 224, in __call__
+    res = self._callback(*self._args, **self._kwargs)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 133, in _remove_temp_dir
+    rmtree(tempdir)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 740, in rmtree
+    onerror(os.rmdir, path, sys.exc_info())
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 738, in rmtree
+    os.rmdir(path)
+OSError: [Errno 39] Directory not empty: '/tmp/pymp-8b1ci_px'
+Traceback (most recent call last):
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 300, in _run_finalizers
+    finalizer()
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 224, in __call__
+    res = self._callback(*self._args, **self._kwargs)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 133, in _remove_temp_dir
+    rmtree(tempdir)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 740, in rmtree
+    onerror(os.rmdir, path, sys.exc_info())
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 738, in rmtree
+    os.rmdir(path)
+OSError: [Errno 39] Directory not empty: '/tmp/pymp-zkzffg2r'
+Traceback (most recent call last):
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 300, in _run_finalizers
+    finalizer()
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 224, in __call__
+    res = self._callback(*self._args, **self._kwargs)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 133, in _remove_temp_dir
+    rmtree(tempdir)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 740, in rmtree
+    onerror(os.rmdir, path, sys.exc_info())
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 738, in rmtree
+    os.rmdir(path)
+OSError: [Errno 39] Directory not empty: '/tmp/pymp-2datwmmq'
+Traceback (most recent call last):
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 300, in _run_finalizers
+    finalizer()
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 224, in __call__
+    res = self._callback(*self._args, **self._kwargs)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 133, in _remove_temp_dir
+    rmtree(tempdir)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 740, in rmtree
+    onerror(os.rmdir, path, sys.exc_info())
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 738, in rmtree
+    os.rmdir(path)
+OSError: [Errno 39] Directory not empty: '/tmp/pymp-oz863fxg'
+Traceback (most recent call last):
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 300, in _run_finalizers
+    finalizer()
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 224, in __call__
+    res = self._callback(*self._args, **self._kwargs)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 133, in _remove_temp_dir
+    rmtree(tempdir)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 740, in rmtree
+    onerror(os.rmdir, path, sys.exc_info())
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 738, in rmtree
+    os.rmdir(path)
+OSError: [Errno 39] Directory not empty: '/tmp/pymp-b3huw7s6'
+Traceback (most recent call last):
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 300, in _run_finalizers
+    finalizer()
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 224, in __call__
+    res = self._callback(*self._args, **self._kwargs)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 133, in _remove_temp_dir
+    rmtree(tempdir)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 740, in rmtree
+    onerror(os.rmdir, path, sys.exc_info())
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 738, in rmtree
+    os.rmdir(path)
+OSError: [Errno 39] Directory not empty: '/tmp/pymp-rato3bm9'
+Traceback (most recent call last):
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 300, in _run_finalizers
+    finalizer()
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 224, in __call__
+    res = self._callback(*self._args, **self._kwargs)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 133, in _remove_temp_dir
+    rmtree(tempdir)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 740, in rmtree
+    onerror(os.rmdir, path, sys.exc_info())
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 738, in rmtree
+    os.rmdir(path)
+OSError: [Errno 39] Directory not empty: '/tmp/pymp-jz0b0bwt'
+Traceback (most recent call last):
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 300, in _run_finalizers
+    finalizer()
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 224, in __call__
+    res = self._callback(*self._args, **self._kwargs)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 133, in _remove_temp_dir
+    rmtree(tempdir)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 740, in rmtree
+    onerror(os.rmdir, path, sys.exc_info())
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 738, in rmtree
+    os.rmdir(path)
+OSError: [Errno 39] Directory not empty: '/tmp/pymp-w9pyuw6q'
+Traceback (most recent call last):
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 300, in _run_finalizers
+    finalizer()
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 224, in __call__
+    res = self._callback(*self._args, **self._kwargs)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 133, in _remove_temp_dir
+    rmtree(tempdir)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 740, in rmtree
+    onerror(os.rmdir, path, sys.exc_info())
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 738, in rmtree
+    os.rmdir(path)
+OSError: [Errno 39] Directory not empty: '/tmp/pymp-w_evchci'
+Traceback (most recent call last):
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 300, in _run_finalizers
+    finalizer()
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 224, in __call__
+    res = self._callback(*self._args, **self._kwargs)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 133, in _remove_temp_dir
+    rmtree(tempdir)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 740, in rmtree
+    onerror(os.rmdir, path, sys.exc_info())
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 738, in rmtree
+    os.rmdir(path)
+OSError: [Errno 39] Directory not empty: '/tmp/pymp-lyr_hh1j'
+Traceback (most recent call last):
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 300, in _run_finalizers
+    finalizer()
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 224, in __call__
+    res = self._callback(*self._args, **self._kwargs)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/multiprocessing/util.py", line 133, in _remove_temp_dir
+    rmtree(tempdir)
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 740, in rmtree
+    onerror(os.rmdir, path, sys.exc_info())
+  File "/home/aih/adam.izdebski/miniconda3/envs/jointformer-experiments/lib/python3.9/shutil.py", line 738, in rmtree
+    os.rmdir(path)
+OSError: [Errno 39] Directory not empty: '/tmp/pymp-ve3fjscr'

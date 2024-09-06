@@ -5,7 +5,7 @@ import random
 from urllib.request import urlretrieve
 from typing import List, Optional, Union, Callable
 
-from jointformer.configs.task import TaskConfig
+from jointformer.configs.dataset import DatasetConfig
 from jointformer.utils.datasets.smiles.base import SmilesDataset
 from jointformer.utils.data import save_strings_to_file, read_strings_from_file
 from jointformer.utils.properties.auto import AutoTarget
@@ -90,7 +90,7 @@ class GuacamolDataset(SmilesDataset):
         torch.save(target, target_filepath)
 
     @classmethod
-    def from_config(cls, config: TaskConfig, split: str = None, data_dir: str = None) -> SmilesDataset:
+    def from_config(cls, config: DatasetConfig, split: str = None, data_dir: str = None) -> SmilesDataset:
 
         if split is not None:
             config.split = split

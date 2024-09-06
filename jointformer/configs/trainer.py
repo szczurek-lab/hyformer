@@ -1,7 +1,8 @@
 import math
-
+import logging
 from jointformer.configs.base import Config
 
+console = logging.getLogger(__file__)
 
 class TrainerConfig(Config):
 
@@ -31,7 +32,9 @@ class TrainerConfig(Config):
         log_interval,
         max_iters,
         max_epochs,
-        tasks
+        tasks,
+        save_snapshot=False,
+        eval_generation=True
     ):
         super().__init__()
 
@@ -65,6 +68,8 @@ class TrainerConfig(Config):
         self.always_save_checkpoint = always_save_checkpoint
         self.save_checkpoint_every = save_checkpoint_every
         self.save_checkpoint = save_checkpoint
+        self.save_snapshot = save_snapshot
+        self.eval_generation = eval_generation
 
         # others
         self.block_size = block_size
@@ -87,5 +92,6 @@ class TrainerConfig(Config):
             self.lr_decay_iters = self.max_iters
             self.eval_interval = num_iters_single_epoch
             self.log_interval = min(self.log_interval, self.eval_interval)
+            console.info(f"Corrected max iters to {self.max_iters}")
         else:
             raise ValueError("Argument `max epochs` not specified in config file.")

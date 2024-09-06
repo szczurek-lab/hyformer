@@ -29,7 +29,36 @@ class BaseTokenizer:
         self.max_molecule_length = max_molecule_length
         self.mlm_probability = mlm_probability
         self.ignore_index = ignore_index
+        self.generation_prefix = None
         self._init_tokenizer(path_to_vocabulary)
+        self._set_generation_prefix()
+
+    @property
+    def cls_token_id(self):
+        raise NotImplementedError
+    
+    @property
+    def mask_token_id(self):
+        raise NotImplementedError
+    
+    @property
+    def cls_token_id(self):
+        raise NotImplementedError
+    
+    @property
+    def pad_token_id(self):
+        raise NotImplementedError
+    
+    @property
+    def eos_token_id(self):
+        raise NotImplementedError
+    
+    @property
+    def sep_token_id(self):
+        raise NotImplementedError
+    
+    def _set_generation_prefix(self):
+        raise NotImplementedError
         
     def _init_tokenizer(self, path_to_vocabulary: str):
         raise NotImplementedError
@@ -58,10 +87,10 @@ class BaseTokenizer:
 
         if task == 'generation':
             labels = batch["input_ids"].clone()
-            if self.tokenizer.pad_token_id is not None:
-                labels[labels == self.tokenizer.pad_token_id] = self.ignore_index
-            if self.tokenizer.cls_token_id is not None:
-                labels[labels == self.tokenizer.cls_token_id] = self.ignore_index
+            if self.pad_token_id is not None:
+                labels[labels == self.pad_token_id] = self.ignore_index
+            if self.cls_token_id is not None:
+                labels[labels == self.cls_token_id] = self.ignore_index
             batch["input_labels"] = labels
 
         elif task == 'mlm':

@@ -23,6 +23,33 @@ class HFTokenizer(BaseTokenizer):
             ignore_index=ignore_index
         )
 
+    @property
+    def cls_token_id(self):
+        return self.tokenizer.cls_token_id
+    
+    @property
+    def mask_token_id(self):
+        return self.tokenizer.mask_token_id
+    
+    @property
+    def cls_token_id(self):
+        return self.tokenizer.cls_token_id
+    
+    @property
+    def pad_token_id(self):
+        return self.tokenizer.pad_token_id
+    
+    @property
+    def eos_token_id(self):
+        return self.tokenizer.eos_token_id
+    
+    @property
+    def sep_token_id(self):
+        return self.tokenizer.sep_token_id
+
+    def _set_generation_prefix(self):
+        self.generation_prefix = self.tokenizer.cls_token_id
+    
     def _init_tokenizer(self, path_to_vocabulary: str):
         self.tokenizer = AutoTokenizer.from_pretrained(path_to_vocabulary)
 

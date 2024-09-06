@@ -20,12 +20,13 @@
   "eval_interval": 2500,
   "log_interval": 2500,
   "always_save_checkpoint": false,
-  "save_checkpoint_every": 25000,
+  "save_checkpoint_every": null,
   "save_checkpoint": true,
   "block_size": 128,
   "tasks":
     {
-      "generation":  1,
+      "generation":  3,
       "physchem": 1
-    }
+    },
+  "save_snapshot": false
 }

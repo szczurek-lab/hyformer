@@ -12,6 +12,11 @@ class AutoModel:
             return getattr(importlib.import_module(
                 "jointformer.models.jointformer"),
                 "Jointformer").from_config(config)
+        
+        if config.model_name == 'JointformerWithPrefix':
+            return getattr(importlib.import_module(
+                "jointformer.models.jointformer"),
+                "JointformerWithPrefix").from_config(config)
 
         elif config.model_name == 'GPT':
             return getattr(importlib.import_module(

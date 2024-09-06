@@ -1,8 +1,0 @@
-{
-  "model_name": "ChemBERTa",
-  "pretrained_filepath": "DeepChem/ChemBERTa-5M-MLM",
-  "predictor_hidden_size": 384,
-  "predictor_dropout": 0.144,
-  "predictor_num_heads": 1,
-  "prediction_task_type": "regression"
-}

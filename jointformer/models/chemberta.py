@@ -40,13 +40,9 @@ class ChemBERTa(RobertaPreTrainedModel, BaseModel):
         super().__init__(config)
         self.num_labels = config.num_labels
         self.roberta = RobertaModel(config, add_pooling_layer=False)
+        self.generate = None
     
-    def forward(
-            self,
-            input_ids: torch.Tensor,
-            attention_mask: torch.Tensor,
-            **kwargs
-            ):
+    def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, **kwargs):
         
         outputs = self.roberta(
             input_ids=input_ids, attention_mask=attention_mask, return_dict=True,
@@ -59,6 +55,9 @@ class ChemBERTa(RobertaPreTrainedModel, BaseModel):
             cls_embeddings=outputs.last_hidden_state[:, 0, :]  # take <s> token (equiv. to [CLS])
         )
     
+    def predict(self, input_ids: Optional[torch.Tensor] = None, attention_mask: Optional[torch.Tensor] = None, **kwargs):
+        return self.forward(input_ids=input_ids, attention_mask=attention_mask, **kwargs)
+
     def get_loss(
         self,
         input_ids: Optional[torch.Tensor] = None,
@@ -186,19 +185,6 @@ class RobertaForRegression(ChemBERTa):
         super().__init__(config)
         self.regression = RobertaRegressionHead(config)
         # self.init_weights()
-        
-    def predict(
-            self,
-            input_ids: Optional[torch.Tensor] = None,
-            attention_mask: Optional[torch.Tensor] = None,
-            **kwargs
-    ):
-        """DEPRETICATED: Use forward instead."""
-        output = self.forward(input_ids=input_ids, attention_mask=attention_mask,)
-        return {
-            "loss": None,
-            "y_pred": output,
-        }
     
     def forward(
         self,

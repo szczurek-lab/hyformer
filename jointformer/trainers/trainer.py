@@ -87,11 +87,13 @@ class Trainer:
         self.always_save_checkpoint = config.always_save_checkpoint
         self.save_checkpoint = config.save_checkpoint
         self.save_checkpoint_every = config.save_checkpoint_every
+        self.save_snapshot = config.save_snapshot
         self.eval_only = config.eval_only
         self.eval_interval = config.eval_interval
         self.max_iters = config.max_iters
         self.log_interval = config.log_interval
         self.tasks = config.tasks
+        self.eval_generation = config.eval_generation
 
         self._iter_num = 0
         self._best_val_loss = 1e9
@@ -144,7 +146,7 @@ class Trainer:
         self.task_distribution = Categorical(torch.Tensor(list(self.tasks.values())))
         self.tokens_per_iter = self.gradient_accumulation_steps * self.ddp_world_size * self.batch_size * self.block_size
 
-        if self.tokenizer is not None and hasattr(self.tokenizer, '__len__'):
+        if self.tokenizer is not None and hasattr(self.tokenizer, '__len__') and hasattr(self.model, 'vocab_size'):
             if len(self.tokenizer) != self.model.vocab_size:
                 raise ValueError(f"Tokenizer and model not compatible. Tokenizer is of length {len(self.tokenizer)}"
                                  f" while model expects vocab size {self.model.vocab_size}")
@@ -179,9 +181,9 @@ class Trainer:
             for k, v in list(state_dict.items()):
                 if k.startswith(unwanted_prefix):
                     state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
-            self.model.load_state_dict(state_dict)
+            self.model.load_state_dict(state_dict, strict=False)
         except RuntimeError:
-            self.model.load_state_dict(checkpoint['model'])
+            self.model.load_state_dict(checkpoint['model'], strict=False)
         self.optimizer.load_state_dict(checkpoint["optimizer"])
         if resume_training:
             self._iter_num = checkpoint['iter_num']
@@ -256,10 +258,12 @@ class Trainer:
         return self.tokenizer(sampled, task=task)
 
     @torch.no_grad()
-    def test(self):
+    def test(self, metric: str = 'rmse'):
         
         self.model.eval()
-        criterion = nn.MSELoss(reduction='sum')
+        assert metric in ['rmse', 'mae'], f"Metric {metric} not supported."
+        
+        criterion = nn.MSELoss(reduction='sum') if metric == 'rmse' else nn.L1Loss(reduction='sum')
 
         if self.logger is not None:
             self.logger.init_run()
@@ -267,23 +271,26 @@ class Trainer:
         n = 0
         loss = 0.
         for _, batch in enumerate(self.test_loader):
+            properties = batch['properties']
             batch.to(self.device)
+            
             with self.ctx:
                 outputs = self.model.predict(**batch)["logits_prediction"].cpu()
             
-            batch['properties'] = batch['properties'].cpu()
             if outputs.dtype != torch.float32:
                 outputs = torch.tensor(outputs, dtype=torch.float32)
+
             if hasattr(self.test_dataset, '_target_transform'):
-                batch["properties"] = self.test_dataset.undo_target_transform(batch["properties"])
+                properties = self.test_dataset.undo_target_transform(properties)
                 outputs = self.test_dataset.undo_target_transform(outputs)
-            loss += criterion(batch["properties"], outputs)
+            
+            loss += criterion(properties, outputs)
             n += len(outputs)
         
-        test_metric = torch.sqrt(loss / n).item()
+        test_metric = torch.sqrt(loss / n).item() if metric == 'rmse' else (loss / n).item()
 
         if self.logger is not None:
-            self.logger.log({"test/rmse": test_metric})
+            self.logger.log({f"test/{metric}": test_metric})
             
         return test_metric
 
@@ -317,7 +324,7 @@ class Trainer:
                 else:
                     out[split]['combined'] = out[split][task]
 
-        if hasattr(self.model, 'calculate_perplexity'):
+        if hasattr(self.model, 'calculate_perplexity') and self.eval_generation:
             for split in splits:
                 out[split]['perplexity'] = {}
                 losses = torch.zeros(self.eval_iters)
@@ -328,7 +335,7 @@ class Trainer:
                     losses[k] = perplexity.mean()
                 out[split]['perplexity'] = losses.mean().item() if torch.nan not in losses else torch.nan
 
-        if hasattr(self.model, 'generate'):
+        if hasattr(self.model, 'generate') and self.eval_generation:
             for _ in range(self.eval_iters):
                 samples = []
                 samples.extend(self.generate())
@@ -402,17 +409,12 @@ class Trainer:
 
     @torch.no_grad()
     def generate(self, temperature=1.0, top_k=25):
-        generate_token_id = self.tokenizer.tokenizer.convert_tokens_to_ids('GEN') if self.tokenizer.set_separate_task_tokens else None
         samples = self.model.generate(
-            bos_token_id=self.tokenizer.tokenizer.cls_token_id,
-            eos_token_id=self.tokenizer.tokenizer.sep_token_id,
-            pad_token_id=self.tokenizer.tokenizer.pad_token_id,
-            input_length=self.model.max_seq_len,
+            tokenizer=self.tokenizer,
             batch_size=self.batch_size,
             temperature = temperature,
             top_k = top_k,
-            device = self.device,
-            generate_token_id = generate_token_id)
+            device = self.device)
         samples = self.tokenizer.decode(samples)
         return samples
 
@@ -479,6 +481,7 @@ class Trainer:
                         + 
                         f" time {dt * 1000:.2f}ms, mfu {self._running_mfu * 100:.2f}%"
                         )
-                    self._save_ckpt(SNAPSHOT_FILENAME)
+                    if self.save_snapshot:
+                        self._save_ckpt(SNAPSHOT_FILENAME)
             self._iter_num += 1
             local_iter_num += 1

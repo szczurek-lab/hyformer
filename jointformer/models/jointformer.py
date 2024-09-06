@@ -71,6 +71,12 @@ class Jointformer(Transformer, TrainableModel):
         if init_weights:
             self.initialize_parameters()
 
+    def _get_cls_embeddings(self, embeddings):
+        return embeddings[:, 0, :]
+    
+    def _get_lm_embeddings(self, embeddings, next_token_only):
+        return embeddings[:, [-1], :] if next_token_only else embeddings
+
     def forward(
             self,
             input_ids: torch.Tensor,
@@ -90,8 +96,9 @@ class Jointformer(Transformer, TrainableModel):
             raise ValueError('Variable `task` must be either `generation`, `mlm`, `prediction` or `physchem`. Passed value: {}'.format(task))
         
         outputs = super().forward(input_ids=input_ids, attention_mask=_attention_mask, is_causal=_is_causal)
-        cls_embeddings = outputs['embeddings'][:, 0]
-        lm_embeddings = outputs['embeddings'][:, [-1]] if next_token_only else outputs['embeddings']
+        cls_embeddings = self._get_cls_embeddings(outputs['embeddings'])
+        lm_embeddings = self._get_lm_embeddings(outputs['embeddings'], next_token_only)
+
         if _is_causal:
             outputs["logits_generation"] = self.lm_head(lm_embeddings)
         else:
@@ -102,7 +109,7 @@ class Jointformer(Transformer, TrainableModel):
             attention_mask=attention_mask,
             embeddings=outputs['embeddings'],
             cls_embeddings=cls_embeddings,
-            lm_embeddings=lm_embeddings[:, 1:],
+            lm_embeddings=lm_embeddings,
             logits_generation=outputs.get('logits_generation', None),
             logits_physchem=outputs.get('logits_physchem', None),
             logits_prediction=outputs.get('logits_prediction', None),
@@ -149,12 +156,8 @@ class Jointformer(Transformer, TrainableModel):
         outputs = self.forward(input_ids=input_ids, attention_mask=attention_mask, task='mlm')
         outputs["logits_generation"] = self.mlm_head(outputs['embeddings'])
         if input_labels is not None:
-            if self.set_separate_task_tokens:
-                logits = outputs['logits_generation'][:, 1:, :].contiguous()
-                labels = input_labels[:, 1:].contiguous() 
-            else:
-                logits = outputs['logits_generation']
-                labels = input_labels
+            logits = outputs['logits_generation']
+            labels = input_labels
             batch_size, seq_length, vocab_size = logits.size()
             outputs["loss"] = F.cross_entropy(
                 logits.view(batch_size * seq_length, vocab_size),
@@ -181,18 +184,19 @@ class Jointformer(Transformer, TrainableModel):
                 raise ValueError('Variable `prediction_task_type` must be either `classification` or `regression`.')
         return outputs
 
-    def generate(self, bos_token_id, eos_token_id, pad_token_id, input_length, batch_size, temperature=1.0, top_k=None, device='cpu', generate_token_id=None):
+    def generate(self, batch_size, tokenizer, temperature=1.0, top_k=25, device='cpu'):
         """
         Generate complete sequences of indices using the model.
         """
-        idx = torch.full((batch_size, 1), bos_token_id, device=device, dtype=torch.long)
-        if self.set_separate_task_tokens:
-            assert generate_token_id is not None, "If set_separate_task_tokens is True, task_token_id must be provided."
-            idx_task_token = torch.full((batch_size, 1), generate_token_id, device=device, dtype=torch.long)  
-            idx = torch.cat([idx_task_token, idx], dim=1)
+        bos_token_id = tokenizer.cls_token_id
+        eos_token_id = tokenizer.sep_token_id
+        pad_token_id = tokenizer.pad_token_id
+
+        # generate prefix
+        prefix = torch.tensor(tokenizer.generation_prefix, device=device).long().unsqueeze(0).expand(batch_size, -1)
 
         # TODO: implement caching
-        idx = self.generate_single_token(idx, input_length - 1, temperature, top_k, eos_token_id, pad_token_id)
+        idx = self.generate_single_token(prefix, tokenizer.max_molecule_length - 2, temperature, top_k, eos_token_id, pad_token_id)
 
         # TODO: vectorize
         # check for completion
@@ -272,3 +276,10 @@ class Jointformer(Transformer, TrainableModel):
     
     def to_smiles_encoder(self, tokenizer, batch_size, device) -> SmilesEncoder:
         return DefaultSmilesEncoderWrapper(self, tokenizer, batch_size, device)
+
+
+class JointformerWithPrefix(Jointformer):
+
+    def _get_lm_embeddings(self, embeddings, next_token_only):
+        return super()._get_lm_embeddings(embeddings[:, 1:, :], next_token_only)
+    

@@ -40,14 +40,19 @@ class SmilesTokenizerWithPrefix(SmilesTokenizer):
             mlm_probability=mlm_probability,
             ignore_index=ignore_index
         )
+    
+    def _set_generation_prefix(self):
+        self.generation_prefix = [self.prefix_token_id, self.tokenizer.cls_token_id]
 
-    def _init_tokenizer(self, path_to_vocabulary: str):
+    def _init_tokenizer(self, path_to_vocabulary: str, add_prefix_token: bool = True):
         super()._init_tokenizer(path_to_vocabulary)
-        self.tokenizer.add_special_tokens({'additional_special_tokens': [PREFIX_TOKEN_DICT['prefix']]})
+        if add_prefix_token:
+            self.tokenizer.add_special_tokens({'additional_special_tokens': [PREFIX_TOKEN_DICT['prefix']]})
 
     def _tokenize(self, data: Union[str, List[str]]):
+        prefix = [' ' for _ in range(len(data))] if isinstance(data, list) or isinstance(data, tuple) else ' '
         inputs = self.tokenizer(
-            text=' ', text_pair=data, truncation=True, padding='max_length', max_length=self.max_molecule_length,
+            text=prefix, text_pair=data, truncation=True, padding='max_length', max_length=self.max_molecule_length,
             return_special_tokens_mask=True, return_token_type_ids=False, return_tensors='pt')
         # Add prefix token to the beginning of the encoded tokens
         inputs['input_ids'][:, 0] = self.prefix_token_id
@@ -60,7 +65,7 @@ class SmilesTokenizerWithPrefix(SmilesTokenizer):
     def __call__(self, x: Union[str, List[str], Tuple[str, torch.Tensor], List[Tuple[str, torch.Tensor]]], task: str) -> ModelInput:
         inputs = super().__call__(x, task)
         if task == 'generation':
-            labels = inputs["input_labels"].clone()
+            labels = inputs["input_labels"][:, 1:].clone()
             labels[labels == self.tokenizer.convert_tokens_to_ids(PREFIX_TOKEN_DICT['prefix'])] = self.ignore_index
             inputs["input_labels"] = labels
         return inputs

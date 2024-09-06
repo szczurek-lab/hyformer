@@ -4,7 +4,7 @@ import argparse
 
 from tqdm.contrib.logging import logging_redirect_tqdm
 
-from jointformer.configs.task import TaskConfig
+from jointformer.configs.dataset import DatasetConfig
 from jointformer.utils.datasets.auto import AutoDataset
 from jointformer.utils.runtime import set_seed
 
@@ -34,12 +34,12 @@ def main(args):
     set_seed(args.seed)
 
     # Config
-    task_config = TaskConfig.from_config_file(args.path_to_task_config)
+    dataset_config = DatasetConfig.from_config_file(args.path_to_task_config)
     
     # Data
-    train_dataset = AutoDataset.from_config(task_config, split='train', out_dir=args.data_dir)
-    val_dataset = AutoDataset.from_config(task_config, split='val', out_dir=args.data_dir)
-    test_dataset = AutoDataset.from_config(task_config, split='test', out_dir=args.data_dir)
+    train_dataset = AutoDataset.from_config(dataset_config, split='train', out_dir=args.data_dir)
+    val_dataset = AutoDataset.from_config(dataset_config, split='val', out_dir=args.data_dir)
+    test_dataset = AutoDataset.from_config(dataset_config, split='test', out_dir=args.data_dir)
     
 
 if __name__ == "__main__":

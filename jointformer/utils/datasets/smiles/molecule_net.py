@@ -6,7 +6,7 @@ from typing import List, Optional, Union, Callable, Any
 from deepchem.molnet import load_delaney, load_sampl, load_lipo, load_hiv, load_bace_classification, load_bbbp, load_tox21, load_toxcast, load_sider, load_clintox
 from deepchem.feat.molecule_featurizers.raw_featurizer import RawFeaturizer
 
-from jointformer.configs.task import TaskConfig
+from jointformer.configs.dataset import DatasetConfig
 from jointformer.utils.datasets.smiles.base import SmilesDataset
 from jointformer.utils.data import save_strings_to_file
 
@@ -114,7 +114,7 @@ class MoleculeNetDataset(SmilesDataset):
             torch.save(target, os.path.join(data_dir, f"{target_label}.pt"))
 
     @classmethod
-    def from_config(cls, config: TaskConfig, split: str = None, data_dir: str = None, seed: int = None) -> SmilesDataset:
+    def from_config(cls, config: DatasetConfig, split: str = None, data_dir: str = None, seed: int = None) -> SmilesDataset:
 
         if split is not None:
             config.split = split

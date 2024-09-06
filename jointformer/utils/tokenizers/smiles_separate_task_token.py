@@ -29,8 +29,11 @@ class SmilesTokenizerSeparateTaskToken(SmilesTokenizerWithPrefix):
             ignore_index=ignore_index,
         )
 
+    def _set_generation_prefix(self):
+        self.generation_prefix = [self.tokenizer.convert_tokens_to_ids(TASK_TOKEN_DICT['generation']), self.tokenizer.cls_token_id]
+
     def _init_tokenizer(self, path_to_vocabulary: str):
-        super()._init_tokenizer(path_to_vocabulary)
+        super()._init_tokenizer(path_to_vocabulary, add_prefix_token=False)
         self.tokenizer.add_special_tokens({'additional_special_tokens': list(TASK_TOKEN_DICT.values())})
 
     def __call__(self, x: Union[str, List[str], Tuple[str, torch.Tensor], List[Tuple[str, torch.Tensor]]], task: str) -> ModelInput:
@@ -54,3 +57,4 @@ class SmilesTokenizerSeparateTaskToken(SmilesTokenizerWithPrefix):
         else:
             raise ValueError('Variable `task` must be either `generation`, `mlm` or `prediction`.')
         return self.tokenizer.convert_tokens_to_ids(task_token)
+    

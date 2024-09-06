@@ -1,5 +1,5 @@
 {
-  "model_name": "Jointformer",
+  "model_name": "JointformerWithPrefix",
   "bias": false,
   "attention_dropout": 0.0,
   "feed_forward_dropout": 0.0,
@@ -13,6 +13,5 @@
   "prediction_task_type": "regression",
   "num_prediction_tasks": 1,
   "num_physchem_tasks": 200,
-  "prediction_hidden_dim": 256,
-  "set_separate_task_tokens": true
+  "prediction_hidden_dim": 256
 }
