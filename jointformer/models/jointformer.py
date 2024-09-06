@@ -1,21 +1,16 @@
-from guacamol.assess_distribution_learning import DistributionMatchingGenerator
-from jointformer.models.base import SmilesEncoder
-from jointformer.models.defaults import DefaultSmilesEncoderWrapper
 import torch
-
 import torch.nn as nn
 import torch.nn.functional as F
 
 from typing import Optional
 
-from jointformer.models.transformer import Transformer
-from jointformer.utils.tokenizers.base import TOKEN_DICT
-from jointformer.models.wrappers import DefaultSmilesGeneratorWrapper
 from jointformer.models.trainable import TrainableModel
+from jointformer.models.base import SmilesEncoder
+from jointformer.models.transformer import Transformer
 from jointformer.models.layers.prediction import RegressionHead, ClassificationHead
 from jointformer.models.utils import ModelOutput
-from jointformer.models.wrappers import DefaultSmilesEncoderWrapper
 
+from jointformer.utils.tokenizers.base import TOKEN_DICT
 
 DEFAULT_NUM_PHYCHEM_TASKS = 200
 
@@ -39,8 +34,7 @@ class Jointformer(Transformer, TrainableModel):
             num_prediction_tasks: int,
             num_physchem_tasks: Optional[int] = DEFAULT_NUM_PHYCHEM_TASKS,
             init_weights: bool = True,
-            tie_weights: bool = True,
-            set_separate_task_tokens = False,
+            tie_weights: bool = True
     ):
 
         super().__init__(
@@ -71,11 +65,13 @@ class Jointformer(Transformer, TrainableModel):
         if init_weights:
             self.initialize_parameters()
 
-    def _get_cls_embeddings(self, embeddings):
-        return embeddings[:, 0, :]
+    @staticmethod
+    def _get_cls_embeddings(embeddings):
+        return embeddings[:, 0]
     
-    def _get_lm_embeddings(self, embeddings, next_token_only):
-        return embeddings[:, [-1], :] if next_token_only else embeddings
+    @staticmethod
+    def _get_lm_embeddings(embeddings, next_token_only):
+        return embeddings[:, [-1]] if next_token_only else embeddings
 
     def forward(
             self,
@@ -148,8 +144,7 @@ class Jointformer(Transformer, TrainableModel):
                 logits.view(batch_size * seq_length, vocab_size),
                 labels.view(batch_size * seq_length),
                 ignore_index=TOKEN_DICT['ignore'],
-                reduction='mean'
-                )
+                reduction='mean')
         return outputs
 
     def get_loss_mlm(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, input_labels: torch.Tensor, **kwargs):
@@ -163,8 +158,7 @@ class Jointformer(Transformer, TrainableModel):
                 logits.view(batch_size * seq_length, vocab_size),
                 labels.view(batch_size * seq_length),
                 ignore_index=TOKEN_DICT['ignore'],
-                reduction='mean'
-                )
+                reduction='mean')
         return outputs
 
     def get_loss_physchem(self, input_ids: torch.Tensor, attention_mask:  torch.Tensor, properties: torch.Tensor, **kwargs):
@@ -184,11 +178,11 @@ class Jointformer(Transformer, TrainableModel):
                 raise ValueError('Variable `prediction_task_type` must be either `classification` or `regression`.')
         return outputs
 
-    def generate(self, batch_size, tokenizer, temperature=1.0, top_k=25, device='cpu'):
+    def generate(self, tokenizer, batch_size, temperature, top_k, device):
         """
         Generate complete sequences of indices using the model.
         """
-        bos_token_id = tokenizer.cls_token_id
+        assert hasattr(tokenizer, 'generation_prefix'), "Tokenizer must have a `generation_prefix` attribute."
         eos_token_id = tokenizer.sep_token_id
         pad_token_id = tokenizer.pad_token_id
 
@@ -206,17 +200,12 @@ class Jointformer(Transformer, TrainableModel):
         return idx
 
     @torch.no_grad()
-    def generate_single_token(self, idx, max_new_tokens, temperature=1.0, top_k=None, eos_token_id=None, pad_token_id=None):
+    def generate_single_token(self, idx, max_new_tokens, temperature, top_k, eos_token_id, pad_token_id):
         """
         Take a conditioning sequence of indices idx (LongTensor of shape (b,t)) and complete
         the sequence max_new_tokens times, feeding the predictions back into the model each time.
         Most likely you'll want to make sure to be in model.eval() mode of operation for this.
         """
-
-        if eos_token_id is None:
-            assert pad_token_id is not None, "If eos_token_id is not None, pad_token_id must be provided."
-        if pad_token_id is None:
-            assert eos_token_id is not None, "If pad_token_id is not None, eos_token_id must be provided."
 
         eos_flag = torch.zeros(size=(idx.size(0), 1), dtype=torch.bool, device=idx.device)
 
@@ -249,8 +238,16 @@ class Jointformer(Transformer, TrainableModel):
 
         return idx
 
-    def to_guacamole_generator(self, tokenizer, batch_size, temperature, top_k, device) -> DistributionMatchingGenerator:
-        return DefaultSmilesGeneratorWrapper(self, tokenizer, batch_size, temperature, top_k, device)
+    def to_guacamole_generator(self, tokenizer, batch_size, temperature, top_k, device) -> 'DistributionMatchingGenerator':
+        from jointformer.models.wrappers import JointformerSmilesGeneratorWrapper
+        return JointformerSmilesGeneratorWrapper(self, tokenizer, batch_size, temperature, top_k, device)
+
+    def to_smiles_encoder(self, tokenizer, batch_size, device) -> SmilesEncoder:
+        from jointformer.models.wrappers import JointformerSmilesEncoderWrapper
+        return JointformerSmilesEncoderWrapper(self, tokenizer, batch_size, device)
+
+    def load_pretrained(self, filename, device='cpu'):
+        super().load_pretrained(filename, device=device)
 
     @classmethod
     def from_config(cls, config):
@@ -271,15 +268,9 @@ class Jointformer(Transformer, TrainableModel):
             layer_norm_eps=config.layer_norm_eps
         )
 
-    def to_guacamole_generator(self, tokenizer, batch_size, temperature, top_k, device) -> DistributionMatchingGenerator:
-        return DefaultSmilesGeneratorWrapper(self, tokenizer, batch_size, temperature, top_k, device)
-    
-    def to_smiles_encoder(self, tokenizer, batch_size, device) -> SmilesEncoder:
-        return DefaultSmilesEncoderWrapper(self, tokenizer, batch_size, device)
-
 
 class JointformerWithPrefix(Jointformer):
 
     def _get_lm_embeddings(self, embeddings, next_token_only):
-        return super()._get_lm_embeddings(embeddings[:, 1:, :], next_token_only)
+        return super()._get_lm_embeddings(embeddings[:, 1:], next_token_only)
     

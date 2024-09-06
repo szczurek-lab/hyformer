@@ -4,7 +4,7 @@
   "dtype": "bfloat16",
   "eval_only": false,
   "max_iters": 600,
-  "max_epochs": 20,
+  "max_epochs": null,
   "batch_size": 2,
   "learning_rate": 6e-4,
   "weight_decay": 1e-1,

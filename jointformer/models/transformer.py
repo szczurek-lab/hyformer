@@ -57,7 +57,7 @@ class Transformer(nn.Module):
         for k, v in list(state_dict.items()):
             if k.startswith(unwanted_prefix):
                 state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
-        self.load_state_dict(state_dict, strict=False)
+        self.load_state_dict(state_dict)
 
     def _init_weights(self, module):
         if isinstance(module, nn.Linear):
