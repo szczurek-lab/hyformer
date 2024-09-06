@@ -20,10 +20,6 @@ class Attention(nn.Module):
         self.dropout = dropout
         self.block_size = block_size
         self.flash = hasattr(torch.nn.functional, 'scaled_dot_product_attention')
-        if not self.flash:
-            self.register_buffer(
-                "causal_mask", torch.tril(torch.ones(self.block_size, self.block_size)).view(1, 1, self.block_size, self.block_size)
-                )
         
         # key, query, value projections for all heads, but in a batch
         self.qkv = nn.Linear(self.embedding_dim, 3 * self.embedding_dim, bias=bias)
