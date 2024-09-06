@@ -39,7 +39,8 @@ class Jointformer(Transformer, TrainableModel):
             num_prediction_tasks: int,
             num_physchem_tasks: Optional[int] = DEFAULT_NUM_PHYCHEM_TASKS,
             init_weights: bool = True,
-            tie_weights: bool = True
+            tie_weights: bool = True,
+            set_separate_task_tokens = False,
     ):
 
         super().__init__(
@@ -97,6 +98,7 @@ class Jointformer(Transformer, TrainableModel):
         outputs = super().forward(input_ids=input_ids, attention_mask=_attention_mask, is_causal=_is_causal)
         cls_embeddings = self._get_cls_embeddings(outputs['embeddings'])
         lm_embeddings = self._get_lm_embeddings(outputs['embeddings'], next_token_only)
+
         if _is_causal:
             outputs["logits_generation"] = self.lm_head(lm_embeddings)
         else:

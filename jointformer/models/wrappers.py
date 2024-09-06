@@ -23,9 +23,9 @@ class DefaultSmilesGeneratorWrapper(DistributionMatchingGenerator):
         self._model.eval()
         model = self._model.to(self._device)
         for _ in tqdm(range(0, number_samples, self._batch_size), "Generating samples"):
-            samples = model.generate(self._tokenizer.cls_token_id,
-                                        self._tokenizer.sep_token_id,
-                                        self._tokenizer.pad_token_id,
+            samples = model.generate(self._tokenizer.tokenizer.cls_token_id,
+                                        self._tokenizer.tokenizer.sep_token_id,
+                                        self._tokenizer.tokenizer.pad_token_id,
                                         self._tokenizer.max_molecule_length,
                                         self._batch_size,
                                         self._temperature,
