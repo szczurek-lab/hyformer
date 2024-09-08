@@ -51,19 +51,12 @@ class RegressionTransformer(BaseModel, DistributionMatchingGenerator, SmilesEnco
         self._tolerance = 100
         self._interface = None
         
-
     def to_guacamole_generator(self, temperature, fraction_to_mask, device, seed_dataset_file, *args, **kwargs) -> DistributionMatchingGenerator:
-        self._dataset = self._load_regression_transformer_dataset(seed_dataset_file)
+        self._dataset = self._load_regression_transformer_seed_dataset(seed_dataset_file)
         self._temperature = temperature
         self._fraction_to_mask = fraction_to_mask
         self._seed_dataset_file = seed_dataset_file
         self._device = device
-        return self
-    
-    def to_smiles_encoder(self, tokenizer, batch_size, search, device) -> SmilesEncoder:
-        self._batch_size = 1  # supports only batch size = 1
-        self._device = device
-        self._search = SEARCH_FACTORY[search](temperature=1)
         return self
 
     def _generate_single_example(self) -> str:
@@ -95,6 +88,12 @@ class RegressionTransformer(BaseModel, DistributionMatchingGenerator, SmilesEnco
             sample = self._generate_single_example()
             generated.append(sample)
         return generated[:number_samples]
+    
+    def to_smiles_encoder(self, tokenizer, batch_size, device) -> SmilesEncoder:
+        self._batch_size = 1  # supports only batch size = 1
+        self._device = device
+        self._search = SEARCH_FACTORY['sample'](temperature=1)
+        return self
     
     @torch.no_grad()
     def encode(self, smiles: list[str]) -> np.ndarray:
@@ -132,7 +131,6 @@ class RegressionTransformer(BaseModel, DistributionMatchingGenerator, SmilesEnco
         inputs = self._collator([tokens] * self._batch_size)
         input_ids = inputs["input_ids"].cpu()
         output = self._model(map_tensor_dict(inputs, self._device), output_hidden_states=True)
-        #prediction = self.search(output["logits"].detach())
         predictions = self._search(output["logits"].detach())
         return self._interface.compile_regression_result(input_ids, predictions)
     
@@ -145,10 +143,12 @@ class RegressionTransformer(BaseModel, DistributionMatchingGenerator, SmilesEnco
         sequence = self._interface.normalize_sequence(sequence)   
         tokens = self._tokenizer(sequence)
         inputs = self._collator([tokens] * self._batch_size)
+        for k, v in inputs.items():
+            if isinstance(v, torch.Tensor):
+                inputs[k] = v.to(self._device)
         output = self._model(map_tensor_dict(inputs, self._device), output_hidden_states=True)
-        final_hidden_state = output.hidden_states[-1].mean(1) #taking the mean of the embeddings
-        return final_hidden_state.detach().cpu().numpy()
-
+        final_hidden_state = output.hidden_states[-1].mean(1)  # taking the mean of the token embeddings
+        return final_hidden_state.cpu().numpy()
 
     @staticmethod
     def _load_regression_transformer(filename, device):
@@ -157,12 +157,12 @@ class RegressionTransformer(BaseModel, DistributionMatchingGenerator, SmilesEnco
         else:
             interface = ConditionalGenerator(resources_path=filename, device=device, tolerance=100.0)
             xlnet_model, config = interface.load_model(resources_path=filename)
-            tokenizer = InferenceBertTokenizer.from_pretrained('/Users/pankhilgawade/.gt4sd/algorithms/conditional_generation/RegressionTransformer/RegressionTransformerMolecules/qed')
+            tokenizer = InferenceBertTokenizer.from_pretrained(filename)
             collator = MaskedTextCollator(tokenizer)
             return tokenizer, collator, interface, InferenceRTWrapper(xlnet_model, tokenizer, config)
         
     @staticmethod
-    def _load_regression_transformer_dataset(filename):
+    def _load_regression_transformer_seed_dataset(filename):
         df = pd.read_csv(filename, sep='|', header=None)
         df.columns = ['property', 'smiles'] 
         df['property'] = df['property'].str.replace('<qed>', '', regex=False)
