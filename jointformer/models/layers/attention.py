@@ -47,7 +47,7 @@ class Attention(nn.Module):
         """
         batch_size, seq_len, embedding_dim = x.shape 
         
-        q, k, v = self.qkv(x).split(self.embedding_dim, dim=-1)
+        q, k, v = self.qkv(x).split(embedding_dim, dim=-1)
 
         q = q.view(batch_size, seq_len, self.num_heads, self.head_dim)
         k = k.view(batch_size, seq_len, self.num_heads, self.head_dim)
@@ -66,17 +66,17 @@ class Attention(nn.Module):
             y = F.scaled_dot_product_attention(q, k, v, attn_mask=attn_mask, 
                 is_causal=is_causal, dropout_p=self.dropout if self.training else 0.)
         else:
-            y = self.scaled_dot_product_attention(q, k, v, embedding_dim, attn_mask=attn_mask, is_causal=is_causal)
+            y = self.scaled_dot_product_attention(q, k, v, seq_len, attn_mask=attn_mask, is_causal=is_causal)
             
         y = y.transpose(1, 2).contiguous().view(batch_size, seq_len, embedding_dim)        
         y = self.out(y)
         
         return y
     
-    def scaled_dot_product_attention(self, q, k, v, embedding_dim, attn_mask, is_causal) -> torch.Tensor:
+    def scaled_dot_product_attention(self, q, k, v, seq_len, attn_mask, is_causal) -> torch.Tensor:
         att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))
         if is_causal:
-            att = att.masked_fill(self.mask_causal[:, :, :embedding_dim, :embedding_dim] == 0, float('-inf'))
+            att = att.masked_fill(self.mask_causal[:, :, :seq_len, :seq_len] == 0, float('-inf'))
         else:
             att = att.masked_fill(attn_mask.int() == 0, float('-inf'))
         att_probs = F.softmax(att, dim=-1)
