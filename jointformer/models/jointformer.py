@@ -277,10 +277,11 @@ class JointformerWithPrefix(Jointformer):
 
 class JointformerWithMaxEmbeddings(Jointformer):
 
-    def _get_cls_embeddings(self, embeddings, attention_mask):
+    def _get_cls_embeddings(self, embeddings, attention_mask=None):
         _, _, embedding_dim = embeddings.size()
-        attention_mask = attention_mask.unsqueeze(-1).repeat(1, 1, embedding_dim)
-        embeddings = embeddings.masked_fill(attention_mask.logical_not(), float("-inf"))
+        if attention_mask is not None:
+            attention_mask = attention_mask.unsqueeze(-1).repeat(1, 1, embedding_dim)
+            embeddings = embeddings.masked_fill(attention_mask.logical_not(), float("-inf"))
         embeddings = embeddings.max(dim=1).values
         return embeddings
     

@@ -2,7 +2,7 @@
 
 #SBATCH --job-name=jointformer-max-emb                            
 #SBATCH --output jointformer-max-emb.log                              
-#SBATCH --error jointformer-max-emb.log                                 
+#SBATCH --error jointformer-max-emb.err                                 
 
 #SBATCH -p gpu_p
 #SBATCH --qos gpu_long
