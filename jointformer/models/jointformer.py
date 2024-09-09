@@ -66,11 +66,11 @@ class Jointformer(Transformer, TrainableModel):
             self.initialize_parameters()
 
     @staticmethod
-    def _get_cls_embeddings(embeddings):
+    def _get_cls_embeddings(embeddings, **kwargs):
         return embeddings[:, 0]
     
     @staticmethod
-    def _get_lm_embeddings(embeddings, next_token_only):
+    def _get_lm_embeddings(embeddings, next_token_only, **kwargs):
         return embeddings[:, [-1]] if next_token_only else embeddings
 
     def forward(
@@ -92,7 +92,7 @@ class Jointformer(Transformer, TrainableModel):
             raise ValueError('Variable `task` must be either `generation`, `mlm`, `prediction` or `physchem`. Passed value: {}'.format(task))
         
         outputs = super().forward(input_ids=input_ids, attention_mask=_attention_mask, is_causal=_is_causal)
-        cls_embeddings = self._get_cls_embeddings(outputs['embeddings'])
+        cls_embeddings = self._get_cls_embeddings(outputs['embeddings'], attention_mask=attention_mask)
         lm_embeddings = self._get_lm_embeddings(outputs['embeddings'], next_token_only)
 
         if _is_causal:
@@ -273,4 +273,14 @@ class JointformerWithPrefix(Jointformer):
 
     def _get_lm_embeddings(self, embeddings, next_token_only):
         return super()._get_lm_embeddings(embeddings[:, 1:], next_token_only)
+
+
+class JointformerWithMaxEmbeddings(Jointformer):
+
+    def _get_cls_embeddings(self, embeddings, attention_mask):
+        _, _, embedding_dim = embeddings.size()
+        attention_mask = attention_mask.unsqueeze(-1).repeat(1, 1, embedding_dim)
+        embeddings = embeddings.masked_fill(attention_mask.logical_not(), float("-inf"))
+        embeddings = embeddings.max(dim=1).values
+        return embeddings
     

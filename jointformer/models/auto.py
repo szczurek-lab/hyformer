@@ -17,6 +17,11 @@ class AutoModel:
             return getattr(importlib.import_module(
                 "jointformer.models.jointformer"),
                 "JointformerWithPrefix").from_config(config)
+        
+        if config.model_name == 'JointformerWithMaxEmbeddings':
+            return getattr(importlib.import_module(
+                "jointformer.models.jointformer"),
+                "JointformerWithMaxEmbeddings").from_config(config)
 
         elif config.model_name == 'GPT':
             return getattr(importlib.import_module(
