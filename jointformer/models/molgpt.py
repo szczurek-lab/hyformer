@@ -42,7 +42,7 @@ class MolGPT(BaseModel, SmilesEncoder):
     def encode(self, smiles: list[str]) -> np.ndarray:
         assert self._model is not None, "Model is not loaded"
         dataset = SmilesDataset(smiles)
-        dataloader = DataLoader(dataset, shuffle=True, pin_memory=True, batch_size=self._batch_size, num_workers=4)
+        dataloader = DataLoader(dataset, shuffle=False, pin_memory=True, batch_size=self._batch_size, num_workers=4)
         self._model.eval()
         self._model.to(self._device)
         embeddings = np.zeros((len(smiles), self._model.config.n_embd))
@@ -339,31 +339,43 @@ class SmilesDataset(Dataset):
         self.stoi = { ch:i for i,ch in enumerate(chars) }
         self.itos = { i:ch for i,ch in enumerate(chars) }
         self.max_len = self.MAX_LENGTH
-        self.data = self._smiles_from_list_to_molgpt_input_data(data)
+        self.regex = re.compile(self.PATTERN)
+        self.data = self._to_molgpt_input_data(data)
     
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, idx):
         smiles = self.data[idx]
-        smiles = smiles.strip()
         
-        regex = re.compile(self.PATTERN)
-        smiles += str('<')*(self.max_len - len(regex.findall(smiles)))
-
-        if len(regex.findall(smiles)) > self.max_len:
-            smiles = smiles[:self.max_len]
-
-        smiles=regex.findall(smiles)
-        dix =  [self.stoi[s] for s in smiles]
-        
+        smiles += str('<')*(self.max_len - len(self.regex.findall(smiles)))
+        smiles = self.regex.findall(smiles)
+        dix = [self.stoi[s] for s in smiles]
         x = torch.tensor(dix[:-1], dtype=torch.long)
         y = torch.tensor(dix[1:], dtype=torch.long)
         return x, y
-    
-    def _smiles_from_list_to_molgpt_input_data(self, smiles: list[str]) -> list[str]:
-        regex = re.compile(self.PATTERN)
-        input_data = [i + str('<')*(self.max_len - len(regex.findall(i.strip()))) for i in smiles]
+
+    def _to_molgpt_input_data(self, data: list[str]) -> list[str]:
+        trimmed_data = [smiles if len(self.regex.findall(smiles)) <= self.max_len else smiles[:self.max_len] for smiles in data]
+        if len(trimmed_data) < len(data):
+            logger.warning(f"Trimmed {len(data) - len(trimmed_data)} examples to max length of {self.max_len}.")
+        data_filtered = []
+        num_examples_filtered = 0
+        for smiles in tqdm(trimmed_data, desc='Filtering data'):
+            smiles = smiles.strip()
+            smiles_filtered = ''
+            for token in self.regex.findall(smiles):
+                if token in self.stoi:
+                    smiles_filtered += token
+                else:
+                    num_examples_filtered += 1
+                    token_with_charge_removed = token.replace('+', '').replace('-', '').replace('[', '').replace(']', '')
+                    if token_with_charge_removed in self.stoi:
+                        smiles_filtered += token_with_charge_removed
+            data_filtered.append(smiles_filtered)
+        if num_examples_filtered > 0:
+            logger.warning(f"Filtered {num_examples_filtered} examples due to unknown characters.")
+        input_data = [i + str('<')*(self.max_len - len(self.regex.findall(i.strip()))) for i in data_filtered]
         return input_data
     
     @property
