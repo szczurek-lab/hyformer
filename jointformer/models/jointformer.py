@@ -34,12 +34,13 @@ class Jointformer(Transformer, TrainableModel):
             num_prediction_tasks: int,
             num_physchem_tasks: Optional[int] = DEFAULT_NUM_PHYCHEM_TASKS,
             init_weights: bool = True,
-            tie_weights: bool = True
+            tie_weights: bool = True,
+            flash_attention: bool = True
     ):
 
         super().__init__(
             vocab_size=vocab_size, max_seq_len=max_seq_len, embedding_dim=embedding_dim, embedding_hidden_dim=embedding_hidden_dim, attention_dropout=attention_dropout,
-            feed_forward_dropout=feed_forward_dropout, num_layers=num_layers, bias=bias, num_heads=num_heads, layer_norm_eps=layer_norm_eps
+            feed_forward_dropout=feed_forward_dropout, num_layers=num_layers, bias=bias, num_heads=num_heads, layer_norm_eps=layer_norm_eps, flash_attention=flash_attention
             )
         
         # Hardcoding all tasks into the model definition for easier serialization
@@ -265,7 +266,8 @@ class Jointformer(Transformer, TrainableModel):
             prediction_hidden_dim=config.prediction_hidden_dim,
             num_prediction_tasks=config.num_prediction_tasks,
             num_physchem_tasks=config.num_physchem_tasks,
-            layer_norm_eps=config.layer_norm_eps
+            layer_norm_eps=config.layer_norm_eps,
+            flash_attention=config.flash_attention
         )
 
 
