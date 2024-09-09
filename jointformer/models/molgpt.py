@@ -61,7 +61,7 @@ class MolGPT(BaseModel, SmilesEncoder):
             self._vocab_size, self._max_length, num_props=0, n_layer=8, n_head=8, n_embd=256,
             scaffold=self._scaffold, scaffold_maxlen=self._scaffold_max_len, lstm=False, lstm_layers=False)
         self._model = GPT(self._config)
-        _ckpt = torch.load(filename)
+        _ckpt = torch.load(filename, map_location='cpu')
         self._model.load_state_dict(self._filter_checkpoint(_ckpt))
         del _ckpt
     
