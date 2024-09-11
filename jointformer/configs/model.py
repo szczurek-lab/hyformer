@@ -34,6 +34,7 @@ class ModelConfig(Config):
         predictor_num_heads: Optional[int] = None,
         prediction_hidden_dim: Optional[int] = None,
         set_separate_task_tokens: Optional[bool] = None,
+        flash_attention: Optional[bool] = True
     ):
         super().__init__()
         self.model_name = model_name
@@ -59,6 +60,7 @@ class ModelConfig(Config):
         self.predictor_num_heads = predictor_num_heads
         self.prediction_hidden_dim = prediction_hidden_dim
         self.set_separate_task_tokens = set_separate_task_tokens
+        self.flash_attention = flash_attention
         if self.model_name not in ["Moler", "UniMol", "RegressionTransformer", "MolGPT"]:
             self._post_init()
         
