@@ -172,7 +172,12 @@ class Jointformer(Transformer, TrainableModel):
         outputs = self.predict(input_ids=input_ids, attention_mask=attention_mask)
         if properties is not None:
             if self.prediction_task_type == 'classification':
-                outputs["loss"] = F.cross_entropy(outputs["logits_prediction"], properties, reduction='mean')
+                if self.num_prediction_tasks == 1:
+                    outputs["loss"] = F.cross_entropy(outputs["logits_prediction"], properties, reduction='mean')
+                elif self.num_prediction_tasks > 1:
+                    outputs["loss"] = F.binary_cross_entropy_with_logits(outputs["logits_prediction"], properties, reduction='mean')
+                else:
+                    raise ValueError('Variable `num_prediction_tasks` must be greater than 0.')
             elif self.prediction_task_type == 'regression':
                 outputs["loss"] = F.mse_loss(outputs["logits_prediction"].flatten(), properties.flatten(), 'mean')
             else:
