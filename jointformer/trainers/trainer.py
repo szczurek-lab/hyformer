@@ -336,8 +336,8 @@ class Trainer:
                 out[split]['perplexity'] = losses.mean().item() if torch.nan not in losses else torch.nan
 
         if hasattr(self.model, 'generate') and self.eval_generation:
+            samples = []
             for _ in range(self.eval_iters):
-                samples = []
                 samples.extend(self.generate())
             if self.logger:
                 self.logger.log_molecule_data(samples)
