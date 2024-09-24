@@ -1,0 +1,6 @@
+{
+    "tokenizer": "FancyTokenizer",
+    "path_to_vocabulary": "data/vocabularies/deepchem.txt",
+    "max_molecule_length": 127
+  }
+  

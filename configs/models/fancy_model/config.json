@@ -1,0 +1,15 @@
+{
+  "model_name": "FancyModel",
+  "bias": false,
+  "dropout": 0.0,
+  "embedding_dim": 256,
+  "embedding_hidden_dim": 1024,
+  "layer_norm_eps": 1e-05,
+  "max_seq_len": 256,
+  "num_heads": 8,
+  "num_layers": 2,
+  "vocab_size": 595,
+  "prediction_task_type": "regression",
+  "num_physchem_tasks": 200,
+  "prediction_hidden_dim": 256
+}
