@@ -29,5 +29,9 @@ class AutoTokenizer:
             return getattr(importlib.import_module(
                 "jointformer.utils.tokenizers.hf"),
                 "HFTokenizer").from_config(config)
+        elif config.tokenizer == "FancyTokenizer":
+            return getattr(importlib.import_module(
+                "jointformer.utils.tokenizers.fancy_tokenizer"),
+                "FancyTokenizer").from_config(config)
         else:
             raise ValueError(f"Tokenizer {config.tokenizer} not available.")

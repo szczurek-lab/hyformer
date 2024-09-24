@@ -7,6 +7,16 @@ class AutoModel:
 
     @classmethod
     def from_config(cls, config: ModelConfig) -> BaseModel:
+        
+        if config.model_name == 'FancyModel':
+            return getattr(importlib.import_module(
+                "jointformer.models.fancy_model"),
+                "FancyModel").from_config(config)
+        
+        if config.model_name == 'GPT':
+            return getattr(importlib.import_module(
+                "jointformer.models.gpt"),
+                "GPT").from_config(config)
 
         if config.model_name == 'Jointformer':
             return getattr(importlib.import_module(
