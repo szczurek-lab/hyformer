@@ -1,5 +1,6 @@
-import os, logging, argparse
+import os, logging, argparse, sys
 
+import torch
 import torch.distributed as dist
 
 from socket import gethostname
@@ -24,12 +25,11 @@ from jointformer.utils.ddp import init_ddp, end_ddp
 console = logging.getLogger(__file__)
 logging.basicConfig(
     level=logging.INFO,
-    filename=f'{os.environ.get("SLURM_JOB_NAME", "run")}.log',
-    filemode='a',
+    handlers=[logging.StreamHandler(sys.stdout)],
     format=f'{gethostname()}, rank {int(os.environ.get("SLURM_PROCID", "0"))}: %(asctime)s %(name)s %(levelname)s %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S',
 )
-logging.captureWarnings(True)
+logging.captureWarnings(False)
 
 DEFAULT_MODEL_SEED_ARRAY = [1337]
 
@@ -100,6 +100,7 @@ def main(args):
 
 
 if __name__ == "__main__":
+    assert torch.cuda.is_available(), "CUDA is not available"
     args = parse_args()
     for seed in args.seed:
         tmp_args = args
