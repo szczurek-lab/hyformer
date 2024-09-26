@@ -151,8 +151,7 @@ class GPT(nn.Module):
         elif isinstance(module, nn.Embedding):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
-    def forward(self, input_ids: torch.Tensor, input_labels: torch.Tensor = None, attention_mask: torch.Tensor = None,
-                properties: torch.Tensor = None, next_token_only: Optional[bool] = False, **kwargs):
+    def forward(self, input_ids: torch.Tensor, input_labels: torch.Tensor = None, next_token_only: Optional[bool] = False, **kwargs):
 
         device = input_ids.device
         batch_size, sequence_length = input_ids.size()
@@ -162,12 +161,8 @@ class GPT(nn.Module):
         tok_emb = self.transformer.wte(input_ids) # token embeddings of shape (b, t, n_embd)
         pos = torch.arange(0, sequence_length, dtype=torch.long, device=device)
         pos_emb = self.transformer.wpe(pos) # position embeddings of shape (t, n_embd)
-        type_tokens = torch.zeros(sequence_length, dtype=torch.long, device=device)
-        type_emb = self.transformer.type_emb(type_tokens) if self.config.num_props is not None else 0
-        token_embeddings = tok_emb + pos_emb + type_emb
-        property_embeddings = None
 
-        embeddings = torch.cat([token_embeddings, property_embeddings], dim=1) if property_embeddings is not None else token_embeddings
+        embeddings = tok_emb + pos_emb
         x = self.transformer.drop(embeddings)
         for block in self.transformer.h:
             x = block(x)
@@ -178,10 +173,14 @@ class GPT(nn.Module):
             logits = self.lm_head(x[:, [-1], :])
             return {'logits_generation': logits}
         else:
-            logits = self.lm_head(x[:, :sequence_length, :])
+            logits = self.lm_head(x)
             
         if input_labels is not None:
             batch_size, sequence_length = input_labels.size()
+            sequence_length -= 1
+            # shift the labels to the right
+            input_labels = input_labels[:, 1:]
+            logits = logits[:, :-1].contiguous()
             loss = F.cross_entropy(logits.view(batch_size * sequence_length, -1), input_labels.view(batch_size * sequence_length), ignore_index=-100)
 
         return {'token_embeddings': embeddings, 'embeddings': x, 'logits': logits, 'loss': loss}
