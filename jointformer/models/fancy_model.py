@@ -303,7 +303,9 @@ class FancyModelForDownstreamPrediction(FancyModel):
                 properties: torch.Tensor = None, next_token_only: Optional[bool] = False, **kwargs):
         outputs = super().forward(input_ids=input_ids, input_labels=input_labels, attention_mask=attention_mask,
                                   properties=properties, next_token_only=next_token_only, **kwargs)
-        outputs['logits_prediction'] = self.downstream_prediction_task_head(outputs['embeddings'][:, -1, :])
+        if not next_token_only:
+            embeddings = outputs['embeddings'][:, :-1, :]
+            outputs['logits_prediction'] = self.downstream_prediction_task_head(embeddings)
         return outputs
 
     def get_loss(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, properties: torch.Tensor, **kwargs):
