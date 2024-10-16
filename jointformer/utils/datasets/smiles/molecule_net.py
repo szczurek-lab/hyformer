@@ -119,6 +119,9 @@ class MoleculeNetDataset(SmilesDataset):
         if split is not None:
             config.split = split
 
+        if split is not 'train':
+            config.transform = None
+
         return cls(
             split=config.split,
             splitter=config.splitter,

@@ -6,6 +6,9 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 from typing import Optional
+from jointformer.models.trainable import TrainableModel
+
+from jointformer.models.layers.prediction import DownstreamPredictionHead
 
 
 class LayerNorm(nn.Module):
@@ -176,11 +179,10 @@ class GPT(nn.Module):
             logits = self.lm_head(x)
             
         if input_labels is not None:
-            batch_size, sequence_length = input_labels.size()
-            sequence_length -= 1
-            # shift the labels to the right
-            input_labels = input_labels[:, 1:]
+            input_labels = input_labels[:, 1:].contiguous()
             logits = logits[:, :-1].contiguous()
+            batch_size, sequence_length = input_labels.size()
+            assert input_labels.size(1) == logits.size(1), "size"
             loss = F.cross_entropy(logits.view(batch_size * sequence_length, -1), input_labels.view(batch_size * sequence_length), ignore_index=-100)
 
         return {'token_embeddings': embeddings, 'embeddings': x, 'logits': logits, 'loss': loss}
@@ -200,62 +202,21 @@ class GPT(nn.Module):
                 properties: torch.Tensor = None, next_token_only: Optional[bool] = False, **kwargs):
         return self(input_ids=input_ids, input_labels=input_labels, properties=properties)
 
-    @classmethod
-    def from_pretrained(cls, model_type, override_args=None):
-        assert model_type in {'gpt2', 'gpt2-medium', 'gpt2-large', 'gpt2-xl'}
-        override_args = override_args or {} # default to empty dict
-        # only dropout can be overridden see more notes below
-        assert all(k == 'dropout' for k in override_args)
-        from transformers import GPT2LMHeadModel
-        print("loading weights from pretrained gpt: %s" % model_type)
+    def load_pretrained(self, filename, device='cpu'):
+        state_dict = torch.load(filename, map_location=device, weights_only=True)['model']
+        
+        unwanted_prefix = '_orig_mod.'  # compile artefact
+        for k, v in list(state_dict.items()):
+            if k.startswith(unwanted_prefix):
+                state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
+        
+        excluded_prefixes = ['.attn.bias']
+        state_dict_filtered = {k:v for (k, v) in state_dict.items() if not any(k.endswith(k2) for k2 in excluded_prefixes)}
+        if len(state_dict_filtered) != len(state_dict):
+            print(f"Number of filtered keys: {len(state_dict) - len(state_dict_filtered)}")
 
-        # n_layer, n_head and n_embd are determined from model_type
-        config_args = {
-            'gpt2':         dict(n_layer=12, n_head=12, n_embd=768),  # 124M params
-            'gpt2-medium':  dict(n_layer=24, n_head=16, n_embd=1024), # 350M params
-            'gpt2-large':   dict(n_layer=36, n_head=20, n_embd=1280), # 774M params
-            'gpt2-xl':      dict(n_layer=48, n_head=25, n_embd=1600), # 1558M params
-        }[model_type]
-        print("forcing vocab_size=50257, block_size=1024, bias=True")
-        config_args['vocab_size'] = 50257 # always 50257 for GPT model checkpoints
-        config_args['block_size'] = 1024 # always 1024 for GPT model checkpoints
-        config_args['bias'] = True # always True for GPT model checkpoints
-        # we can override the dropout rate, if desired
-        if 'dropout' in override_args:
-            print(f"overriding dropout rate to {override_args['dropout']}")
-            config_args['dropout'] = override_args['dropout']
-        # create a from-scratch initialized minGPT model
-        config = GPTConfig(**config_args)
-        model = GPT(config)
-        sd = model.state_dict()
-        sd_keys = sd.keys()
-        sd_keys = [k for k in sd_keys if not k.endswith('.attn.bias')] # discard this mask / buffer, not a param
-
-        # init a huggingface/transformers model
-        model_hf = GPT2LMHeadModel.from_pretrained(model_type)
-        sd_hf = model_hf.state_dict()
-
-        # copy while ensuring all of the parameters are aligned and match in names and shapes
-        sd_keys_hf = sd_hf.keys()
-        sd_keys_hf = [k for k in sd_keys_hf if not k.endswith('.attn.masked_bias')] # ignore these, just a buffer
-        sd_keys_hf = [k for k in sd_keys_hf if not k.endswith('.attn.bias')] # same, just the mask (buffer)
-        transposed = ['attn.c_attn.weight', 'attn.c_proj.weight', 'mlp.c_fc.weight', 'mlp.c_proj.weight']
-        # basically the openai checkpoints use a "Conv1D" module, but we only want to use a vanilla Linear
-        # this means that we have to transpose these weights when we import them
-        assert len(sd_keys_hf) == len(sd_keys), f"mismatched keys: {len(sd_keys_hf)} != {len(sd_keys)}"
-        for k in sd_keys_hf:
-            if any(k.endswith(w) for w in transposed):
-                # special treatment for the Conv1D weights we need to transpose
-                assert sd_hf[k].shape[::-1] == sd[k].shape
-                with torch.no_grad():
-                    sd[k].copy_(sd_hf[k].t())
-            else:
-                # vanilla copy over the other parameters
-                assert sd_hf[k].shape == sd[k].shape
-                with torch.no_grad():
-                    sd[k].copy_(sd_hf[k])
-
-        return model
+        self.load_state_dict(state_dict_filtered, strict=False)
+        return self
 
     def configure_optimizers(self, weight_decay, learning_rate, betas, device_type):
         # start with all of the candidate parameters
@@ -348,6 +309,9 @@ class GPT(nn.Module):
 
         return idx
     
+    def to_downstream_task_predictor(self, task_type, num_tasks):
+        return GPTPredictiveModelWraper(self, task_type, num_tasks) 
+
     @classmethod
     def from_config(cls, config):
         config.block_size = config.max_seq_len
@@ -359,8 +323,54 @@ class GPT(nn.Module):
             config=config
         )
 
-class GPTPredictiveModelWraper:
 
-    def __init__(self, model, tokenizer):
-        self.model = model
-        self.tokenizer = tokenizer
+class GPTForDownstreamPrediction(GPT):
+
+    def __init__(self, config):
+            
+        super().__init__(config)
+        self.prediction_task_type = config.downstream_task
+        self.num_prediction_tasks = config.num_tasks
+        self.downstream_prediction_task_head = DownstreamPredictionHead(
+            config.n_embd, 2 if config.downstream_task == 'classification' and config.num_tasks == 1 else config.num_tasks, config.hidden_dim)
+
+    def forward(self, input_ids: torch.Tensor, input_labels: torch.Tensor = None, attention_mask: torch.Tensor = None,
+                properties: torch.Tensor = None, next_token_only: Optional[bool] = False, **kwargs):
+        outputs = super().forward(input_ids=input_ids, input_labels=input_labels, attention_mask=attention_mask,
+                                  properties=properties, next_token_only=next_token_only, **kwargs)
+        embeddings = outputs['embeddings'].mean(1)
+        outputs['logits_prediction'] = self.downstream_prediction_task_head(embeddings)
+        return outputs
+
+    def get_loss(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, properties: torch.Tensor, **kwargs):
+        outputs = self(input_ids=input_ids, attention_mask=attention_mask)
+        
+        if self.prediction_task_type == 'classification':
+            if self.num_prediction_tasks == 1:
+                outputs["loss"] = F.cross_entropy(outputs["logits_prediction"], properties, reduction='mean')
+            elif self.num_prediction_tasks > 1:
+                outputs["loss"] = F.binary_cross_entropy_with_logits(outputs["logits_prediction"], properties, reduction='mean')
+            else:
+                raise ValueError('Variable `num_prediction_tasks` must be greater than 0.')
+            
+        elif self.prediction_task_type == 'regression':
+            outputs["loss"] = F.mse_loss(outputs["logits_prediction"].flatten(), properties.flatten(), 'mean')
+        
+        else:
+            raise ValueError('Variable `downstream_task` must be either `classification` or `regression`.')
+        
+        return outputs
+    
+    @classmethod
+    def from_config(cls, config, downstream_task, num_tasks, hidden_dim):
+        config.block_size = config.max_seq_len
+        config.n_embd = config.embedding_dim
+        config.n_layer = config.num_layers
+        config.n_head = config.num_heads
+        config.num_props = config.num_physchem_tasks
+        config.downstream_task = downstream_task
+        config.num_tasks = num_tasks
+        config.hidden_dim = hidden_dim
+        return cls(
+            config=config
+        )

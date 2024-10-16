@@ -13,6 +13,11 @@ class AutoModel:
                 "jointformer.models.fancy_model"),
                 "FancyModel").from_config(config)
         
+        if config.model_name == 'FancyModelForDownstreamPrediction':
+            return getattr(importlib.import_module(
+                "jointformer.models.fancy_model"),
+                "FancyModelForDownstreamPrediction").from_config(config)
+        
         if config.model_name == 'GPT':
             return getattr(importlib.import_module(
                 "jointformer.models.gpt"),

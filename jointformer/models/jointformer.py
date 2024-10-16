@@ -29,9 +29,7 @@ class Jointformer(Transformer, TrainableModel):
             bias: int,
             num_heads: int,
             layer_norm_eps: float,
-            prediction_task_type: str,
-            prediction_hidden_dim: int,
-            num_prediction_tasks: int,
+            physchem_hidden_dim: int,
             num_physchem_tasks: Optional[int] = DEFAULT_NUM_PHYCHEM_TASKS,
             init_weights: bool = True,
             tie_weights: bool = True,
@@ -44,18 +42,9 @@ class Jointformer(Transformer, TrainableModel):
             )
         
         # Hardcoding all tasks into the model definition for easier serialization
-        self.prediction_task_type = prediction_task_type
         self.lm_head = nn.Linear(self.embedding_dim, self.vocab_size, bias=False)
         self.mlm_head = nn.Linear(self.embedding_dim, self.vocab_size, bias=False)
-        self.physchem_head = RegressionHead(embedding_dim=self.embedding_dim, prediction_hidden_dim=prediction_hidden_dim, output_dim=num_physchem_tasks)
-
-        # Init prediction head depending on task type
-        if prediction_task_type == 'classification':
-            self.prediction_head = ClassificationHead(embedding_dim=self.embedding_dim, output_dim=2 if num_prediction_tasks == 1 else num_prediction_tasks) # binary or multiclass classification
-        elif prediction_task_type == 'regression':
-            self.prediction_head = RegressionHead(embedding_dim=self.embedding_dim, prediction_hidden_dim=prediction_hidden_dim, output_dim=num_prediction_tasks)
-        else:
-            raise ValueError('Variable `prediction_task_type` must be either `classification` or `regression`.')
+        self.physchem_head = RegressionHead(embedding_dim=self.embedding_dim, prediction_hidden_dim=physchem_hidden_dim, output_dim=num_physchem_tasks)
         
         # Weight tying https://paperswithcode.com/method/weight-tying
         if tie_weights:
@@ -100,7 +89,7 @@ class Jointformer(Transformer, TrainableModel):
             outputs["logits_generation"] = self.lm_head(lm_embeddings)
         else:
             outputs["logits_physchem"] = self.physchem_head(cls_embeddings)
-            outputs["logits_prediction"] = self.prediction_head(cls_embeddings)
+            # outputs["logits_prediction"] = self.prediction_head(cls_embeddings)
 
         return ModelOutput(
             attention_mask=attention_mask,
@@ -137,15 +126,14 @@ class Jointformer(Transformer, TrainableModel):
 
     def get_loss_lm(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, input_labels: torch.Tensor, **kwargs):
         outputs = self(input_ids=input_ids, attention_mask=attention_mask, task='generation', next_token_only=False)
-        if input_labels is not None: 
-            logits = outputs['logits_generation'][:, :-1, :].contiguous()
-            labels = input_labels[:, 1:].contiguous()
-            batch_size, seq_length, vocab_size = logits.size()
-            outputs["loss"] = F.cross_entropy(
-                logits.view(batch_size * seq_length, vocab_size),
-                labels.view(batch_size * seq_length),
-                ignore_index=TOKEN_DICT['ignore'],
-                reduction='mean')
+        logits = outputs['logits_generation'][:, :-1, :].contiguous()
+        labels = input_labels[:, 1:].contiguous()
+        batch_size, seq_length, vocab_size = logits.size()
+        outputs["loss"] = F.cross_entropy(
+            logits.view(batch_size * seq_length, vocab_size),
+            labels.view(batch_size * seq_length),
+            ignore_index=TOKEN_DICT['ignore'],
+            reduction='mean')
         return outputs
 
     def get_loss_mlm(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, input_labels: torch.Tensor, **kwargs):
@@ -252,6 +240,10 @@ class Jointformer(Transformer, TrainableModel):
         from jointformer.models.wrappers import JointformerSmilesEncoderWrapper
         return JointformerSmilesEncoderWrapper(self, tokenizer, batch_size, device)
 
+    def to_downstream_predictive_model(self, task_type, num_tasks, prediction_hidden_dim):
+        from jointformer.models.wrappers import DownstreamPredictiveModelWrapper
+        return DownstreamPredictiveModelWrapper(self, task_type, num_tasks, prediction_hidden_dim)
+
     def load_pretrained(self, filename, device='cpu'):
         super().load_pretrained(filename, device=device)
 
@@ -267,9 +259,7 @@ class Jointformer(Transformer, TrainableModel):
             num_layers=config.num_layers,
             bias=config.bias,
             num_heads=config.num_heads,
-            prediction_task_type=config.prediction_task_type,
-            prediction_hidden_dim=config.prediction_hidden_dim,
-            num_prediction_tasks=config.num_prediction_tasks,
+            physchem_hidden_dim=config.prediction_hidden_dim,
             num_physchem_tasks=config.num_physchem_tasks,
             layer_norm_eps=config.layer_norm_eps,
             flash_attention=config.flash_attention
@@ -291,4 +281,4 @@ class JointformerWithMaxEmbeddings(Jointformer):
             embeddings = embeddings.masked_fill(attention_mask.logical_not(), float("-inf"))
         embeddings = embeddings.max(dim=1).values
         return embeddings
-    
+

@@ -7,6 +7,7 @@ from torch.nn import functional as F
 
 from typing import Optional
 from gpt import LayerNorm, Block
+from jointformer.models.layers.prediction import DownstreamPredictionHead
 
 
 class FancyModel(nn.Module):
@@ -290,8 +291,53 @@ class FancyModel(nn.Module):
             config=config
         )
 
-class DownstramPredictiveModelWraper:
 
-    def __init__(self, model, tokenizer):
-        self.model = model
-        self.tokenizer = tokenizer
+class FancyModelForDownstreamPrediction(FancyModel):
+
+    def __init__(self, config):
+            
+        super().__init__(config)
+        self.prediction_task_type = config.downstream_task
+        self.num_prediction_tasks = config.num_tasks
+        self.downstream_prediction_task_head = DownstreamPredictionHead(
+            config.n_embd, 2 if config.downstream_task == 'classification' and config.num_tasks == 1 else config.num_tasks, config.hidden_dim)
+
+    def forward(self, input_ids: torch.Tensor, input_labels: torch.Tensor = None, attention_mask: torch.Tensor = None,
+                properties: torch.Tensor = None, next_token_only: Optional[bool] = False, **kwargs):
+        outputs = super().forward(input_ids=input_ids, input_labels=input_labels, attention_mask=attention_mask,
+                                  properties=properties, next_token_only=next_token_only, **kwargs)
+        outputs['logits_prediction'] = self.downstream_prediction_task_head(outputs['embeddings'][:, -1, :])
+        return outputs
+
+    def get_loss(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, properties: torch.Tensor, **kwargs):
+        outputs = self(input_ids=input_ids, attention_mask=attention_mask)
+        
+        if self.prediction_task_type == 'classification':
+            if self.num_prediction_tasks == 1:
+                outputs["loss"] = F.cross_entropy(outputs["logits_prediction"], properties, reduction='mean')
+            elif self.num_prediction_tasks > 1:
+                outputs["loss"] = F.binary_cross_entropy_with_logits(outputs["logits_prediction"], properties, reduction='mean')
+            else:
+                raise ValueError('Variable `num_prediction_tasks` must be greater than 0.')
+            
+        elif self.prediction_task_type == 'regression':
+            outputs["loss"] = F.mse_loss(outputs["logits_prediction"].flatten(), properties.flatten(), 'mean')
+        
+        else:
+            raise ValueError('Variable `downstream_task` must be either `classification` or `regression`.')
+        
+        return outputs
+    
+    @classmethod
+    def from_config(cls, config, downstream_task, num_tasks, hidden_dim):
+        config.block_size = config.max_seq_len
+        config.n_embd = config.embedding_dim
+        config.n_layer = config.num_layers
+        config.n_head = config.num_heads
+        config.num_props = config.num_physchem_tasks
+        config.downstream_task = downstream_task
+        config.num_tasks = num_tasks
+        config.hidden_dim = hidden_dim
+        return cls(
+            config=config
+        )
