@@ -182,7 +182,6 @@ class GPT(nn.Module):
             input_labels = input_labels[:, 1:].contiguous()
             logits = logits[:, :-1].contiguous()
             batch_size, sequence_length = input_labels.size()
-            assert input_labels.size(1) == logits.size(1), "size"
             loss = F.cross_entropy(logits.view(batch_size * sequence_length, -1), input_labels.view(batch_size * sequence_length), ignore_index=-100)
 
         return {'token_embeddings': embeddings, 'embeddings': x, 'logits': logits, 'loss': loss}
@@ -371,6 +370,9 @@ class GPTForDownstreamPrediction(GPT):
         config.downstream_task = downstream_task
         config.num_tasks = num_tasks
         config.hidden_dim = hidden_dim
+        assert config.downstream_task in ['classification', 'regression'], "Downstream task must be either 'classification' or 'regression'."
+        assert config.num_tasks > 0, f"Number of tasks {config.num_tasks} must be greater than 0."
+        assert config.hidden_dim > 0, f"Hidden dimension {config.hidden_dim} must be greater than 0."
         return cls(
             config=config
         )

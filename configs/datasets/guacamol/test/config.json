@@ -3,13 +3,9 @@
   "target_label": "physchem",
   "validate": false,
   "standardize": false,
-  "num_samples": null,
+  "num_samples": 200,
   "split": null,
   "splitter": null,
-  "transform": [{
-    "name": "smiles_enumerator", "params": {
-      "enumeration_probability": 0.0,
-      "is_standardized": true}
-  }],
+  "transform": null,
   "target_transform": null
 }

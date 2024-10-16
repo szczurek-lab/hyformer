@@ -28,9 +28,8 @@ from jointformer.utils.data import write_dict_to_file
 console = logging.getLogger(__file__)
 logging.basicConfig(
     level=logging.INFO,
-    filename=f"{os.environ.get('SLURM_JOB_NAME', 'run')}.log",
-    filemode='a',
-    format=f'{gethostname()}, rank {int(os.environ.get("SLURM_PROCID", 0))}: %(asctime)s %(name)s %(levelname)s %(message)s',
+    handlers=[logging.StreamHandler(sys.stdout)],
+    format=f'{gethostname()}, rank {int(os.environ.get("SLURM_PROCID", "0"))}: %(asctime)s %(name)s %(levelname)s %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S',
 )
 logging.captureWarnings(False)

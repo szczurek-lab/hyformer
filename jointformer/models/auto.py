@@ -6,34 +6,39 @@ from jointformer.models.base import BaseModel
 class AutoModel:
 
     @classmethod
-    def from_config(cls, config: ModelConfig) -> BaseModel:
+    def from_config(cls, config: ModelConfig, **kwargs) -> BaseModel:
         
         if config.model_name == 'FancyModel':
             return getattr(importlib.import_module(
                 "jointformer.models.fancy_model"),
                 "FancyModel").from_config(config)
         
-        if config.model_name == 'FancyModelForDownstreamPrediction':
+        elif config.model_name == 'FancyModelForDownstreamPrediction':
             return getattr(importlib.import_module(
                 "jointformer.models.fancy_model"),
-                "FancyModelForDownstreamPrediction").from_config(config)
+                "FancyModelForDownstreamPrediction").from_config(config, **kwargs)
         
-        if config.model_name == 'GPT':
+        elif config.model_name == 'GPT':
             return getattr(importlib.import_module(
                 "jointformer.models.gpt"),
                 "GPT").from_config(config)
 
-        if config.model_name == 'Jointformer':
+        elif config.model_name == 'GPTForDownstreamPrediction':
+            return getattr(importlib.import_module(
+                "jointformer.models.gpt"),
+                "GPTForDownstreamPrediction").from_config(config, **kwargs)
+
+        elif config.model_name == 'Jointformer':
             return getattr(importlib.import_module(
                 "jointformer.models.jointformer"),
                 "Jointformer").from_config(config)
         
-        if config.model_name == 'JointformerWithPrefix':
+        elif config.model_name == 'JointformerWithPrefix':
             return getattr(importlib.import_module(
                 "jointformer.models.jointformer"),
                 "JointformerWithPrefix").from_config(config)
         
-        if config.model_name == 'JointformerWithMaxEmbeddings':
+        elif config.model_name == 'JointformerWithMaxEmbeddings':
             return getattr(importlib.import_module(
                 "jointformer.models.jointformer"),
                 "JointformerWithMaxEmbeddings").from_config(config)

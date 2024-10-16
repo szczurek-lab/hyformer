@@ -1,8 +1,8 @@
 #!/bin/bash
 
-#SBATCH --job-name=pretrain-fancy-model                           
-#SBATCH --output logs/pretrain-fancy-model.log                              
-#SBATCH --error logs/pretrain-fancy-model.err                                 
+#SBATCH --job-name=pretrain-fancy-model-shift                        
+#SBATCH --output logs/logs/%x_%j.log                              
+#SBATCH --error logs/logs/%x_%j.err                                 
 
 #SBATCH -p gpu_p
 #SBATCH --qos gpu_long

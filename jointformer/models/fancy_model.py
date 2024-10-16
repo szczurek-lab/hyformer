@@ -6,8 +6,8 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 from typing import Optional
-from gpt import LayerNorm, Block
 from jointformer.models.layers.prediction import DownstreamPredictionHead
+from jointformer.models.gpt import LayerNorm, Block
 
 
 class FancyModel(nn.Module):
@@ -99,11 +99,8 @@ class FancyModel(nn.Module):
             logits = self.lm_head(x[:, :sequence_length, :])
             
         if input_labels is not None:
-            batch_size, sequence_length = input_labels.size()
-            offset = 1
-            sequence_length -= offset # shift the labels to the right
-            input_labels = input_labels[:, offset:]
-            logits = logits[:, :-offset].contiguous()
+            input_labels = input_labels[:, 1:].contiguous()
+            logits = logits[:, :-1].contiguous()
             batch_size, sequence_length = input_labels.size()
             loss = F.cross_entropy(logits.view(batch_size * sequence_length, -1), input_labels.view(batch_size * sequence_length), ignore_index=-100)
         

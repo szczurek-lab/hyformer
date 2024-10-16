@@ -1,8 +1,8 @@
 #!/bin/bash
 
-#SBATCH --job-name=pretrain-gpt                           
-#SBATCH --output logs/pretrain-gpt.log                              
-#SBATCH --error logs/pretrain-gpt.err                                 
+#SBATCH --job-name=pretrain-gpt-fixed-shift                           
+#SBATCH --output logs/logs/%x_%j.log                              
+#SBATCH --error logs/logs/%x_%j.err                                 
 
 #SBATCH -p gpu_p
 #SBATCH --qos gpu_long

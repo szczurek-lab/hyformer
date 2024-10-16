@@ -1,0 +1,6 @@
+{
+    "tokenizer": "SmilesTokenizerSeparateTaskToken",
+    "path_to_vocabulary": "data/vocabularies/guacamol.txt",
+    "max_molecule_length": 128
+  }
+  
