@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=finetune-gpt                           
+#SBATCH --job-name=finetune-fancy-model                           
 #SBATCH --output logs/logs/%x_%j.log                              
 #SBATCH --error logs/logs/%x_%j.err                                 
 
@@ -32,7 +32,7 @@ dataset_names=("lipo" "esol" "freesolv")
 data_dir="/lustre/groups/aih/jointformer/data"
 root_dir="/lustre/groups/aih/jointformer/results/sample_efficient_domain_adaptation"
 path_to_tokenizer_config="configs/tokenizers/gpt_tokenizer"
-model_name="gpt"
+model_name="fancy_model"
 path_to_model_config="configs/models/${model_name}_prediction"
 path_to_trainer_config="configs/trainers/sample_efficient_domain_adaptation"
 
@@ -54,7 +54,7 @@ for dataset_name in "${dataset_names[@]}"; do
                --fraction_train_dataset $fraction_train_dataset \
                --dataset_seed $dataset_seed \
                --model_seed $model_seed \
-               --path_to_model_ckpt /lustre/groups/aih/jointformer/results/pretrain/gpt/seed_1337/ckpt.pt
+               --path_to_model_ckpt /lustre/groups/aih/jointformer/results/pretrain/gpt-fused/seed_1337/ckpt.pt
 
             python "experiments/data_efficient_domain_adaptation/test.py" \
                --data_dir $data_dir \

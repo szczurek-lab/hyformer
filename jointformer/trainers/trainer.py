@@ -184,7 +184,12 @@ class Trainer:
             self.model.load_state_dict(state_dict, strict=False)
         except RuntimeError:
             self.model.load_state_dict(checkpoint['model'], strict=False)
-        self.optimizer.load_state_dict(checkpoint["optimizer"])
+        
+        try:
+            self.optimizer.load_state_dict(checkpoint["optimizer"])
+        except:
+            console.warning("Optimizer state not found in checkpoint. Initializing optimizer from scratch.")
+
         if resume_training:
             self._iter_num = checkpoint['iter_num']
             self._best_val_loss = checkpoint['best_val_loss']
