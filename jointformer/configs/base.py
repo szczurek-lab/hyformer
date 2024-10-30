@@ -16,6 +16,9 @@ class Config:
 
     def __getitem__(self, x):
         return getattr(self, x)
+    
+    def __setitem__(self, x, y):
+        setattr(self, x, y)
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.__dict__})"

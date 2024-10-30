@@ -101,7 +101,7 @@ class MoleculeNetDataset(SmilesDataset):
         target_filepath = os.path.join(data_dir, f'{target_label}.pt')
         if not os.path.isfile(data_filepath) or not os.path.isfile(target_filepath):
             print(f"Downloading {target_label} {DATASET_NAME} dataset...")
-            os.makedirs(data_dir, exist_ok=False)
+            os.makedirs(data_dir, exist_ok=True)
 
             featurizer = RawFeaturizer(smiles=True)
             _, datasets, _ = LOAD_FN[target_label](featurizer=featurizer, splitter=splitter)

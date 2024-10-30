@@ -51,7 +51,7 @@ def parse_args():
     return args
 
 
-def main(args):
+def main(args, hparams=None, validate=False):
 
     path_to_model_ckpt = os.path.join(args.out_dir, 'ckpt.pt')
     assert os.path.exists(path_to_model_ckpt), f"Model checkpoint not found: {path_to_model_ckpt}"
@@ -63,12 +63,22 @@ def main(args):
     trainer_config = TrainerConfig.from_config_file(args.path_to_trainer_config)
     logger_config = LoggerConfig.from_config_file(args.path_to_logger_config) if args.path_to_logger_config else None
 
+    # Load trainer hparams
+    if hparams is not None:
+        for key, value in hparams.items():
+            if key in model_config.__dict__.keys():
+                model_config[key] = value
+            if key in trainer_config.__dict__.keys():
+                trainer_config[key] = value
+            if key == 'model_seed':
+                args.model_seed = value
+
     # Init
-    test_dataset = AutoDataset.from_config(dataset_config, split='test', data_dir=args.data_dir)
+    test_dataset = AutoDataset.from_config(dataset_config, split='val' if validate else 'test', data_dir=args.data_dir, seed=args.seed)
     tokenizer = AutoTokenizer.from_config(tokenizer_config)
 
     set_seed(args.model_seed)
-    model = AutoModel.from_config(model_config, downstream_task=dataset_config.task_type, num_tasks=dataset_config.task_type, hidden_dim=256)
+    model = AutoModel.from_config(model_config, downstream_task=dataset_config.task_type, num_tasks=dataset_config.num_tasks, hidden_dim=256)
     logger = AutoLogger.from_config(logger_config) if logger_config else None
     
     # Test
@@ -80,13 +90,15 @@ def main(args):
 
     objective_metric = trainer.test(metric=args.metric)
     print(f"Test {args.metric}: {objective_metric}")
-    if args.destroy_ckpt:
+    if args.destroy_ckpt and os.path.exists(path_to_model_ckpt):
         os.remove(path_to_model_ckpt)
+    
+    write_dict_to_file({f'{args.metric}': objective_metric}, os.path.join(args.out_dir, 'test_loss.json'))
+    
     return objective_metric
 
 
 if __name__ == "__main__":
     args = parse_args()
-    test_metric = main(args)
-    write_dict_to_file({f'{args.metric}': test_metric}, os.path.join(args.out_dir, 'test_loss.json'))
+    main(args)
            
