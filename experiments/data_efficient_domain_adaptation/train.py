@@ -55,10 +55,13 @@ def parse_args():
     return args
 
 
-def main(args):
+def main(args, hparams=None):
+
+    if not os.path.exists(args.out_dir):
+        os.makedirs(args.out_dir, exist_ok=False)
 
     assert torch.cuda.is_available(), "CUDA is not available"
-    set_seed(args.dataset_seed)
+    set_seed(args.seed)
 
     # Configs
     dataset_config = DatasetConfig.from_config_file(args.path_to_dataset_config)
@@ -67,12 +70,25 @@ def main(args):
     trainer_config = TrainerConfig.from_config_file(args.path_to_trainer_config)
     logger_config = LoggerConfig.from_config_file(args.path_to_logger_config) if args.path_to_logger_config else None
 
+    # Load trainer hparams
+    if hparams is not None:
+        for key, value in hparams.items():
+            if key in model_config.__dict__.keys():
+                model_config[key] = value
+            if key in trainer_config.__dict__.keys():
+                trainer_config[key] = value
+            if key == 'generation_task':
+                trainer_config['tasks'] = {"prediction": 20, "generation": value}
+                trainer_config._normalize_task_probabilities()
+            if key == 'model_seed':
+                args.model_seed = value
+
     # Init
-    train_dataset = AutoDataset.from_config(dataset_config, split='train', data_dir=args.data_dir)
+    train_dataset = AutoDataset.from_config(dataset_config, split='train', data_dir=args.data_dir, seed=args.seed)
     num_subsamples =  int(len(train_dataset) * args.fraction_train_dataset)
-    train_dataset._subset(num_samples=num_subsamples, seed=args.dataset_seed)
+    train_dataset._subset(num_samples=num_subsamples, seed=args.seed)
     console.info(f"Selected {len(train_dataset)} training examples")
-    val_dataset = AutoDataset.from_config(dataset_config, split='val', data_dir=args.data_dir)
+    val_dataset = AutoDataset.from_config(dataset_config, split='val', data_dir=args.data_dir, seed=args.seed)
     trainer_config.correct_for_num_train_examples(num_train_examples=len(train_dataset))  # adjust trainer config to dataset size
     tokenizer = AutoTokenizer.from_config(tokenizer_config)
 
@@ -84,6 +100,7 @@ def main(args):
         trainer_config.eval_iters = 1
         trainer_config.eval_interval = 1
         trainer_config.log_interval = 1
+
     # Dump configs
     dump_configs(args.out_dir, dataset_config, tokenizer_config, model_config, trainer_config, logger_config)
 
@@ -101,18 +118,14 @@ def main(args):
     if args.path_to_model_ckpt is not None and os.path.exists(args.path_to_model_ckpt):
         trainer.resume_from_file(args.path_to_model_ckpt)
         console.info(f"Resuming from {args.path_to_model_ckpt}")
+    else:
+        console.info("Training from scrach.")
 
     trainer.train()
-    
-    objective_metric = trainer.test()
-    print(f"Objective metric: {objective_metric}")
-    
-    return objective_metric
+    return None
 
 
 if __name__ == "__main__":
     args = parse_args()
-    if not os.path.exists(args.out_dir):
-        os.makedirs(args.out_dir, exist_ok=False)
     main(args)
            

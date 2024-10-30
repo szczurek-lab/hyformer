@@ -1,10 +1,15 @@
-{
+{   
+    "decay_lr":
+        {
+            "type": "categorical",
+            "choices": [true, false]
+        },
     "learning_rate": 
         {
             "type": "float", 
             "low": 5e-5, 
-            "high": 5e-4,
-            "step": 0.003,
+            "high": 5e-3,
+            "step": 0.004,
             "log": true
         },
     "batch_size": 
@@ -13,15 +18,7 @@
             "low": 16, 
             "high": 128,
             "step": 16,
-            "log": false
-        },
-    "warmup_iters": 
-        {
-            "type": "int", 
-            "low": 0, 
-            "high": 2500,
-            "step": 2500,
-            "log": false
+            "log": true
         },
     "weight_decay": 
         {
@@ -39,11 +36,19 @@
             "step": 0.1,
             "log": false
         },
-    "seed": 
+    "model_seed": 
         {
             "type": "int", 
-            "low": 1330, 
-            "high": 1340,
+            "low": 1333, 
+            "high": 1339,
+            "step": 2,
+            "log": false
+        },
+    "generation_task":
+        {
+            "type": "int", 
+            "low": 0, 
+            "high": 5,
             "step": 1,
             "log": false
         }

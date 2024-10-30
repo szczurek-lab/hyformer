@@ -342,6 +342,9 @@ class GPTForDownstreamPrediction(GPT):
             outputs['logits_prediction'] = self.downstream_prediction_task_head(embeddings)
         return outputs
 
+    def predict(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, **kwargs):
+        return self(input_ids=input_ids, attention_mask=attention_mask)
+
     def get_loss(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, properties: torch.Tensor, **kwargs):
         outputs = self(input_ids=input_ids, attention_mask=attention_mask)
         

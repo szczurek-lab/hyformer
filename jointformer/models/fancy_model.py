@@ -304,7 +304,7 @@ class FancyModelForDownstreamPrediction(FancyModel):
         outputs = super().forward(input_ids=input_ids, input_labels=input_labels, attention_mask=attention_mask,
                                   properties=properties, next_token_only=next_token_only, **kwargs)
         if not next_token_only:
-            embeddings = outputs['embeddings'][:, :-1, :]
+            embeddings = outputs['embeddings'][:, -1, :]
             outputs['logits_prediction'] = self.downstream_prediction_task_head(embeddings)
         return outputs
 

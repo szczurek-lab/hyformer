@@ -1,5 +1,6 @@
 import json
 
+
 def get_hparam_search_space(trial, hyperparameters_grid):
     """
     Generates a hyperparameter search space for a given trial.
@@ -21,6 +22,7 @@ def get_hparam_search_space(trial, hyperparameters_grid):
             hyperparams[hp_name] = trial.suggest_float(hp_name, hp_params['low'], hp_params['high'])
     return hyperparams
 
+
 def load_json(file_path):
     """
     Loads a JSON file.
@@ -33,7 +35,8 @@ def load_json(file_path):
     """
     with open(file_path, 'r') as f:
         return json.load(f)
-    
+
+
 def save_json(file_path, data):
     """
     Saves a dictionary to a JSON file.
@@ -44,3 +47,4 @@ def save_json(file_path, data):
     """
     with open(file_path, 'w') as f:
         json.dump(data, f)
+        
