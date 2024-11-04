@@ -1,6 +1,8 @@
 import os
 import torch
 
+import numpy as np
+
 from typing import List, Optional, Union, Callable, Any
 
 from deepchem.molnet import load_delaney, load_sampl, load_lipo, load_hiv, load_bace_classification, load_bbbp, load_tox21, load_toxcast, load_sider, load_clintox
@@ -100,8 +102,11 @@ class MoleculeNetDataset(SmilesDataset):
         data_filepath = os.path.join(data_dir, DATA_FILENAME)
         target_filepath = os.path.join(data_dir, f'{target_label}.pt')
         if not os.path.isfile(data_filepath) or not os.path.isfile(target_filepath):
-            print(f"Downloading {target_label} {DATASET_NAME} dataset...")
+            print(f"Downloading {target_label} {DATASET_NAME} dataset into {data_dir}...")
             os.makedirs(data_dir, exist_ok=True)
+
+            if seed is not None:
+                np.random.seed(seed)
 
             featurizer = RawFeaturizer(smiles=True)
             _, datasets, _ = LOAD_FN[target_label](featurizer=featurizer, splitter=splitter)
