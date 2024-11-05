@@ -27,6 +27,11 @@ class AutoModel:
             return getattr(importlib.import_module(
                 "jointformer.models.gpt"),
                 "GPTForDownstreamPrediction").from_config(config, **kwargs)
+        
+        elif config.model_name == 'JointGPTForDownstreamPrediction':
+            return getattr(importlib.import_module(
+                "jointformer.models.gpt"),
+                "JointGPTForDownstreamPrediction").from_config(config, **kwargs)
 
         elif config.model_name == 'Jointformer':
             return getattr(importlib.import_module(

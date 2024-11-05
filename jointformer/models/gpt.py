@@ -380,3 +380,36 @@ class GPTForDownstreamPrediction(GPT):
         return cls(
             config=config
         )
+
+
+class JointGPTForDownstreamPrediction(GPTForDownstreamPrediction):
+
+    def __init__(self, config):
+        
+        assert hasattr(config, 'lambda_hparam'), "Provide a `lambda` hyperparameter."
+        super().__init__(config)
+        self.lambda_hparam = config.lambda_hparam
+
+    def get_loss(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, properties: torch.Tensor, input_labels: torch.Tensor = None, **kwargs):
+        outputs = self(input_ids=input_ids, attention_mask=attention_mask, input_labels=input_labels)
+        
+        if self.prediction_task_type == 'classification':
+            if self.num_prediction_tasks == 1:
+                predictive_loss = F.cross_entropy(outputs["logits_prediction"], properties, reduction='mean')
+            elif self.num_prediction_tasks > 1:
+                predictive_loss = F.binary_cross_entropy_with_logits(outputs["logits_prediction"], properties, reduction='mean')
+            else:
+                raise ValueError('Variable `num_prediction_tasks` must be greater than 0.')
+            
+        elif self.prediction_task_type == 'regression':
+            predictive_loss = F.mse_loss(outputs["logits_prediction"].flatten(), properties.flatten(), 'mean')
+        
+        else:
+            raise ValueError('Variable `downstream_task` must be either `classification` or `regression`.')
+        
+        assert outputs['loss'] is not None
+        outputs['loss'] += self.lambda_hparam * predictive_loss
+        outputs['predictive_loss'] = predictive_loss
+
+        return outputs
+    
