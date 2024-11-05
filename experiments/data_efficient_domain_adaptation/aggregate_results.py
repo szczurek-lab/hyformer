@@ -36,6 +36,7 @@ def main(args):
             results[fraction_train_dataset] = {}
             path = os.path.join(args.out_dir, fraction_train_dataset)
             dataset_seeds = os.listdir(path)
+            console.info(f"Aggregating results over {len(dataset_seeds)} seeds for fraction {fraction_train_dataset}")
             for dataset_seed in dataset_seeds:
                 if os.path.isdir(os.path.join(args.out_dir, fraction_train_dataset, dataset_seed)):
                     path = os.path.join(args.out_dir, fraction_train_dataset, dataset_seed)

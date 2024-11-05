@@ -57,7 +57,7 @@ def parse_args():
 
 def main(args, hparams=None):
 
-    if not os.path.exists(args.out_dir):
+    if args.out_dir is not None and not os.path.exists(args.out_dir):
         os.makedirs(args.out_dir, exist_ok=False)
 
     assert torch.cuda.is_available(), "CUDA is not available"
@@ -84,13 +84,19 @@ def main(args, hparams=None):
                 args.model_seed = value
 
     # Init
-    train_dataset = AutoDataset.from_config(dataset_config, split='train', data_dir=args.data_dir, seed=args.seed)
-    num_subsamples =  int(len(train_dataset) * args.fraction_train_dataset)
-    train_dataset._subset(num_samples=num_subsamples, seed=args.seed)
-    console.info(f"Selected {len(train_dataset)} training examples")
-    val_dataset = AutoDataset.from_config(dataset_config, split='val', data_dir=args.data_dir, seed=args.seed)
-    trainer_config.correct_for_num_train_examples(num_train_examples=len(train_dataset))  # adjust trainer config to dataset size
+    train_dataset = AutoDataset.from_config(dataset_config, split='train', data_dir=args.data_dir)
+    # num_subsamples =  int(len(train_dataset) * args.fraction_train_dataset)
+    # train_dataset._subset(num_samples=num_subsamples, seed=args.seed)
+    # console.info(f"Selected {len(train_dataset)} training examples")
+    val_dataset = AutoDataset.from_config(dataset_config, split='val', data_dir=args.data_dir)
     tokenizer = AutoTokenizer.from_config(tokenizer_config)
+
+    # Adjust trainer config
+    if args.out_dir is not None:
+        trainer_config.max_epochs = 100
+    else:
+        trainer_config.max_epochs = 20
+    trainer_config.correct_for_num_train_examples(num_train_examples=len(train_dataset))  # adjust trainer config to dataset size
 
     # Test
     if args.test:
@@ -102,7 +108,8 @@ def main(args, hparams=None):
         trainer_config.log_interval = 1
 
     # Dump configs
-    dump_configs(args.out_dir, dataset_config, tokenizer_config, model_config, trainer_config, logger_config)
+    if args.out_dir is not None:
+        dump_configs(args.out_dir, dataset_config, tokenizer_config, model_config, trainer_config, logger_config)
 
     set_seed(args.model_seed)
     model = AutoModel.from_config(model_config, downstream_task=dataset_config.task_type, num_tasks=dataset_config.num_tasks, hidden_dim=256)
@@ -122,7 +129,7 @@ def main(args, hparams=None):
         console.info("Training from scrach.")
 
     trainer.train()
-    return None
+    return trainer._optuna_loss
 
 
 if __name__ == "__main__":

@@ -2,7 +2,6 @@ import abc
 
 import numpy as np
 
-from guacamol.assess_distribution_learning import DistributionMatchingGenerator
 from torch import nn
 from typing import Optional
 
@@ -14,7 +13,8 @@ class SmilesEncoder(abc.ABC):
 
 class BaseModel(nn.Module, abc.ABC):
     @abc.abstractmethod
-    def to_guacamole_generator(self, tokenizer, batch_size, temperature, top_k, device) -> DistributionMatchingGenerator:
+    def to_guacamole_generator(self, tokenizer, batch_size, temperature, top_k, device) -> 'DistributionMatchingGenerator':
+        from guacamol.assess_distribution_learning import DistributionMatchingGenerator
         pass
 
     @abc.abstractmethod
