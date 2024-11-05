@@ -74,7 +74,7 @@ def main(args, hparams=None, validate=False):
                 args.model_seed = value
 
     # Init
-    test_dataset = AutoDataset.from_config(dataset_config, split='val' if validate else 'test', data_dir=args.data_dir, seed=args.seed)
+    test_dataset = AutoDataset.from_config(dataset_config, split='test', data_dir=args.data_dir)
     tokenizer = AutoTokenizer.from_config(tokenizer_config)
 
     set_seed(args.model_seed)

@@ -43,6 +43,8 @@ def parse_args():
     parser.add_argument("--num_seeds", type=int, default=4)
     parser.add_argument("--metric", type=str, required=True)
     parser.add_argument("--destroy_ckpt", default=False, action=argparse.BooleanOptionalAction)
+    parser.add_argument("--best_hparams_filename", type=str, default="best_hparams.json")
+    parser.add_argument("--study_filename", type=str, default="study_results.csv")
     args = parser.parse_args()
     return args
 
@@ -59,14 +61,17 @@ def model_objective(trial, hyperparameters_grid, args):
     """
     # Generate hyperparameters for the trial
     hyperparams = get_hparam_search_space(trial, hyperparameters_grid)
-    model_training_loop(args, hyperparams)
-    objective_value = model_validation_loop(args, hyperparams, validate=True)
+    objective_value = model_training_loop(args, hyperparams)
     return objective_value
 
 
 def find_best_params(args):
     # Load hyperparameters grid
     hyperparameters_grid = load_json(args.hyperparameters_grid_filepath)
+
+    # Disable logging
+    output_dir = args.out_dir
+    args.out_dir = None 
 
     # Create actual objective function using partial - pass in the hyperparameters grid
     objective_func = partial(model_objective, hyperparameters_grid=hyperparameters_grid, args=args)
@@ -77,47 +82,42 @@ def find_best_params(args):
     # Start the hyperparameter tuning
     study.optimize(objective_func, n_trials=args.optuna_n_trials, n_jobs=args.optuna_n_jobs)
     study_df = study.trials_dataframe()
+    args.out_dir = output_dir
 
     # Save study dataframe
-    study_df.to_csv(os.path.join(args.out_dir, f"study_results.csv"), index=False)
+    study_df.to_csv(os.path.join(args.out_dir, args.study_filename), index=False)
     
     # Save best params
-    console.info(f"Saving best hparams to best_params.json.")
-    save_json(os.path.join(args.out_dir, f"best_params.json"), study.best_params)
+    console.info(f"Saving best hparams to {args.best_hparams_filename}.")
+    save_json(os.path.join(args.out_dir, args.best_hparams_filename), study.best_params)
 
     return None
 
 
 def load_best_params(args):
-    console.info(f"Hparams loaded from best_params.json.")
-    return load_json(os.path.join(args.out_dir, f"best_params.json"))
+    console.info(f"Hparams loaded from {args.best_hparams_filename}.")
+    return load_json(os.path.join(args.out_dir, args.best_hparams_filename))
 
 
-def main():
+def main(args):
 
-    # Parse terminal arguments
-    args = parse_args()
-    out_dir_init = args.out_dir
+    # set root directory
+    root_dir = args.out_dir
 
     # Iterate over different trials
     for seed in range(args.num_seeds):
         
         # Create output directory for model training
-        output_dir = os.path.join(args.out_dir, f"seed_{seed}")
+        output_dir = os.path.join(root_dir, f"seed_{seed}")
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
-        
-        # Create output directory for hparams search
-        output_dir_hparams = os.path.join(args.out_dir, f"seed_{seed}", "hparams")
-        if not os.path.exists(output_dir_hparams):
-            os.makedirs(output_dir_hparams)
-        
+
         # Set seed and output directory
         args.seed = seed
-        args.out_dir = output_dir_hparams
+        args.out_dir = output_dir
         
         # Find best hyperparameters
-        if not os.path.exists(os.path.join(args.out_dir, f"best_params.json")):
+        if not os.path.exists(os.path.join(args.out_dir, args.best_hparams_filename)):
             find_best_params(args)
 
         # Load best hyperparameters
@@ -128,8 +128,6 @@ def main():
         model_training_loop(args, hparams)
         model_validation_loop(args, hparams)
 
-        # Reset output dir
-        args.out_dir = out_dir_init
-
 if __name__ == "__main__":
-    main()
+    args = parse_args()
+    main(args)

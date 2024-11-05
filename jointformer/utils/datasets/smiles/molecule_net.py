@@ -62,6 +62,7 @@ class MoleculeNetDataset(SmilesDataset):
         data_dir = self._get_data_dir(
             data_dir=data_dir, dataset_name=DATASET_NAME, target_name=target_label,
               split=split, splitter=splitter, seed=seed)
+        self.data_dir = data_dir
         data_filepath = os.path.join(data_dir, DATA_FILENAME)
         target_filepath = os.path.join(data_dir, f'{target_label}.pt')
         super().__init__(
@@ -71,10 +72,9 @@ class MoleculeNetDataset(SmilesDataset):
         )
         self._target_transform = self.get_target_transform(target_label=target_label, splitter=splitter) # used only for validation
 
-    @staticmethod
-    def get_target_transform(target_label: str, splitter: str = 'random') -> List[Any]:
+    def get_target_transform(self, target_label: str, splitter: str) -> List[Any]:
         featurizer = RawFeaturizer(smiles=True)
-        _, _, target_transform = LOAD_FN[target_label](featurizer=featurizer, splitter=splitter)
+        _, _, target_transform = LOAD_FN[target_label](featurizer=featurizer, splitter=splitter, reload=False, save_dir=self.data_dir)
         return target_transform
         
     def undo_target_transform(self, y: torch.Tensor) -> torch.Tensor:
@@ -109,7 +109,7 @@ class MoleculeNetDataset(SmilesDataset):
                 np.random.seed(seed)
 
             featurizer = RawFeaturizer(smiles=True)
-            _, datasets, _ = LOAD_FN[target_label](featurizer=featurizer, splitter=splitter)
+            _, datasets, _ = LOAD_FN[target_label](featurizer=featurizer, splitter=splitter, save_dir=data_dir, reload=False)
             
 
             data = datasets[SPLIT_MAP[split]].X.tolist()
@@ -124,7 +124,7 @@ class MoleculeNetDataset(SmilesDataset):
         if split is not None:
             config.split = split
 
-        if split is not 'train':
+        if split != 'train':
             config.transform = None
 
         return cls(

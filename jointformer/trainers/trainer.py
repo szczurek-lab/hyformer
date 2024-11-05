@@ -97,6 +97,7 @@ class Trainer:
 
         self._iter_num = 0
         self._best_val_loss = 1e9
+        self._optuna_loss = 1e9 if hasattr(self.model, 'predict') else None 
         self._snapshot_filepath = os.path.join(self.out_dir, SNAPSHOT_FILENAME) if self.out_dir else None
         self._learning_rate = None
         self._running_mfu = 0.0
@@ -373,6 +374,7 @@ class Trainer:
 
     def evaluate(self):
         if self._iter_num % self.eval_interval == 0 and self.master_process and (self._resumed_from_iter_num != self._iter_num or self._iter_num ==  0):
+            self._optuna_loss = self.test() if self._optuna_loss is not None else None
             losses = self.estimate_loss()
             self._loss_dict[self._iter_num] = losses
             info = f"Evaluation at step {self._iter_num}"
@@ -403,6 +405,7 @@ class Trainer:
                         self._best_val_loss = losses['val']['combined']
                         self._save_ckpt(MODEL_FILENAME)
                         console.info(f"Checkpoint updated at iteration {self._iter_num}")
+                    
                 if self.save_checkpoint_every is not None: # save checkpoint every n iterations
                     if self._iter_num % self.save_checkpoint_every == 0:
                         self._save_ckpt(f"ckpt_{self._iter_num}.pt")
