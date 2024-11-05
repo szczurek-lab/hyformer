@@ -296,20 +296,60 @@ class FancyModelForDownstreamPrediction(FancyModel):
         super().__init__(config)
         self.prediction_task_type = config.downstream_task
         self.num_prediction_tasks = config.num_tasks
+        self.downstream_prediction_task_embedding = nn.Linear(config.num_tasks, config.n_embd)
         self.downstream_prediction_task_head = DownstreamPredictionHead(
             config.n_embd, 2 if config.downstream_task == 'classification' and config.num_tasks == 1 else config.num_tasks, config.hidden_dim)
 
     def forward(self, input_ids: torch.Tensor, input_labels: torch.Tensor = None, attention_mask: torch.Tensor = None,
                 properties: torch.Tensor = None, next_token_only: Optional[bool] = False, **kwargs):
-        outputs = super().forward(input_ids=input_ids, input_labels=input_labels, attention_mask=attention_mask,
-                                  properties=properties, next_token_only=next_token_only, **kwargs)
-        if not next_token_only:
-            embeddings = outputs['embeddings'][:, -1, :]
-            outputs['logits_prediction'] = self.downstream_prediction_task_head(embeddings)
-        return outputs
 
+        device = input_ids.device
+        batch_size, sequence_length = input_ids.size()
+        assert sequence_length <= self.config.block_size, f"Cannot forward sequence of length {sequence_length}, block size is only {self.config.block_size}"
+        
+        # Embedding of the sequence tokens
+        tok_emb = self.transformer.wte(input_ids) # token embeddings of shape (b, t, n_embd)
+        pos = torch.arange(0, sequence_length, dtype=torch.long, device=device)
+        pos_emb = self.transformer.wpe(pos) # position embeddings of shape (t, n_embd)
+        type_tokens = torch.zeros(sequence_length, dtype=torch.long, device=device)
+        type_emb = self.transformer.type_emb(type_tokens) if self.config.num_props is not None else 0
+        token_embeddings = tok_emb + pos_emb + type_emb
+        property_embeddings = None
+
+        # Embedding of the property tokens
+        if properties is not None:
+            prop_emb = self.downstream_prediction_task_embedding(properties).unsqueeze(1) # property embeddings of shape (b, 1, n_embd)
+            type_tokens = torch.ones(1, dtype=torch.long, device=device)
+            type_emb = self.transformer.type_emb(type_tokens)
+            property_embeddings = prop_emb + type_emb
+
+        embeddings = torch.cat([token_embeddings, property_embeddings], dim=1) if property_embeddings is not None else token_embeddings
+        x = self.transformer.drop(embeddings)
+        for block in self.transformer.h:
+            x = block(x)
+        x = self.transformer.ln_f(x)
+
+        loss = None
+        if next_token_only:
+            logits = self.lm_head(x[:, [-1], :])
+            return {'logits_generation': logits}
+        else:
+            logits = self.lm_head(x[:, :sequence_length, :])
+            
+        if input_labels is not None:
+            input_labels = input_labels[:, 1:].contiguous()
+            logits = logits[:, :-1].contiguous()
+            batch_size, sequence_length = input_labels.size()
+            loss = F.cross_entropy(logits.view(batch_size * sequence_length, -1), input_labels.view(batch_size * sequence_length), ignore_index=-100)
+        
+        if properties is not None:
+            logits_prediction = self.downstream_prediction_task_head(x[:, -1, :])
+             
+
+        return {'token_embeddings': embeddings, 'embeddings': x, 'logits': logits, 'logits_prediction': logits_prediction}
+        
     def get_loss(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, properties: torch.Tensor, **kwargs):
-        outputs = self(input_ids=input_ids, attention_mask=attention_mask)
+        outputs = self(input_ids=input_ids, attention_mask=attention_mask, properties=properties)
         
         if self.prediction_task_type == 'classification':
             if self.num_prediction_tasks == 1:
