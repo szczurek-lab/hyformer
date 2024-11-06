@@ -55,13 +55,13 @@ def parse_args():
     return args
 
 
-def main(args, hparams=None):
+def main(args, hparams=None, disable_logging=False):
 
-    if args.out_dir is not None and not os.path.exists(args.out_dir):
+    if not os.path.exists(args.out_dir) and not disable_logging:
         os.makedirs(args.out_dir, exist_ok=False)
 
     assert torch.cuda.is_available(), "CUDA is not available"
-    set_seed(args.seed)
+    set_seed(1336 + args.seed)
 
     # Configs
     dataset_config = DatasetConfig.from_config_file(args.path_to_dataset_config)
@@ -92,8 +92,8 @@ def main(args, hparams=None):
     tokenizer = AutoTokenizer.from_config(tokenizer_config)
 
     # Adjust trainer config
-    if args.out_dir is not None:
-        trainer_config.max_epochs = 100
+    if disable_logging:
+        trainer_config.max_epochs = 10
     else:
         trainer_config.max_epochs = 20
     trainer_config.correct_for_num_train_examples(num_train_examples=len(train_dataset))  # adjust trainer config to dataset size
@@ -108,17 +108,16 @@ def main(args, hparams=None):
         trainer_config.log_interval = 1
 
     # Dump configs
-    if args.out_dir is not None:
+    if not disable_logging:
         dump_configs(args.out_dir, dataset_config, tokenizer_config, model_config, trainer_config, logger_config)
 
-    set_seed(args.model_seed)
     model = AutoModel.from_config(model_config, downstream_task=dataset_config.task_type, num_tasks=dataset_config.num_tasks, hidden_dim=256)
     logger = AutoLogger.from_config(logger_config) if logger_config else None
     if logger is not None:
         logger.store_configs(dataset_config, tokenizer_config, model_config, trainer_config, logger_config)
 
     trainer = Trainer(
-        out_dir=args.out_dir, seed=args.model_seed, config=trainer_config, model=model,
+        out_dir=None if disable_logging else args.out_dir, seed=args.model_seed, config=trainer_config, model=model,
         train_dataset=train_dataset, val_dataset=val_dataset, test_dataset=val_dataset,
         tokenizer=tokenizer, logger=logger)
 

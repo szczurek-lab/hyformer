@@ -20,36 +20,12 @@
             "step": 16,
             "log": false
         },
-    "weight_decay": 
-        {
-            "type": "float", 
-            "low": 1e-5, 
-            "high": 1e-4,
-            "step": 0.0001,
-            "log": true
-        },
     "dropout": 
         {
             "type": "float", 
             "low": 0.0, 
             "high": 0.5,
             "step": 0.1,
-            "log": false
-        },
-    "model_seed": 
-        {
-            "type": "int", 
-            "low": 1333, 
-            "high": 1339,
-            "step": 2,
-            "log": false
-        },
-    "generation_task":
-        {
-            "type": "int", 
-            "low": 0, 
-            "high": 5,
-            "step": 1,
             "log": false
         }
 }
