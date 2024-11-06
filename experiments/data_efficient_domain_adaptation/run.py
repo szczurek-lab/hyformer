@@ -10,7 +10,7 @@ from functools import partial
 from jointformer.utils.optuna import get_hparam_search_space, load_json, save_json
 
 from experiments.data_efficient_domain_adaptation.train import main as model_training_loop
-from experiments.data_efficient_domain_adaptation.test import main as model_validation_loop
+from experiments.data_efficient_domain_adaptation.test import main as model_testing_loop
 
 console = logging.getLogger(__file__)
 logging.basicConfig(
@@ -40,7 +40,7 @@ def parse_args():
     parser.add_argument("--optuna_n_jobs", type=int, default=1)
     parser.add_argument("--optuna_seed", type=int, default=42)
     parser.add_argument("--test", default=False, action=argparse.BooleanOptionalAction)
-    parser.add_argument("--num_seeds", type=int, default=4)
+    parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--metric", type=str, required=True)
     parser.add_argument("--destroy_ckpt", default=False, action=argparse.BooleanOptionalAction)
     parser.add_argument("--best_hparams_filename", type=str, default="best_hparams.json")
@@ -49,7 +49,7 @@ def parse_args():
     return args
 
 
-def model_objective(trial, hyperparameters_grid, args):
+def model_objective(trial, hyperparameters_grid, args, disable_logging=False):
     """
     Objective function for Optuna to optimize.
 
@@ -61,7 +61,7 @@ def model_objective(trial, hyperparameters_grid, args):
     """
     # Generate hyperparameters for the trial
     hyperparams = get_hparam_search_space(trial, hyperparameters_grid)
-    objective_value = model_training_loop(args, hyperparams)
+    objective_value = model_training_loop(args, hyperparams, disable_logging)
     return objective_value
 
 
@@ -69,12 +69,8 @@ def find_best_params(args):
     # Load hyperparameters grid
     hyperparameters_grid = load_json(args.hyperparameters_grid_filepath)
 
-    # Disable logging
-    output_dir = args.out_dir
-    args.out_dir = None 
-
     # Create actual objective function using partial - pass in the hyperparameters grid
-    objective_func = partial(model_objective, hyperparameters_grid=hyperparameters_grid, args=args)
+    objective_func = partial(model_objective, hyperparameters_grid=hyperparameters_grid, args=args, disable_logging=True)
 
     # Create a study object
     study = optuna.create_study(direction=args.optuna_metric_direction, sampler=optuna.samplers.TPESampler(seed=args.seed))
@@ -82,7 +78,6 @@ def find_best_params(args):
     # Start the hyperparameter tuning
     study.optimize(objective_func, n_trials=args.optuna_n_trials, n_jobs=args.optuna_n_jobs)
     study_df = study.trials_dataframe()
-    args.out_dir = output_dir
 
     # Save study dataframe
     study_df.to_csv(os.path.join(args.out_dir, args.study_filename), index=False)
@@ -101,32 +96,26 @@ def load_best_params(args):
 
 def main(args):
 
-    # set root directory
-    root_dir = args.out_dir
+    # Create output directory
+    if not os.path.exists(args.out_dir):
+        os.makedirs(args.out_dir, exist_ok=False)
 
-    # Iterate over different trials
-    for seed in range(args.num_seeds):
-        
-        # Create output directory for model training
-        output_dir = os.path.join(root_dir, f"seed_{seed}")
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
+    # Find best hyperparameters
+    if not os.path.exists(os.path.join(args.out_dir, args.best_hparams_filename)):
+        console.info("Finding best hyperparameters...")
+        find_best_params(args)
+    else:
+        console.info("Best hyperparameters already found.")
 
-        # Set seed and output directory
-        args.seed = seed
-        args.out_dir = output_dir
-        
-        # Find best hyperparameters
-        if not os.path.exists(os.path.join(args.out_dir, args.best_hparams_filename)):
-            find_best_params(args)
+    # Load best hyperparameters
+    console.info("Loading best hyperparameters from file...")
+    hparams = load_best_params(args)
 
-        # Load best hyperparameters
-        hparams = load_best_params(args)
-
-        # Train and Test model
-        args.out_dir = output_dir
-        model_training_loop(args, hparams)
-        model_validation_loop(args, hparams)
+    # Train and Test model
+    val_loss = model_training_loop(args, hparams)
+    console.info(f"Best validation loss: {val_loss}")
+    test_loss = model_testing_loop(args, hparams)
+    console.info(f"Test loss: {test_loss}")
 
 if __name__ == "__main__":
     args = parse_args()
