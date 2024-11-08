@@ -277,6 +277,26 @@ class FancyModel(nn.Module):
 
         return idx
     
+    def load_pretrained(self, filename, device='cpu'):
+        state_dict = torch.load(filename, map_location=device, weights_only=True)['model']
+        
+        unwanted_prefix = '_orig_mod.'  # compile artefact
+        for k, v in list(state_dict.items()):
+            if k.startswith(unwanted_prefix):
+                state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
+        
+        excluded_prefixes = ['.attn.bias']
+        state_dict_filtered = {k:v for (k, v) in state_dict.items() if not any(k.endswith(k2) for k2 in excluded_prefixes)}
+        if len(state_dict_filtered) != len(state_dict):
+            print(f"Number of filtered keys: {len(state_dict) - len(state_dict_filtered)}")
+
+        self.load_state_dict(state_dict_filtered, strict=False)
+        return self
+    
+    def to_guacamole_generator(self, tokenizer, batch_size, temperature, top_k, device) -> 'DistributionMatchingGenerator':
+        from jointformer.models.wrappers import JointformerSmilesGeneratorWrapper
+        return JointformerSmilesGeneratorWrapper(self, tokenizer, batch_size, temperature, top_k, device)
+
     @classmethod
     def from_config(cls, config):
         config.block_size = config.max_seq_len
@@ -342,12 +362,15 @@ class FancyModelForDownstreamPrediction(FancyModel):
             batch_size, sequence_length = input_labels.size()
             loss = F.cross_entropy(logits.view(batch_size * sequence_length, -1), input_labels.view(batch_size * sequence_length), ignore_index=-100)
         
-        if properties is not None:
-            logits_prediction = self.downstream_prediction_task_head(x[:, -1, :])
-             
+        logits_prediction = None if properties is None else self.downstream_prediction_task_head(x[:, -1, :])     
 
         return {'token_embeddings': embeddings, 'embeddings': x, 'logits': logits, 'logits_prediction': logits_prediction}
-        
+    
+    def predict(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, **kwargs):
+        embeddings = self(input_ids=input_ids, attention_mask=attention_mask, next_token_only=False)['embeddings']
+        logits_prediction = self.downstream_prediction_task_head(embeddings[:, -1, :])
+        return {'logits_prediction': logits_prediction}
+
     def get_loss(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, properties: torch.Tensor, **kwargs):
         outputs = self(input_ids=input_ids, attention_mask=attention_mask, properties=properties)
         

@@ -10,15 +10,8 @@ class DownstreamPredictionHead(nn.Module):
 
     def __init__(self, embedding_dim, num_tasks, hidden_dim):
         super().__init__()
-        self.mlp = nn.Sequential(
-            nn.Linear(embedding_dim, hidden_dim),
-            # nn.BatchNorm1d(hidden_dim),
-            nn.GELU()
-        )
-        self.apply(self._init_weights)
-        # self.last_layer = weight_norm(nn.Linear(hidden_dim, num_tasks, bias=False))
-        self.last_layer = nn.Linear(hidden_dim, num_tasks, bias=False)
-        self.last_layer.weight_g.data.fill_(1)
+        self.pooling_layer = nn.Dropout(p=0.2)
+        self.linear = nn.Linear(hidden_dim, num_tasks, bias=False)
 
     def _init_weights(self, m):
         if isinstance(m, nn.Linear):
@@ -27,12 +20,8 @@ class DownstreamPredictionHead(nn.Module):
                 nn.init.constant_(m.bias, 0)
     
     def forward(self, x):
-        x = self.mlp(x)
-        # eps = 1e-6 if x.dtype == torch.float16 else 1e-12
-        # x = nn.functional.normalize(x, dim=-1, p=2, eps=eps)
-        x = self.last_layer(x)
-        return x        
-    
+        return self.linear(x)
+
 
 class RegressionHead(nn.Module):
 
