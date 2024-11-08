@@ -13,6 +13,7 @@ class DownstreamPredictionHead(nn.Module):
         self.pooling_layer = nn.Dropout(p=0.2)
         self.linear = nn.Linear(hidden_dim, num_tasks, bias=False)
 
+
     def _init_weights(self, m):
         if isinstance(m, nn.Linear):
             trunc_normal_(m.weight, std=0.02)

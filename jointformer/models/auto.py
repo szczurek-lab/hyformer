@@ -38,6 +38,11 @@ class AutoModel:
                 "jointformer.models.jointformer"),
                 "Jointformer").from_config(config)
         
+        elif config.model_name == 'JointformerV2':
+            return getattr(importlib.import_module(
+                "jointformer.models.jointformer_v2"),
+                "Jointformer").from_config(config)
+        
         elif config.model_name == 'JointformerWithPrefix':
             return getattr(importlib.import_module(
                 "jointformer.models.jointformer"),
