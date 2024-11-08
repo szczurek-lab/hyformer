@@ -6,30 +6,106 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 from typing import Optional
+from jointformer.models.trainable import TrainableModel
+
 from jointformer.models.layers.prediction import DownstreamPredictionHead
-from jointformer.models.gpt import LayerNorm, Block
+
+from jointformer.models.gpt import LayerNorm, MLP
 
 
-class FancyModel(nn.Module):
+class SelfAttention(nn.Module):
+
+    def __init__(self, config):
+        super().__init__()
+        assert config.n_embd % config.n_head == 0
+        # key, query, value projections for all heads, but in a batch
+        self.c_attn = nn.Linear(config.n_embd, 3 * config.n_embd, bias=config.bias)
+        # output projection
+        self.c_proj = nn.Linear(config.n_embd, config.n_embd, bias=config.bias)
+        # regularization
+        self.attn_dropout = nn.Dropout(config.dropout)
+        self.resid_dropout = nn.Dropout(config.dropout)
+        self.n_head = config.n_head
+        self.n_embd = config.n_embd
+        self.dropout = config.dropout
+        # flash attention make GPU go brrrrr but support is only in PyTorch >= 2.0
+        self.flash = hasattr(torch.nn.functional, 'scaled_dot_product_attention')
+        if not self.flash:
+            print("WARNING: using slow attention. Flash Attention requires PyTorch >= 2.0")
+            # causal mask to ensure that attention is only applied to the left in the input sequence
+            self.register_buffer("bias", torch.tril(torch.ones(config.block_size, config.block_size))
+                                        .view(1, 1, config.block_size, config.block_size))
+
+    def forward(self, x, attn_mask=None):
+        B, T, C = x.size() # batch size, sequence length, embedding dimensionality (n_embd)
+
+        # calculate query, key, values for all heads in batch and move head forward to be the batch dim
+        q, k, v  = self.c_attn(x).split(self.n_embd, dim=2)
+        k = k.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)
+        q = q.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)
+        v = v.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)
+
+        # attention mask
+        if attn_mask is not None:
+            attn_mask = attn_mask.unsqueeze(1).unsqueeze(1).expand(B, self.n_head, T, T)
+
+        # causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
+        if self.flash:
+            # efficient attention using Flash Attention CUDA kernels
+            y = torch.nn.functional.scaled_dot_product_attention(
+                q, k, v, attn_mask=attn_mask, dropout_p=self.dropout if self.training else 0, is_causal=True if attn_mask is None else False)
+        else:
+            # manual implementation of attention
+            att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))
+            att = att.masked_fill(self.bias[:,:,:T,:T] == 0, float('-inf'))
+            att = F.softmax(att, dim=-1)
+            att = self.attn_dropout(att)
+            y = att @ v # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
+        y = y.transpose(1, 2).contiguous().view(B, T, C) # re-assemble all head outputs side by side
+
+        # output projection
+        y = self.resid_dropout(self.c_proj(y))
+        return y
+
+
+class Block(nn.Module):
+
+    def __init__(self, config):
+        super().__init__()
+        self.ln_1 = LayerNorm(config.n_embd, bias=config.bias)
+        self.attn = SelfAttention(config)
+        self.ln_2 = LayerNorm(config.n_embd, bias=config.bias)
+        self.mlp = MLP(config)
+
+    def forward(self, x, attn_mask=None):
+        x = x + self.attn(self.ln_1(x), attn_mask=attn_mask)
+        x = x + self.mlp(self.ln_2(x))
+        return x
+
+
+class Jointformer(nn.Module):
 
     def __init__(self, config):
         super().__init__()
         assert config.vocab_size is not None
         assert config.block_size is not None
+        assert config.num_physchem_tasks is not None
         self.config = config
         self.max_seq_len = config.max_seq_len
 
         self.transformer = nn.ModuleDict(dict(
             wte = nn.Embedding(config.vocab_size, config.n_embd),
-            type_emb = nn.Embedding(2, config.n_embd) if config.num_props is not None else nn.Identity() ,  # 0 for tokens, 1 for types
             wpe = nn.Embedding(config.block_size, config.n_embd),
-            prop_emb = nn.Linear(config.num_props, config.n_embd) if config.num_props is not None else nn.Identity(),  # property embeddings
             drop = nn.Dropout(config.dropout),
             h = nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
             ln_f = LayerNorm(config.n_embd, bias=config.bias),
         ))
         self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
-        self.property_head = nn.Linear(config.n_embd, config.num_props, bias=False) if config.num_props is not None else nn.Identity()
+        self.mlm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
+        self.physchem_head = nn.Sequential(
+            nn.Linear(config.n_embd, config.n_embd, bias=True),
+            nn.GELU(),
+            nn.Linear(config.n_embd, config.num_physchem_tasks, bias=False))
         self.transformer.wte.weight = self.lm_head.weight # https://paperswithcode.com/method/weight-tying
 
         # init all weights
@@ -62,8 +138,14 @@ class FancyModel(nn.Module):
         elif isinstance(module, nn.Embedding):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
-    def forward(self, input_ids: torch.Tensor, input_labels: torch.Tensor = None, attention_mask: torch.Tensor = None,
-                properties: torch.Tensor = None, next_token_only: Optional[bool] = False, **kwargs):
+    def forward(
+            self,
+            input_ids: torch.Tensor,
+            input_labels: torch.Tensor = None,
+            attention_mask: torch.Tensor = None,
+            properties: torch.Tensor = None,
+            task: str = 'generation',
+            next_token_only: Optional[bool] = False):
 
         device = input_ids.device
         batch_size, sequence_length = input_ids.size()
@@ -73,41 +155,51 @@ class FancyModel(nn.Module):
         tok_emb = self.transformer.wte(input_ids) # token embeddings of shape (b, t, n_embd)
         pos = torch.arange(0, sequence_length, dtype=torch.long, device=device)
         pos_emb = self.transformer.wpe(pos) # position embeddings of shape (t, n_embd)
-        type_tokens = torch.zeros(sequence_length, dtype=torch.long, device=device)
-        type_emb = self.transformer.type_emb(type_tokens) if self.config.num_props is not None else 0
-        token_embeddings = tok_emb + pos_emb + type_emb
-        property_embeddings = None
 
-        # Embedding of the property tokens
-        if properties is not None:
-            prop_emb = self.transformer.prop_emb(properties).unsqueeze(1) # property embeddings of shape (b, 1, n_embd)
-            type_tokens = torch.ones(1, dtype=torch.long, device=device)
-            type_emb = self.transformer.type_emb(type_tokens)
-            property_embeddings = prop_emb + type_emb
-
-        embeddings = torch.cat([token_embeddings, property_embeddings], dim=1) if property_embeddings is not None else token_embeddings
+        embeddings = tok_emb + pos_emb
         x = self.transformer.drop(embeddings)
         for block in self.transformer.h:
-            x = block(x)
+            x = block(x, attn_mask=None if task=='generation' else attention_mask)
         x = self.transformer.ln_f(x)
-
         loss = None
-        if next_token_only:
-            logits = self.lm_head(x[:, [-1], :])
-            return {'logits_generation': logits}
-        else:
-            logits = self.lm_head(x[:, :sequence_length, :])
-            
-        if input_labels is not None:
-            input_labels = input_labels[:, 1:].contiguous()
-            logits = logits[:, :-1].contiguous()
-            batch_size, sequence_length = input_labels.size()
-            loss = F.cross_entropy(logits.view(batch_size * sequence_length, -1), input_labels.view(batch_size * sequence_length), ignore_index=-100)
         
-        if properties is not None and loss is not None:
-            property_prediction = self.property_head(x[:, -1, :])
-            loss += F.mse_loss(property_prediction, properties) 
+        if task == 'generation':
+            if next_token_only:
+                logits = self.lm_head(x[:, [-1], :])
+                return {'logits_generation': logits}
+            else:
+                logits = self.lm_head(x)
+                
+            if input_labels is not None:
+                # input_labels = input_labels[:, 1:].contiguous()
+                logits = logits[:, :-1].contiguous()
+                batch_size, sequence_length = input_labels.size()
+                loss = F.cross_entropy(logits.view(batch_size * sequence_length, -1), input_labels.view(batch_size * sequence_length), ignore_index=-100)
+        
+        elif task == 'reconstruction':
+            logits = self.mlm_head(x)
+                
+            if input_labels is not None:
+                # input_labels = input_labels[:, 1:].contiguous()
+                logits = logits[:, :-1].contiguous()
+                batch_size, sequence_length = input_labels.size()
+                loss = F.cross_entropy(logits.view(batch_size * sequence_length, -1), input_labels.view(batch_size * sequence_length), ignore_index=-100)
 
+            if input_labels is not None:
+                batch_size, seq_length, vocab_size = logits.size()
+                loss = F.cross_entropy(
+                    logits.view(batch_size * seq_length, vocab_size),
+                    input_labels.view(batch_size * seq_length),
+                    ignore_index=-100,
+                    reduction='mean')
+                
+        elif task == 'physchem':
+            logits = self.physchem_head(x[:, -1, :])
+            loss = F.mse_loss(logits.flatten(), properties.flatten(), reduction='mean')
+
+        else:
+            raise ValueError('Variable `prediction_task_type` must be either `classification` or `regression`.')
+    
         return {'token_embeddings': embeddings, 'embeddings': x, 'logits': logits, 'loss': loss}
 
     def crop_block_size(self, block_size):
@@ -121,66 +213,31 @@ class FancyModel(nn.Module):
             if hasattr(block.attn, 'bias'):
                 block.attn.bias = block.attn.bias[:,:,:block_size,:block_size]
 
-    def get_loss(self, input_ids: torch.Tensor, input_labels: torch.Tensor = None, attention_mask: torch.Tensor = None,
-                properties: torch.Tensor = None, next_token_only: Optional[bool] = False, **kwargs):
-        return self(input_ids=input_ids, input_labels=input_labels, properties=properties)
+    def get_loss(
+            self,
+            input_ids: torch.Tensor,
+            input_labels: torch.Tensor,
+            attention_mask: torch.Tensor,
+            task: str,
+            properties: torch.Tensor = None,
+            **kwargs):            
+        return self(input_ids=input_ids, input_labels=input_labels, attention_mask=attention_mask, properties=properties, task=task)
 
-    @classmethod
-    def from_pretrained(cls, model_type, override_args=None):
-        assert model_type in {'gpt2', 'gpt2-medium', 'gpt2-large', 'gpt2-xl'}
-        override_args = override_args or {} # default to empty dict
-        # only dropout can be overridden see more notes below
-        assert all(k == 'dropout' for k in override_args)
-        from transformers import GPT2LMHeadModel
-        print("loading weights from pretrained gpt: %s" % model_type)
+    def load_pretrained(self, filename, device='cpu'):
+        state_dict = torch.load(filename, map_location=device, weights_only=True)['model']
+        
+        unwanted_prefix = '_orig_mod.'  # compile artefact
+        for k, v in list(state_dict.items()):
+            if k.startswith(unwanted_prefix):
+                state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
+        
+        excluded_prefixes = ['.attn.bias']
+        state_dict_filtered = {k:v for (k, v) in state_dict.items() if not any(k.endswith(k2) for k2 in excluded_prefixes)}
+        if len(state_dict_filtered) != len(state_dict):
+            print(f"Number of filtered keys: {len(state_dict) - len(state_dict_filtered)}")
 
-        # n_layer, n_head and n_embd are determined from model_type
-        config_args = {
-            'gpt2':         dict(n_layer=12, n_head=12, n_embd=768),  # 124M params
-            'gpt2-medium':  dict(n_layer=24, n_head=16, n_embd=1024), # 350M params
-            'gpt2-large':   dict(n_layer=36, n_head=20, n_embd=1280), # 774M params
-            'gpt2-xl':      dict(n_layer=48, n_head=25, n_embd=1600), # 1558M params
-        }[model_type]
-        print("forcing vocab_size=50257, block_size=1024, bias=True")
-        config_args['vocab_size'] = 50257 # always 50257 for GPT model checkpoints
-        config_args['block_size'] = 1024 # always 1024 for GPT model checkpoints
-        config_args['bias'] = True # always True for GPT model checkpoints
-        # we can override the dropout rate, if desired
-        if 'dropout' in override_args:
-            print(f"overriding dropout rate to {override_args['dropout']}")
-            config_args['dropout'] = override_args['dropout']
-        # create a from-scratch initialized minGPT model
-        config = GPTConfig(**config_args)
-        model = GPT(config)
-        sd = model.state_dict()
-        sd_keys = sd.keys()
-        sd_keys = [k for k in sd_keys if not k.endswith('.attn.bias')] # discard this mask / buffer, not a param
-
-        # init a huggingface/transformers model
-        model_hf = GPT2LMHeadModel.from_pretrained(model_type)
-        sd_hf = model_hf.state_dict()
-
-        # copy while ensuring all of the parameters are aligned and match in names and shapes
-        sd_keys_hf = sd_hf.keys()
-        sd_keys_hf = [k for k in sd_keys_hf if not k.endswith('.attn.masked_bias')] # ignore these, just a buffer
-        sd_keys_hf = [k for k in sd_keys_hf if not k.endswith('.attn.bias')] # same, just the mask (buffer)
-        transposed = ['attn.c_attn.weight', 'attn.c_proj.weight', 'mlp.c_fc.weight', 'mlp.c_proj.weight']
-        # basically the openai checkpoints use a "Conv1D" module, but we only want to use a vanilla Linear
-        # this means that we have to transpose these weights when we import them
-        assert len(sd_keys_hf) == len(sd_keys), f"mismatched keys: {len(sd_keys_hf)} != {len(sd_keys)}"
-        for k in sd_keys_hf:
-            if any(k.endswith(w) for w in transposed):
-                # special treatment for the Conv1D weights we need to transpose
-                assert sd_hf[k].shape[::-1] == sd[k].shape
-                with torch.no_grad():
-                    sd[k].copy_(sd_hf[k].t())
-            else:
-                # vanilla copy over the other parameters
-                assert sd_hf[k].shape == sd[k].shape
-                with torch.no_grad():
-                    sd[k].copy_(sd_hf[k])
-
-        return model
+        self.load_state_dict(state_dict_filtered, strict=False)
+        return self
 
     def configure_optimizers(self, weight_decay, learning_rate, betas, device_type):
         # start with all of the candidate parameters
@@ -195,10 +252,6 @@ class FancyModel(nn.Module):
             {'params': decay_params, 'weight_decay': weight_decay},
             {'params': nodecay_params, 'weight_decay': 0.0}
         ]
-        num_decay_params = sum(p.numel() for p in decay_params)
-        num_nodecay_params = sum(p.numel() for p in nodecay_params)
-        print(f"num decayed parameter tensors: {len(decay_params)}, with {num_decay_params:,} parameters")
-        print(f"num non-decayed parameter tensors: {len(nodecay_params)}, with {num_nodecay_params:,} parameters")
         # Create AdamW optimizer and use the fused version if it is available
         fused_available = 'fused' in inspect.signature(torch.optim.AdamW).parameters
         use_fused = fused_available and device_type == 'cuda'
@@ -225,7 +278,7 @@ class FancyModel(nn.Module):
         return mfu
 
     @torch.no_grad()
-    def generate(self, tokenizer, batch_size, temperature, top_k, device, prefix=None):
+    def generate(self, tokenizer, batch_size, temperature, top_k, device):
         
         assert hasattr(tokenizer, 'generation_prefix'), "Tokenizer must have a `generation_prefix` attribute."
         
@@ -234,7 +287,8 @@ class FancyModel(nn.Module):
         eos_token_id = tokenizer.sep_token_id
         pad_token_id = tokenizer.pad_token_id
 
-        prefix = torch.tensor(prefix_token, device=device).long().unsqueeze(0).expand(batch_size, -1) if prefix is None else prefix
+        
+        prefix = torch.tensor(prefix_token, device=device).long().unsqueeze(0).expand(batch_size, -1)
         generated_tokens = self._generate(prefix, tokenizer.max_molecule_length - prefix_token_length, temperature, top_k, eos_token_id, pad_token_id)
         return generated_tokens
     
@@ -275,26 +329,6 @@ class FancyModel(nn.Module):
             idx = torch.cat((idx, idx_next), dim=1)
 
         return idx
-    
-    def load_pretrained(self, filename, device='cpu'):
-        state_dict = torch.load(filename, map_location=device, weights_only=True)['model']
-        
-        unwanted_prefix = '_orig_mod.'  # compile artefact
-        for k, v in list(state_dict.items()):
-            if k.startswith(unwanted_prefix):
-                state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
-        
-        excluded_prefixes = ['.attn.bias']
-        state_dict_filtered = {k:v for (k, v) in state_dict.items() if not any(k.endswith(k2) for k2 in excluded_prefixes)}
-        if len(state_dict_filtered) != len(state_dict):
-            print(f"Number of filtered keys: {len(state_dict) - len(state_dict_filtered)}")
-
-        self.load_state_dict(state_dict_filtered, strict=False)
-        return self
-    
-    def to_guacamole_generator(self, tokenizer, batch_size, temperature, top_k, device) -> 'DistributionMatchingGenerator':
-        from jointformer.models.wrappers import JointformerSmilesGeneratorWrapper
-        return JointformerSmilesGeneratorWrapper(self, tokenizer, batch_size, temperature, top_k, device)
 
     @classmethod
     def from_config(cls, config):
@@ -308,73 +342,30 @@ class FancyModel(nn.Module):
         )
 
 
-class FancyModelForDownstreamPrediction(FancyModel):
+class GPTForDownstreamPrediction(Jointformer):
 
     def __init__(self, config):
             
         super().__init__(config)
         self.prediction_task_type = config.downstream_task
         self.num_prediction_tasks = config.num_tasks
-        self.downstream_prediction_task_embedding = nn.Linear(config.num_tasks, config.n_embd)
         self.downstream_prediction_task_head = DownstreamPredictionHead(
-            embedding_dim=config.n_embd,
-            num_tasks=2 if config.downstream_task == 'classification' and config.num_tasks == 1 else config.num_tasks,
-            hidden_dim=config.hidden_dim
-            )
+            config.n_embd, 2 if config.downstream_task == 'classification' and config.num_tasks == 1 else config.num_tasks, config.hidden_dim)
 
     def forward(self, input_ids: torch.Tensor, input_labels: torch.Tensor = None, attention_mask: torch.Tensor = None,
                 properties: torch.Tensor = None, next_token_only: Optional[bool] = False, **kwargs):
+        outputs = super().forward(input_ids=input_ids, input_labels=input_labels, attention_mask=attention_mask,
+                                  properties=properties, next_token_only=next_token_only, **kwargs)
+        if not next_token_only:
+            embeddings = outputs['embeddings'].mean(1)
+            outputs['logits_prediction'] = self.downstream_prediction_task_head(embeddings)
+        return outputs
 
-        device = input_ids.device
-        batch_size, sequence_length = input_ids.size()
-        assert sequence_length <= self.config.block_size, f"Cannot forward sequence of length {sequence_length}, block size is only {self.config.block_size}"
-        
-        # Embedding of the sequence tokens
-        tok_emb = self.transformer.wte(input_ids) # token embeddings of shape (b, t, n_embd)
-        pos = torch.arange(0, sequence_length, dtype=torch.long, device=device)
-        pos_emb = self.transformer.wpe(pos) # position embeddings of shape (t, n_embd)
-        type_tokens = torch.zeros(sequence_length, dtype=torch.long, device=device)
-        type_emb = self.transformer.type_emb(type_tokens) if self.config.num_props is not None else 0
-        token_embeddings = tok_emb + pos_emb + type_emb
-        property_embeddings = None
-
-        # Embedding of the property tokens
-        if properties is not None:
-            prop_emb = self.downstream_prediction_task_embedding(properties).unsqueeze(1) # property embeddings of shape (b, 1, n_embd)
-            type_tokens = torch.ones(1, dtype=torch.long, device=device)
-            type_emb = self.transformer.type_emb(type_tokens)
-            property_embeddings = prop_emb + type_emb
-
-        embeddings = torch.cat([token_embeddings, property_embeddings], dim=1) if property_embeddings is not None else token_embeddings
-        x = self.transformer.drop(embeddings)
-        for block in self.transformer.h:
-            x = block(x)
-        x = self.transformer.ln_f(x)
-
-        loss = None
-        if next_token_only:
-            logits = self.lm_head(x[:, [-1], :])
-            return {'logits_generation': logits}
-        else:
-            logits = self.lm_head(x[:, :sequence_length, :])
-            
-        if input_labels is not None:
-            input_labels = input_labels[:, 1:].contiguous()
-            logits = logits[:, :-1].contiguous()
-            batch_size, sequence_length = input_labels.size()
-            loss = F.cross_entropy(logits.view(batch_size * sequence_length, -1), input_labels.view(batch_size * sequence_length), ignore_index=-100)
-        
-        logits_prediction = None if properties is None else self.downstream_prediction_task_head(x[:, -1, :])     
-
-        return {'token_embeddings': embeddings, 'embeddings': x, 'logits': logits, 'logits_prediction': logits_prediction}
-    
     def predict(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, **kwargs):
-        embeddings = self(input_ids=input_ids, attention_mask=attention_mask, next_token_only=False)['embeddings']
-        logits_prediction = self.downstream_prediction_task_head(embeddings[:, -1, :])
-        return {'logits_prediction': logits_prediction}
+        return self(input_ids=input_ids, attention_mask=attention_mask)
 
     def get_loss(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, properties: torch.Tensor, **kwargs):
-        outputs = self(input_ids=input_ids, attention_mask=attention_mask, properties=properties)
+        outputs = self(input_ids=input_ids, attention_mask=attention_mask)
         
         if self.prediction_task_type == 'classification':
             if self.num_prediction_tasks == 1:
@@ -402,6 +393,42 @@ class FancyModelForDownstreamPrediction(FancyModel):
         config.downstream_task = downstream_task
         config.num_tasks = num_tasks
         config.hidden_dim = hidden_dim
+        assert config.downstream_task in ['classification', 'regression'], "Downstream task must be either 'classification' or 'regression'."
+        assert config.num_tasks > 0, f"Number of tasks {config.num_tasks} must be greater than 0."
+        assert config.hidden_dim > 0, f"Hidden dimension {config.hidden_dim} must be greater than 0."
         return cls(
             config=config
         )
+
+
+class JointGPTForDownstreamPrediction(GPTForDownstreamPrediction):
+
+    def __init__(self, config):
+        
+        assert hasattr(config, 'lambda_hparam'), "Provide a `lambda` hyperparameter."
+        super().__init__(config)
+        self.lambda_hparam = config.lambda_hparam
+
+    def get_loss(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, properties: torch.Tensor, input_labels: torch.Tensor = None, **kwargs):
+        outputs = self(input_ids=input_ids, attention_mask=attention_mask, input_labels=input_labels)
+        
+        if self.prediction_task_type == 'classification':
+            if self.num_prediction_tasks == 1:
+                predictive_loss = F.cross_entropy(outputs["logits_prediction"], properties, reduction='mean')
+            elif self.num_prediction_tasks > 1:
+                predictive_loss = F.binary_cross_entropy_with_logits(outputs["logits_prediction"], properties, reduction='mean')
+            else:
+                raise ValueError('Variable `num_prediction_tasks` must be greater than 0.')
+            
+        elif self.prediction_task_type == 'regression':
+            predictive_loss = F.mse_loss(outputs["logits_prediction"].flatten(), properties.flatten(), 'mean')
+        
+        else:
+            raise ValueError('Variable `downstream_task` must be either `classification` or `regression`.')
+        
+        assert outputs['loss'] is not None
+        outputs['loss'] += self.lambda_hparam * predictive_loss
+        outputs['predictive_loss'] = predictive_loss
+
+        return outputs
+    
