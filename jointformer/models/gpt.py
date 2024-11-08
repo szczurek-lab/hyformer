@@ -134,6 +134,10 @@ class GPT(nn.Module):
         # report number of parameters
         print("number of parameters: %.2fM" % (self.get_num_params()/1e6,))
 
+    def to_guacamole_generator(self, tokenizer, batch_size, temperature, top_k, device) -> 'DistributionMatchingGenerator':
+        from jointformer.models.wrappers import JointformerSmilesGeneratorWrapper
+        return JointformerSmilesGeneratorWrapper(self, tokenizer, batch_size, temperature, top_k, device)
+
     def get_num_params(self, non_embedding=True):
         """
         Return the number of parameters in the model.

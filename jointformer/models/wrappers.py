@@ -2,7 +2,7 @@ import torch
 import numpy as np
 
 from guacamol.assess_distribution_learning import DistributionMatchingGenerator
-from jointformer.models.base import SmilesEncoder, DistributionMatchingGenerator
+from jointformer.models.base import SmilesEncoder
 from jointformer.utils.tokenizers.auto import SmilesTokenizer
 from tqdm import tqdm
 from typing import List

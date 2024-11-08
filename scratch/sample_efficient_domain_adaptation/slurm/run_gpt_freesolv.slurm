@@ -20,7 +20,7 @@ source $HOME/.bashrc
 conda deactivate
 conda activate jointformer
 
-model_name="gpt"
+model_name="gpt-linear"
 dataset_names=("freesolv")
 num_runs=1
 

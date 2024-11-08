@@ -284,7 +284,7 @@ class Trainer:
                 outputs = self.model.predict(**batch)["logits_prediction"].cpu()
             
             if outputs.dtype != torch.float32:
-                outputs = torch.tensor(outputs, dtype=torch.float32)
+                outputs = outputs.to(torch.float32)
 
             if hasattr(self.test_dataset, '_target_transform'):
                 properties = self.test_dataset.undo_target_transform(properties)
