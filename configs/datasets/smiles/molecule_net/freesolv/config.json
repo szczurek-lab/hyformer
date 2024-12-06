@@ -1,0 +1,25 @@
+{
+  "dataset_name": "molecule_net_dataset",
+  "path_to_train_data": "lustre/groups/aih/jointformer/data/molecule_net/freesolv/train.npy",
+  "path_to_train_properties": "lustre/groups/aih/jointformer/data/molecule_net/freesolv/train_properties.npy",
+  "path_to_val_data": "lustre/groups/aih/jointformer/data/molecule_net/freesolv/valid.npy",
+  "path_to_val_properties": "lustre/groups/aih/jointformer/data/molecule_net/freesolv/valid_properties.npy",
+  "path_to_test_data": "lustre/groups/aih/jointformer/data/molecule_net/freesolv/test.npy",
+  "path_to_test_properties": "lustre/groups/aih/jointformer/data/molecule_net/freesolv/test_properties.npy",
+  "validate": false,
+  "standardize": false,
+  "num_samples": null,
+  "split": null,
+  "splitter": null,
+  "transform": null,
+  "target_transform": {
+    "name": "scaler",
+    "params": {
+      "mean": -3.2594736842105267,
+      "std": 3.2775297233608893
+    }
+  },
+  "task_type": "regression",
+  "metric": "rmse",
+  "num_tasks": 1
+}

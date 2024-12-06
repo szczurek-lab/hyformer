@@ -1,0 +1,25 @@
+{
+  "dataset_name": "molecule_net_dataset",
+  "path_to_train_data": "lustre/groups/aih/jointformer/data/molecule_net/esol/train.npy",
+  "path_to_train_properties": "lustre/groups/aih/jointformer/data/molecule_net/esol/train_properties.npy",
+  "path_to_val_data": "lustre/groups/aih/jointformer/data/molecule_net/esol/valid.npy",
+  "path_to_val_properties": "lustre/groups/aih/jointformer/data/molecule_net/esol/valid_properties.npy",
+  "path_to_test_data": "lustre/groups/aih/jointformer/data/molecule_net/esol/test.npy",
+  "path_to_test_properties": "lustre/groups/aih/jointformer/data/molecule_net/esol/test_properties.npy",
+  "validate": false,
+  "standardize": false,
+  "num_samples": null,
+  "split": null,
+  "splitter": null,
+  "transform": null,
+  "target_transform": {
+    "name": "scaler",
+    "params": {
+      "mean": -2.8668758314855878,
+      "std": 2.066724108076815
+    }
+  },
+  "task_type": "regression",
+  "metric": "rmse",
+  "num_tasks": 1
+}

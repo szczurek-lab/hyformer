@@ -46,7 +46,8 @@ class Trainer:
             tokenizer: Optional[Any] = None,
             tasks: Optional[dict] = None,
             logger: Optional[WandbLogger] = None,
-            device_type: Optional[str] = 'cuda'
+            device_type: Optional[str] = 'cuda',
+            test_metric: Optional[str] = 'rmse'
     ):
 
         # set args
@@ -59,6 +60,7 @@ class Trainer:
         self.model = model
         self.tasks = tasks
         self.logger = logger
+        self.test_metric = test_metric
         self.device_type = 'cuda' if torch.cuda.is_available() and device_type == 'cuda' else 'cpu'
         self._loss_dict = {}
 
@@ -290,6 +292,10 @@ class Trainer:
                 properties = self.test_dataset.undo_target_transform(properties)
                 outputs = self.test_dataset.undo_target_transform(outputs)
             
+            if self.test_dataset.target_transform is not None:
+                properties = self.test_dataset.target_transform.inverse_transform(properties)
+                outputs = self.test_dataset.target_transform.inverse_transform(outputs)
+            
             loss += criterion(properties, outputs)
             n += len(outputs)
         
@@ -374,7 +380,16 @@ class Trainer:
 
     def evaluate(self):
         if self._iter_num % self.eval_interval == 0 and self.master_process and (self._resumed_from_iter_num != self._iter_num or self._iter_num ==  0):
-            self._optuna_loss = self.test() if self._optuna_loss is not None else None
+            if self._optuna_loss is not None and self.test_loader is not None:
+                _optuna_running_loss = self.test(metric=self.test_metric)
+                if self.test_metric in ['rmse']:            
+                    self._optuna_loss = min(self._optuna_loss, _optuna_running_loss)
+                elif self.test_metric in ['roc_auc']:
+                    self._optuna_loss = max(self._optuna_loss, _optuna_running_loss)
+                else:
+                    raise ValueError(f"Test metric {self.test_metric} not supported.")
+                console.info(f"Optuna loss: {self._optuna_loss:.4f}")
+                
             losses = self.estimate_loss()
             self._loss_dict[self._iter_num] = losses
             info = f"Evaluation at step {self._iter_num}"

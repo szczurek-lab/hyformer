@@ -1,9 +1,10 @@
 #!/bin/bash
+             
+#SBATCH --job-name=preprocess_physchem_unimol
+#SBATCH --output logs/%x/%j.log                              
+#SBATCH --error logs/%x/%j.err   
 
-#SBATCH --job-name=extract_targets   
-#SBATCH --array=0-11                 
-#SBATCH --output=array_job_%A_%a.out  
-#SBATCH --error=array_job_%A_%a.err   
+#SBATCH --array=0-1    
 
 #SBATCH -p cpu_p
 #SBATCH --qos cpu_normal
@@ -11,8 +12,8 @@
 #SBATCH --nodes=1                                           
 #SBATCH --ntasks-per-node=1                                  
 #SBATCH --cpus-per-task=32                                   
-#SBATCH --mem=8G                                            
-#SBATCH --time=24:00:00                                    
+#SBATCH --mem=80G                                            
+#SBATCH --time=72:00:00                                    
 
 #SBATCH --mail-type=begin                                   
 #SBATCH --mail-type=end                                     
@@ -23,8 +24,8 @@
 ###
 
 # Define the arrays
-splits=("train" "val" "test")
-targets=("plogp" "qed" "guacamol_mpo" "physchem")
+splits=("test" "train")
+targets=("physchem")
 
 # Create a list of combinations
 combinations=()
@@ -44,10 +45,15 @@ if [ "$split" == "train" ] && [ "$target" == "guacamol_mpo" ]; then
   split="train/10000/seed_0"
 fi
 
+source $HOME/.bashrc
+
+conda deactivate
+conda activate jointformer
+
 # Run the script
 echo "Extracting $target for $split..."
 python3 experiments/data/extract_targets.py \
     --target $target \
-    --data_path /lustre/groups/aih/jointformer/data/datasets/guacamol/$split/smiles.txt \
-    --output /lustre/groups/aih/jointformer/data/datasets/guacamol/$split/$target.npy \
+    --data_path /lustre/groups/aih/jointformer/data/data/unimol/truncate_only/smiles_${split}.npy \
+    --output /lustre/groups/aih/jointformer/data/data/unimol/truncate_only/smiles_${target}_${split}.npy \
     --n_workers $SLURM_CPUS_PER_TASK

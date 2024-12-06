@@ -61,8 +61,7 @@ def main(args, hparams=None, disable_logging=False):
         os.makedirs(args.out_dir, exist_ok=False)
 
     assert torch.cuda.is_available(), "CUDA is not available"
-    set_seed(1336 + args.seed)
-
+    
     # Configs
     dataset_config = DatasetConfig.from_config_file(args.path_to_dataset_config)
     tokenizer_config = TokenizerConfig.from_config_file(args.path_to_tokenizer_config)
@@ -77,11 +76,11 @@ def main(args, hparams=None, disable_logging=False):
                 model_config[key] = value
             if key in trainer_config.__dict__.keys():
                 trainer_config[key] = value
+                if key == 'learning_rate':
+                    trainer_config['min_lr'] = 0.1 * value
             if key == 'generation_task':
-                trainer_config['tasks'] = {"prediction": 20, "generation": value}
+                trainer_config['tasks'] = {"prediction": 100 - value, "generation": value}
                 trainer_config._normalize_task_probabilities()
-            if key == 'model_seed':
-                args.model_seed = value
 
     # Init
     train_dataset = AutoDataset.from_config(dataset_config, split='train', data_dir=args.data_dir)
@@ -91,15 +90,10 @@ def main(args, hparams=None, disable_logging=False):
     val_dataset = AutoDataset.from_config(dataset_config, split='val', data_dir=args.data_dir)
     tokenizer = AutoTokenizer.from_config(tokenizer_config)
 
-    # Adjust trainer config
-    if disable_logging:
-        trainer_config.max_epochs = 10
-    else:
-        trainer_config.max_epochs = 20
     trainer_config.correct_for_num_train_examples(num_train_examples=len(train_dataset))  # adjust trainer config to dataset size
 
     # Test
-    if args.test:
+    if args.test or args.debug_only:
         console.info("Running in test mode")
         trainer_config.max_iters = 2
         trainer_config.batch_size = 2
@@ -117,11 +111,13 @@ def main(args, hparams=None, disable_logging=False):
         logger.store_configs(dataset_config, tokenizer_config, model_config, trainer_config, logger_config)
 
     trainer = Trainer(
-        out_dir=None if disable_logging else args.out_dir, seed=args.model_seed, config=trainer_config, model=model,
+        out_dir=None if disable_logging else args.out_dir, seed=1337+args.seed, config=trainer_config, model=model,
         train_dataset=train_dataset, val_dataset=val_dataset, test_dataset=val_dataset,
         tokenizer=tokenizer, logger=logger)
 
-    if args.path_to_model_ckpt is not None and os.path.exists(args.path_to_model_ckpt):
+    if args.path_to_model_ckpt is not None:
+        if not os.path.exists(args.path_to_model_ckpt):
+            raise ValueError(f"Model checkpoint {args.path_to_model_ckpt} does not exist.")
         trainer.resume_from_file(args.path_to_model_ckpt)
         console.info(f"Resuming from {args.path_to_model_ckpt}")
     else:

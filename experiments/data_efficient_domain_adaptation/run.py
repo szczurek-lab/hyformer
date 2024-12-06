@@ -73,7 +73,7 @@ def find_best_params(args):
     objective_func = partial(model_objective, hyperparameters_grid=hyperparameters_grid, args=args, disable_logging=True)
 
     # Create a study object
-    study = optuna.create_study(direction=args.optuna_metric_direction, sampler=optuna.samplers.TPESampler(seed=args.seed))
+    study = optuna.create_study(direction=args.optuna_metric_direction, sampler=optuna.samplers.TPESampler(seed=args.seed))  # n_startup_trials=10 by default 
 
     # Start the hyperparameter tuning
     study.optimize(objective_func, n_trials=args.optuna_n_trials, n_jobs=args.optuna_n_jobs)

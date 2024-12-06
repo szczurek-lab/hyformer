@@ -1,0 +1,8 @@
+{   
+    "batch_size": 
+        {
+            "type": "int", 
+            "low": 32, 
+            "high": 128
+        }
+}
