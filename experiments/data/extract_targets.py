@@ -22,8 +22,12 @@ def main(args):
 
     oracle = AutoTarget.from_target_label(args.target, dtype='np')
 
-    with open(args.data_path) as f:
-        data = f.readlines()
+    if os.path.splitext(args.data_path)[1] == '.npy':
+        data = np.load(args.data_path, allow_pickle=True)
+    else:
+        with open(args.data_path) as f:
+            data = f.readlines()
+
     chunk_size = math.ceil(len(data) / args.n_workers)
     manager = mp.Manager()
     ret_dict = manager.dict()
@@ -38,8 +42,11 @@ def main(args):
     
     ret = np.concatenate([v for _, v in sorted(ret_dict.items())], axis=0)
     np.save(args.output, ret)
+    assert len(ret.shape) == 2
+
     
 if __name__ == "__main__":
     parser = get_parser()
     args = parser.parse_args()
     main(args)
+    

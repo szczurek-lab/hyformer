@@ -105,6 +105,7 @@ class Jointformer(nn.Module):
         self.physchem_head = nn.Sequential(
             nn.Linear(config.n_embd, config.n_embd, bias=True),
             nn.GELU(),
+            nn.Dropout(config.dropout),
             nn.Linear(config.n_embd, config.num_physchem_tasks, bias=False))
         self.transformer.wte.weight = self.lm_head.weight # https://paperswithcode.com/method/weight-tying
 
@@ -168,37 +169,27 @@ class Jointformer(nn.Module):
                 logits = self.lm_head(x[:, [-1], :])
                 return {'logits_generation': logits}
             else:
-                logits = self.lm_head(x)
+                logits = self.lm_head(x[:, 1:]) # ignore prefix token
                 
             if input_labels is not None:
-                # input_labels = input_labels[:, 1:].contiguous()
-                logits = logits[:, :-1].contiguous()
+                logits = logits[:, :-1, :].contiguous()
+                input_labels = input_labels[:, 1:].contiguous()
                 batch_size, sequence_length = input_labels.size()
                 loss = F.cross_entropy(logits.view(batch_size * sequence_length, -1), input_labels.view(batch_size * sequence_length), ignore_index=-100)
         
         elif task == 'reconstruction':
-            logits = self.mlm_head(x)
+            logits = self.mlm_head(x[:, 1:]) # ignore prefix token
                 
             if input_labels is not None:
-                # input_labels = input_labels[:, 1:].contiguous()
-                logits = logits[:, :-1].contiguous()
                 batch_size, sequence_length = input_labels.size()
                 loss = F.cross_entropy(logits.view(batch_size * sequence_length, -1), input_labels.view(batch_size * sequence_length), ignore_index=-100)
-
-            if input_labels is not None:
-                batch_size, seq_length, vocab_size = logits.size()
-                loss = F.cross_entropy(
-                    logits.view(batch_size * seq_length, vocab_size),
-                    input_labels.view(batch_size * seq_length),
-                    ignore_index=-100,
-                    reduction='mean')
                 
         elif task == 'physchem':
-            logits = self.physchem_head(x[:, -1, :])
+            logits = self.physchem_head(x[:, 0, :])
             loss = F.mse_loss(logits.flatten(), properties.flatten(), reduction='mean')
 
         else:
-            raise ValueError('Variable `prediction_task_type` must be either `classification` or `regression`.')
+            raise ValueError(f'Variable `task` must be either `generation`, `reconstruction`, or `physchem`. Received {task} instead.')
     
         return {'token_embeddings': embeddings, 'embeddings': x, 'logits': logits, 'loss': loss}
 
@@ -239,6 +230,10 @@ class Jointformer(nn.Module):
         self.load_state_dict(state_dict_filtered, strict=False)
         return self
 
+    def to_guacamole_generator(self, tokenizer, batch_size, temperature, top_k, device) -> 'DistributionMatchingGenerator':
+        from jointformer.models.wrappers import JointformerSmilesGeneratorWrapper
+        return JointformerSmilesGeneratorWrapper(self, tokenizer, batch_size, temperature, top_k, device)
+    
     def configure_optimizers(self, weight_decay, learning_rate, betas, device_type):
         # start with all of the candidate parameters
         param_dict = {pn: p for pn, p in self.named_parameters()}
@@ -342,7 +337,7 @@ class Jointformer(nn.Module):
         )
 
 
-class GPTForDownstreamPrediction(Jointformer):
+class JointformerForDownstreamPrediction(Jointformer):
 
     def __init__(self, config):
             
@@ -350,37 +345,79 @@ class GPTForDownstreamPrediction(Jointformer):
         self.prediction_task_type = config.downstream_task
         self.num_prediction_tasks = config.num_tasks
         self.downstream_prediction_task_head = DownstreamPredictionHead(
-            config.n_embd, 2 if config.downstream_task == 'classification' and config.num_tasks == 1 else config.num_tasks, config.hidden_dim)
+            config.n_embd, 2 if config.downstream_task == 'classification' and config.num_tasks == 1 else config.num_tasks, config.hidden_dim, pooler_dropout=config.pooler_dropout)
 
-    def forward(self, input_ids: torch.Tensor, input_labels: torch.Tensor = None, attention_mask: torch.Tensor = None,
+    def _forward_prediction(
+            self,
+            input_ids: torch.Tensor,
+            attention_mask: torch.Tensor = None):
+
+        device = input_ids.device
+        _, sequence_length = input_ids.size()
+        assert sequence_length <= self.config.block_size, f"Cannot forward sequence of length {sequence_length}, block size is only {self.config.block_size}"
+        
+        # Embedding of the sequence tokens
+        tok_emb = self.transformer.wte(input_ids) # token embeddings of shape (b, t, n_embd)
+        pos = torch.arange(0, sequence_length, dtype=torch.long, device=device)
+        pos_emb = self.transformer.wpe(pos) # position embeddings of shape (t, n_embd)
+
+        embeddings = tok_emb + pos_emb
+        x = self.transformer.drop(embeddings)
+        for block in self.transformer.h:
+            x = block(x, attn_mask=attention_mask)
+        x = self.transformer.ln_f(x)
+
+        loss = None        
+        logits = self.downstream_prediction_task_head(x[:, 0, :])
+
+        return {'token_embeddings': embeddings, 'embeddings': x, 'logits_prediction': logits, 'loss': loss}
+
+
+    def forward(self, input_ids: torch.Tensor, task: str = 'generation', input_labels: torch.Tensor = None, attention_mask: torch.Tensor = None,
                 properties: torch.Tensor = None, next_token_only: Optional[bool] = False, **kwargs):
-        outputs = super().forward(input_ids=input_ids, input_labels=input_labels, attention_mask=attention_mask,
-                                  properties=properties, next_token_only=next_token_only, **kwargs)
-        if not next_token_only:
-            embeddings = outputs['embeddings'].mean(1)
-            outputs['logits_prediction'] = self.downstream_prediction_task_head(embeddings)
+        
+        if task in ['generation', 'reconstruction', 'mlm', 'physchem']:    
+            return super().forward(
+                input_ids=input_ids, input_labels=input_labels, attention_mask=attention_mask,
+                properties=properties, next_token_only=next_token_only, **kwargs)
+        elif task == 'prediction':
+            outputs = self._forward_prediction(input_ids=input_ids, attention_mask=attention_mask)
+        else:
+            raise ValueError('Variable `task` must be either `generation`, `reconstruction`, `mlm`, `physchem`, or `prediction`.')
+        
         return outputs
 
     def predict(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, **kwargs):
-        return self(input_ids=input_ids, attention_mask=attention_mask)
+        return self(input_ids=input_ids, attention_mask=attention_mask, task='prediction')
 
-    def get_loss(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, properties: torch.Tensor, **kwargs):
-        outputs = self(input_ids=input_ids, attention_mask=attention_mask)
+    def get_loss(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, properties: torch.Tensor, task: str, input_labels: torch.Tensor = None, **kwargs):
         
-        if self.prediction_task_type == 'classification':
-            if self.num_prediction_tasks == 1:
-                outputs["loss"] = F.cross_entropy(outputs["logits_prediction"], properties, reduction='mean')
-            elif self.num_prediction_tasks > 1:
-                outputs["loss"] = F.binary_cross_entropy_with_logits(outputs["logits_prediction"], properties, reduction='mean')
-            else:
-                raise ValueError('Variable `num_prediction_tasks` must be greater than 0.')
+        if task in ['generation', 'reconstruction', 'mlm', 'physchem']:
+            return super().get_loss(
+                input_ids=input_ids, input_labels=input_labels, attention_mask=attention_mask,
+                properties=properties, task=task, **kwargs)
+        
+        elif task == 'prediction':
+        
+            outputs = self(input_ids=input_ids, attention_mask=attention_mask, task=task)
             
-        elif self.prediction_task_type == 'regression':
-            outputs["loss"] = F.mse_loss(outputs["logits_prediction"].flatten(), properties.flatten(), 'mean')
+            if self.prediction_task_type == 'classification':
+                if self.num_prediction_tasks == 1:
+                    outputs["loss"] = F.cross_entropy(outputs["logits_prediction"], properties, reduction='mean')
+                elif self.num_prediction_tasks > 1:
+                    outputs["loss"] = F.binary_cross_entropy_with_logits(outputs["logits_prediction"], properties, reduction='mean')
+                else:
+                    raise ValueError('Variable `num_prediction_tasks` must be greater than 0.')
+                
+            elif self.prediction_task_type == 'regression':
+                outputs["loss"] = F.mse_loss(outputs["logits_prediction"].flatten(), properties.flatten(), 'mean')
+            
+            else:
+                raise ValueError('Variable `downstream_task` must be either `classification` or `regression`.')
         
         else:
-            raise ValueError('Variable `downstream_task` must be either `classification` or `regression`.')
-        
+            raise ValueError('Variable `task` must be either `generation`, `reconstruction`, `mlm`, `physchem`, or `prediction`.')
+
         return outputs
     
     @classmethod
@@ -392,43 +429,11 @@ class GPTForDownstreamPrediction(Jointformer):
         config.num_props = config.num_physchem_tasks
         config.downstream_task = downstream_task
         config.num_tasks = num_tasks
-        config.hidden_dim = hidden_dim
+        # config.hidden_dim = hidden_dim
+        config.hidden_dim = config.embedding_dim
         assert config.downstream_task in ['classification', 'regression'], "Downstream task must be either 'classification' or 'regression'."
         assert config.num_tasks > 0, f"Number of tasks {config.num_tasks} must be greater than 0."
         assert config.hidden_dim > 0, f"Hidden dimension {config.hidden_dim} must be greater than 0."
         return cls(
             config=config
         )
-
-
-class JointGPTForDownstreamPrediction(GPTForDownstreamPrediction):
-
-    def __init__(self, config):
-        
-        assert hasattr(config, 'lambda_hparam'), "Provide a `lambda` hyperparameter."
-        super().__init__(config)
-        self.lambda_hparam = config.lambda_hparam
-
-    def get_loss(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, properties: torch.Tensor, input_labels: torch.Tensor = None, **kwargs):
-        outputs = self(input_ids=input_ids, attention_mask=attention_mask, input_labels=input_labels)
-        
-        if self.prediction_task_type == 'classification':
-            if self.num_prediction_tasks == 1:
-                predictive_loss = F.cross_entropy(outputs["logits_prediction"], properties, reduction='mean')
-            elif self.num_prediction_tasks > 1:
-                predictive_loss = F.binary_cross_entropy_with_logits(outputs["logits_prediction"], properties, reduction='mean')
-            else:
-                raise ValueError('Variable `num_prediction_tasks` must be greater than 0.')
-            
-        elif self.prediction_task_type == 'regression':
-            predictive_loss = F.mse_loss(outputs["logits_prediction"].flatten(), properties.flatten(), 'mean')
-        
-        else:
-            raise ValueError('Variable `downstream_task` must be either `classification` or `regression`.')
-        
-        assert outputs['loss'] is not None
-        outputs['loss'] += self.lambda_hparam * predictive_loss
-        outputs['predictive_loss'] = predictive_loss
-
-        return outputs
-    

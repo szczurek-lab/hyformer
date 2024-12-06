@@ -20,10 +20,13 @@ class PhysChem(BaseTarget):
         self.physchem_featurizer = PhysChemFeaturizer(descriptors=self.descriptor_list, normalise=True)
 
     def _get_target(self, example: str) -> float:
-        physchem, valid = self.physchem_featurizer.transform_single(example)
-        assert bool(valid), f'Cannot compute the physchem props for {example}'
-        return physchem[:self.num_physchem].tolist()
-
+        try:
+            physchem, valid = self.physchem_featurizer.transform_single(example)
+            assert bool(valid), f'Cannot compute the physchem props for {example}'
+            return physchem[:self.num_physchem].tolist()
+        except AssertionError as e:
+            return [np.nan for _ in range(self.num_physchem)]
+        
     @property
     def target_names(self):
         return self.descriptor_list

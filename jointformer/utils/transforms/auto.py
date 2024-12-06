@@ -21,3 +21,16 @@ class AutoTransform:
                         "SmilesEnumerator").from_config(transform_config['params']))
 
             return transforms.Compose(transform)
+
+
+class AutoTargetTransform:
+
+    @classmethod
+    def from_config(cls, config: dict) -> Any:
+        
+        if config['name'] == 'scaler':
+            return getattr(importlib.import_module(
+                "jointformer.utils.transforms.scaler"),
+                "Scaler").from_config(config['params'])
+        else:
+            raise ValueError(f"Target transform {config['name']} not supported.")

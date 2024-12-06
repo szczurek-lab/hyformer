@@ -1,0 +1,16 @@
+{
+  "dataset_name": "smiles_dataset",
+  "path_to_train_data": "/lustre/groups/aih/jointformer/data/data/unimol/truncate_only_no_nans/smiles_train.npy",
+  "path_to_train_properties": "/lustre/groups/aih/jointformer/data/data/unimol/truncate_only_no_nans/smiles_physchem_train.npy",
+  "path_to_val_data": "/lustre/groups/aih/jointformer/data/data/unimol/truncate_only_no_nans/smiles_test.npy",
+  "path_to_val_properties": "/lustre/groups/aih/jointformer/data/data/unimol/truncate_only_no_nans/smiles_physchem_test.npy",
+  "path_to_test_data": "/lustre/groups/aih/jointformer/data/data/unimol/truncate_only_no_nans/smiles_test.npy",
+  "path_to_test_properties": "/lustre/groups/aih/jointformer/data/data/unimol/truncate_only_no_nans/smiles_physchmem_test.npy",
+  "validate": false,
+  "standardize": false,
+  "num_samples": null,
+  "split": null,
+  "splitter": null,
+  "transform": null,
+  "target_transform": null
+}

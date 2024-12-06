@@ -93,7 +93,7 @@ class BaseTokenizer:
                 labels[labels == self.cls_token_id] = self.ignore_index
             batch["input_labels"] = labels
 
-        elif task == 'mlm':
+        elif task == 'mlm' or task == 'reconstruction':
             batch["input_ids"], batch["input_labels"] = self.mask_tokens(
                 batch["input_ids"], special_tokens_mask=special_tokens_mask)
 
@@ -140,7 +140,7 @@ class BaseTokenizer:
 
         # 80% of the time, we replace masked input tokens with tokenizer.mask_token ([MASK])
         indices_replaced = torch.bernoulli(torch.full(labels.shape, 0.8)).bool() & masked_indices
-        inputs[indices_replaced] = self.convert_tokens_to_ids(self.mask_token)
+        inputs[indices_replaced] = self.mask_token_id
 
         # We do not replace masked input tokens with random word
         # indices_random = torch.bernoulli(torch.full(labels.shape, 0.5)).bool() & masked_indices & ~indices_replaced

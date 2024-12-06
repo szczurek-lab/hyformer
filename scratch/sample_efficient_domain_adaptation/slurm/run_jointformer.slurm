@@ -1,76 +1,79 @@
 #!/bin/bash
 
-#SBATCH --job-name=sample-efficient-domain-adaptation-jointformer                             
-#SBATCH --output sample-efficient-domain-adaptation-jointformer.log                              
-#SBATCH --error sample-efficient-domain-adaptation-jointformer.err                                 
+#SBATCH --job-name=finetune-jointformer                           
+#SBATCH --output logs/%x/%j.log                              
+#SBATCH --error logs/%x/%j.err                                 
 
 #SBATCH -p gpu_p
 #SBATCH --qos gpu_normal
-                                
+
+#SBATCH --array=0-11    
 #SBATCH --cpus-per-task=12                                   
 #SBATCH --mem=20G                                           
 #SBATCH --gres=gpu:1                                        
-#SBATCH --time=4:00:00                                    
+#SBATCH --time=48:00:00                                    
 
-#SBATCH --mail-type=begin                                   
-#SBATCH --mail-type=end                                     
-#SBATCH --mail-type=fail                                    
-#SBATCH --mail-user=adam.izdebski@helmholtz-munich.de
-
-#SBATCH --nice=100                                       
+#SBATCH --nice=100                                        
 
 
 source $HOME/.bashrc
 
 conda deactivate
-conda activate jointformer-experiments
+conda activate jointformer
 
-model_seeds=(1337)
-dataset_seeds=(0 1 2)
-fractions_train_dataset=(0.01)
-dataset_names=("lipo")
+### Define constants
 
+model_name="jointformer"
+dataset_names=("lipo" "esol" "freesolv")
+objectives=("generation", "generation_physchem", "generation_mlm_physchem", "generation_mlm")
+num_runs=1
+
+
+### Define job array specific variables
+
+tasks=()
 for dataset_name in "${dataset_names[@]}"; do
-   for fraction_train_dataset in "${fractions_train_dataset[@]}"; do
-      for dataset_seed in "${dataset_seeds[@]}"; do
+  for objective in "${objectives[@]}"; do
+      tasks+=("$dataset_name,$objective")
+  done
+done
 
-         for model_seed in "${model_seeds[@]}"; do
+task=${tasks[$SLURM_ARRAY_TASK_ID]}
 
-            echo "Running python script for $dataset_name dataset with fraction_train_examples = $fraction_train_dataset, seed $dataset_seed, model seed $model_seed."
-            
-            python "experiments/data_efficient_domain_adaptation/train.py" \
-               --data_dir /lustre/groups/aih/jointformer/data \
-               --out_dir /lustre/groups/aih/jointformer/results/sample_efficient_domain_adaptation/jointformer/molecule_net/scaffold/$dataset_name/$fraction_train_dataset/$dataset_seed \
-               --path_to_dataset_config configs/datasets/molecule_net/scaffold/$dataset_name \
-               --path_to_tokenizer_config configs/tokenizers/smiles \
-               --path_to_model_config configs/models/jointformer \
-               --path_to_trainer_config configs/trainers/sample_efficient_domain_adaptation \
-               --fraction_train_dataset $fraction_train_dataset \
-               --dataset_seed $dataset_seed \
-               --model_seed $model_seed \
-               --path_to_model_ckpt /lustre/groups/aih/jointformer/results/mood-experiments/pretrained/jointformer/ckpt.pt
+dataset_name=$(echo $task | cut -d',' -f1)
+objective=$(echo $task | cut -d',' -f2)
 
-            python "experiments/data_efficient_domain_adaptation/test.py" \
-               --data_dir /lustre/groups/aih/jointformer/data \
-               --out_dir /lustre/groups/aih/jointformer/results/sample_efficient_domain_adaptation/jointformer/molecule_net/scaffold/$dataset_name/$fraction_train_dataset/$dataset_seed \
-               --path_to_dataset_config configs/datasets/molecule_net/scaffold/$dataset_name \
-               --path_to_tokenizer_config configs/tokenizers/smiles \
-               --path_to_model_config configs/models/jointformer \
-               --path_to_trainer_config configs/trainers/sample_efficient_domain_adaptation \
-               --model_seed $model_seed \
-               --destroy_ckpt \
-               --metric rmse
+echo dataset_name: $dataset_name
+echo objective: $objective
 
-         done
-      done
-   done
 
-   echo "Aggregating results for $dataset_name dataset."
+### Run the experiment
+
+for run in $(seq 1 $num_runs); do
    
-   python "experiments/data_efficient_domain_adaptation/aggregate_results.py" \
-      --out_dir /lustre/groups/aih/jointformer/results/sample_efficient_domain_adaptation/jointformer/molecule_net/scaffold/$dataset_name \
-      --metric rmse
+   # set directories
+   root_dir="/lustre/groups/aih/jointformer"
+   out_dir=$root_dir/results/finetune/$model_name/$objective/molecule_net/scaffold/$dataset_name/seed_$run
+   data_dir=$root_dir/"data"
+   
+   echo run: $root_dir/results/pretrain/$model_name/$objective/seed_1337/ckpt.pt
 
+   python "experiments/data_efficient_domain_adaptation/run.py" \
+      --out_dir $out_dir \
+      --data_dir $data_dir \
+      --path_to_dataset_config configs/datasets/molecule_net/scaffold/$dataset_name \
+      --path_to_model_config configs/models/jointformer_v2_prediction \
+      --path_to_tokenizer_config configs/tokenizers/smiles_separate_task_token \
+      --path_to_trainer_config configs/trainers/finetune \
+      --path_to_model_ckpt $root_dir/results/pretrain/$model_name/pretrain_${objective}/seed_1337/ckpt.pt \
+      --hyperparameters_grid_filepath 'experiments/data_efficient_domain_adaptation/hyperparameters_grid.json' \
+      --optuna_metric_direction 'minimize' \
+      --optuna_n_trials 50 \
+      --optuna_n_jobs 1 \
+      --fraction_train_dataset 1.0 \
+      --model_seed 1337 \
+      --seed $run \
+      --metric "rmse"
 done
 
 echo "Script finished."

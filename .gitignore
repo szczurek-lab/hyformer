@@ -182,3 +182,7 @@ outputs
 
 .csv
 *.csv
+
+scratch/
+.slurm
+*.slurm

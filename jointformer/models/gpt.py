@@ -7,9 +7,12 @@ from torch.nn import functional as F
 
 from typing import Optional
 from jointformer.models.trainable import TrainableModel
+from jointformer.models.base import SmilesEncoder
 
 from jointformer.models.layers.prediction import DownstreamPredictionHead
 
+import numpy as np
+from tqdm import tqdm
 
 class LayerNorm(nn.Module):
     """ LayerNorm but with an optional bias. PyTorch doesn't support simply bias=False """
@@ -312,8 +315,9 @@ class GPT(nn.Module):
 
         return idx
     
-    def to_downstream_task_predictor(self, task_type, num_tasks):
-        return GPTPredictiveModelWraper(self, task_type, num_tasks) 
+    def to_smiles_encoder(self, tokenizer, batch_size, device) -> 'SmilesEncoder':
+        from jointformer.models.wrappers import JointformerSmilesEncoderWrapper
+        return GPTSmilesEncoderWrapper(self, tokenizer, batch_size, device) 
 
     @classmethod
     def from_config(cls, config):
@@ -335,7 +339,7 @@ class GPTForDownstreamPrediction(GPT):
         self.prediction_task_type = config.downstream_task
         self.num_prediction_tasks = config.num_tasks
         self.downstream_prediction_task_head = DownstreamPredictionHead(
-            config.n_embd, 2 if config.downstream_task == 'classification' and config.num_tasks == 1 else config.num_tasks, config.hidden_dim)
+            config.n_embd, 2 if config.downstream_task == 'classification' and config.num_tasks == 1 else config.num_tasks, config.hidden_dim, config.pooler_dropout)
 
     def forward(self, input_ids: torch.Tensor, input_labels: torch.Tensor = None, attention_mask: torch.Tensor = None,
                 properties: torch.Tensor = None, next_token_only: Optional[bool] = False, **kwargs):
@@ -416,4 +420,25 @@ class JointGPTForDownstreamPrediction(GPTForDownstreamPrediction):
         outputs['predictive_loss'] = predictive_loss
 
         return outputs
-    
+
+
+class GPTSmilesEncoderWrapper(SmilesEncoder):
+
+    def __init__(self, model, tokenizer, batch_size, device):
+        self._model = model
+        self._tokenizer = tokenizer
+        self._batch_size = batch_size
+        self._device = device
+
+    @torch.no_grad()
+    def encode(self, smiles: list[str]) -> np.ndarray:
+        self._model.eval()
+        model = self._model.to(self._device)
+        embeddings = np.zeros((len(smiles), model.config.n_embd))
+        for i in tqdm(range(0, len(smiles), self._batch_size), "Encoding samples"):
+            batch = smiles[i:i+self._batch_size]
+            model_input = self._tokenizer(batch, task="generation")
+            model_input.to(self._device)
+            output = model(input_ids=model_input['input_ids'])['embeddings'].mean(1)
+            embeddings[i:i+self._batch_size] = output.cpu().numpy()
+        return embeddings

@@ -51,10 +51,9 @@ def parse_args():
     return args
 
 
-def main(args, hparams=None, validate=False):
+def main(args, hparams=None):
 
     path_to_model_ckpt = os.path.join(args.out_dir, 'ckpt.pt')
-    assert os.path.exists(path_to_model_ckpt), f"Model checkpoint not found: {path_to_model_ckpt}"
 
     # Load configs
     dataset_config = DatasetConfig.from_config_file(args.path_to_dataset_config)
@@ -70,30 +69,28 @@ def main(args, hparams=None, validate=False):
                 model_config[key] = value
             if key in trainer_config.__dict__.keys():
                 trainer_config[key] = value
-            if key == 'model_seed':
-                args.model_seed = value
 
     # Init
     test_dataset = AutoDataset.from_config(dataset_config, split='test', data_dir=args.data_dir)
     tokenizer = AutoTokenizer.from_config(tokenizer_config)
 
-    set_seed(args.model_seed)
     model = AutoModel.from_config(model_config, downstream_task=dataset_config.task_type, num_tasks=dataset_config.num_tasks, hidden_dim=256)
     logger = AutoLogger.from_config(logger_config) if logger_config else None
     
     # Test
     trainer = Trainer(
-        out_dir=args.out_dir, seed=args.model_seed, config=trainer_config, model=model,
-        test_dataset=test_dataset, tokenizer=tokenizer, logger=logger)
+        out_dir=args.out_dir, config=trainer_config, model=model,
+        test_dataset=test_dataset, tokenizer=tokenizer, logger=logger, seed=1337 + args.seed)
     trainer._init_data_loaders()
     trainer.resume_from_file(path_to_model_ckpt)
 
-    objective_metric = trainer.test(metric=args.metric)
-    print(f"Test {args.metric}: {objective_metric}")
+    test_metric = dataset_config.metric
+    objective_metric = trainer.test(metric=test_metric)
+    print(f"Test {test_metric}: {objective_metric}")
     if args.destroy_ckpt and os.path.exists(path_to_model_ckpt):
         os.remove(path_to_model_ckpt)
     
-    write_dict_to_file({f'{args.metric}': objective_metric}, os.path.join(args.out_dir, 'test_loss.json'))
+    write_dict_to_file({f'{test_metric}': objective_metric}, os.path.join(args.out_dir, 'test_loss.json'))
     
     return objective_metric
 

@@ -64,7 +64,7 @@ class SmilesTokenizerWithPrefix(SmilesTokenizer):
     
     def __call__(self, x: Union[str, List[str], Tuple[str, torch.Tensor], List[Tuple[str, torch.Tensor]]], task: str) -> ModelInput:
         inputs = super().__call__(x, task)
-        if task == 'generation':
+        if task in ['generation', 'reconstruction', 'mlm']:
             labels = inputs["input_labels"][:, 1:].clone()
             labels[labels == self.tokenizer.convert_tokens_to_ids(PREFIX_TOKEN_DICT['prefix'])] = self.ignore_index
             inputs["input_labels"] = labels
