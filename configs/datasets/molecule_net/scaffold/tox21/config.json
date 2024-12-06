@@ -1,0 +1,11 @@
+{
+  "dataset_name": "smiles_dataset",
+  "path_to_train_data": "data/molecule_net/tox21/train.csv",
+  "path_to_val_data": "data/molecule_net/tox21/valid.csv",
+  "path_to_test_data": "data/molecule_net/tox21/test.csv",
+  "transform": null,
+  "target_transform": null,
+  "task_type": "classification",
+  "task_metric": "auc_roc",
+  "num_tasks": 12
+}
