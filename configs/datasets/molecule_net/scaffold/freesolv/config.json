@@ -1,14 +1,17 @@
 {
-  "dataset_name": "molecule_net",
-  "target_label": "freesolv",
-  "validate": false,
-  "num_samples": null,
-  "standardize": false,
-  "splitter": "scaffold",
-  "split": null,
-  "transform": [{"name": "smiles_enumerator", "params": {"enumeration_probability": 0.0}}],
-  "target_transform": null,
+  "dataset_name": "smiles_dataset",
+  "path_to_train_data": "data/molecule_net/freesolv/train.csv",
+  "path_to_val_data": "data/molecule_net/freesolv/valid.csv",
+  "path_to_test_data": "data/molecule_net/freesolv/test.csv",
+  "transform": null,
+  "target_transform": {
+    "name": "scaler",
+    "params": {
+      "mean": -3.2594736842105267,
+      "std": 3.2775297233608893
+    }
+  },
   "task_type": "regression",
-  "metric": "rmse",
+  "task_metric": "rmse",
   "num_tasks": 1
 }
