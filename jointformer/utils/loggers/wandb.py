@@ -9,7 +9,7 @@ import pandas as pd
 from rdkit import Chem
 from typing import Optional, List
 
-from jointformer.configs.base import Config
+from jointformer.configs.base import BaseConfig
 from jointformer.configs.logger import LoggerConfig
 from jointformer.utils.plot import mol_to_pil_image
 
@@ -25,7 +25,7 @@ class WandbLogger:
             watch,
             watch_freq,
             display_name: Optional[str] = None,
-            config: Optional[List[Config]] = None
+            config: Optional[List[BaseConfig]] = None
     ):
         self.enable_logging = enable_logging
         self.user = user
@@ -57,7 +57,7 @@ class WandbLogger:
             except KeyError:
                 self.display_name = time.strftime("%Y%m%d-%H%M%S")
 
-    def store_configs(self, *config_list: List[Config]):
+    def store_configs(self, *config_list: List[BaseConfig]):
         if self.config is None:
             self.config = {}
         for config in config_list:

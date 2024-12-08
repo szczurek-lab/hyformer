@@ -1,9 +1,9 @@
 
 from typing import List, Optional, Union, Callable
-from jointformer.configs.base import Config
+from jointformer.configs.base import BaseConfig
 
 
-class DatasetConfig(Config):
+class DatasetConfig(BaseConfig):
 
     def __init__(
             self,

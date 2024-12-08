@@ -1,10 +1,10 @@
 import math
 import logging
-from jointformer.configs.base import Config
+from jointformer.configs.base import BaseConfig
 
 console = logging.getLogger(__file__)
 
-class TrainerConfig(Config):
+class TrainerConfig(BaseConfig):
 
     def __init__(
         self,
@@ -95,3 +95,4 @@ class TrainerConfig(Config):
             console.info(f"Corrected max iters to {self.max_iters}")
         else:
             raise ValueError("Argument `max epochs` not specified in config file.")
+        

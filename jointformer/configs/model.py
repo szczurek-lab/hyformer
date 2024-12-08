@@ -1,13 +1,13 @@
 from typing import Optional
 
-from jointformer.configs.base import Config
+from jointformer.configs.base import BaseConfig
 from jointformer.utils.runtime import find_multiple
 
 EMBEDDING_DIM_HIDDEN_FACTOR = 8 / 3
 EMBEDDIND_DIM_MULTIPLE_OF = 256
 
 
-class ModelConfig(Config):
+class ModelConfig(BaseConfig):
 
     def __init__(
         self,
