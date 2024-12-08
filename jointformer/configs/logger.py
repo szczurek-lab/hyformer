@@ -1,8 +1,8 @@
 from typing import Optional, List
-from jointformer.configs.base import Config
+from jointformer.configs.base import BaseConfig
 
 
-class LoggerConfig(Config):
+class LoggerConfig(BaseConfig):
 
     def __init__(
         self,
@@ -14,7 +14,7 @@ class LoggerConfig(Config):
         watch,
         watch_freq,
         display_name: Optional[str] = None,
-        config: Optional[List[Config]] = None,
+        config: Optional[List[BaseConfig]] = None,
     ):
 
         super().__init__()
