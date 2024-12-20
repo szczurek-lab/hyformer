@@ -1,0 +1,17 @@
+{
+  "dataset_name": "sequence_dataset",
+  "path_to_train_data": "molecule_net/scaffold/lipo/train.npz",
+  "path_to_val_data": "molecule_net/scaffold/lipo/val.npz",  
+  "path_to_test_data": "molecule_net/scaffold/lipo/test.npz",
+  "transform": null,
+  "target_transform": {
+    "name": "scaler",
+    "params": {
+      "mean": 2.162904761904762,
+      "std": 1.210992810122257
+    }
+  },
+  "task_type": "regression",
+  "task_metric": "rmse",
+  "num_tasks": 1
+}
