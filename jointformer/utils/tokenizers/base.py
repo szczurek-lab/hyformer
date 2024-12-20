@@ -125,7 +125,8 @@ class BaseTokenizer:
         """
         labels = inputs.clone()
         # We sample a few tokens in each sequence for MLM training (with probability `self.mlm_probability`)
-        probability_matrix = torch.full(labels.shape, self.mlm_probability)
+        mlm_probability = self.mlm_probability if isinstance(self.mlm_probability, float) else self.mlm_probability()
+        probability_matrix = torch.full(labels.shape, mlm_probability)
         if special_tokens_mask is None:
             special_tokens_mask = [
                 self.tokenizer.get_special_tokens_mask(val, already_has_special_tokens=True) for val in labels.tolist()

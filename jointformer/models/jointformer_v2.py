@@ -4,12 +4,15 @@ import inspect
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
+import numpy as np
+
+from tqdm import tqdm
 
 from typing import Optional
 from jointformer.models.trainable import TrainableModel
 
 from jointformer.models.layers.prediction import DownstreamPredictionHead
-
+from jointformer.models.base import SmilesEncoder
 from jointformer.models.gpt import LayerNorm, MLP
 
 
@@ -325,6 +328,9 @@ class Jointformer(nn.Module):
 
         return idx
 
+    def to_smiles_encoder(self, tokenizer, batch_size, device) -> 'SmilesEncoder':
+        return JointformerSmilesEncoderWrapper(self, tokenizer, batch_size, device) 
+
     @classmethod
     def from_config(cls, config):
         config.block_size = config.max_seq_len
@@ -437,3 +443,26 @@ class JointformerForDownstreamPrediction(Jointformer):
         return cls(
             config=config
         )
+
+
+class JointformerSmilesEncoderWrapper(SmilesEncoder):
+
+    def __init__(self, model, tokenizer, batch_size, device):
+        self._model = model
+        self._tokenizer = tokenizer
+        self._batch_size = batch_size
+        self._device = device
+
+    @torch.no_grad()
+    def encode(self, smiles: list[str]) -> np.ndarray:
+        self._model.eval()
+        model = self._model.to(self._device)
+        embeddings = np.zeros((len(smiles), model.config.n_embd))
+        for i in tqdm(range(0, len(smiles), self._batch_size), "Encoding samples"):
+            batch = smiles[i:i+self._batch_size]
+            model_input = self._tokenizer(batch, task="reconstruction")
+            model_input.to(self._device)
+            output = model(input_ids=model_input['input_ids'], attention_mask=model_input['attention_mask'], task='reconstruction')['embeddings'][:, 0]
+            embeddings[i:i+self._batch_size] = output.cpu().numpy()
+        return embeddings
+    

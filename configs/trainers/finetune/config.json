@@ -5,7 +5,7 @@
   "eval_only": false,
   "max_iters": 60000,
   "max_epochs": 20,
-  "batch_size": 16,
+  "batch_size": 32,
   "learning_rate": 6e-4,
   "weight_decay": 1e-1,
   "beta1": 0.9,
@@ -15,14 +15,14 @@
   "decay_lr": true,
   "warmup_iters": 6000,
   "lr_decay_iters": 60000,
-  "min_lr": 1e-6,
+  "min_lr": 6e-6,
   "eval_iters": 48,
   "eval_interval": 50,
   "log_interval": 50,
   "always_save_checkpoint": false,
   "save_checkpoint": true, 
   "save_checkpoint_every": 10000,
-  "block_size": 128,
+  "block_size": 256,
   "tasks":
     {
       "prediction": 1

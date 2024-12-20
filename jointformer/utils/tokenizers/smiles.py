@@ -55,8 +55,8 @@ class SmilesTokenizer(BaseTokenizer):
             sep_token=TOKEN_DICT['sep'],
             mask_token=TOKEN_DICT['mask'],
             pad_token=TOKEN_DICT['pad'],
-            unk_token=TOKEN_DICT['unknown'])
-
+            unk_token=TOKEN_DICT['unknown'], max_len=self.max_molecule_length)
+        
     def __len__(self):
         return len(self.tokenizer)
 
