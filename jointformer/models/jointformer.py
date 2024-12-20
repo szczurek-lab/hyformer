@@ -29,7 +29,6 @@ class Jointformer(Transformer, TrainableModel):
             bias: int,
             num_heads: int,
             layer_norm_eps: float,
-            physchem_hidden_dim: int,
             num_physchem_tasks: Optional[int] = DEFAULT_NUM_PHYCHEM_TASKS,
             init_weights: bool = True,
             tie_weights: bool = True,
@@ -44,7 +43,7 @@ class Jointformer(Transformer, TrainableModel):
         # Hardcoding all tasks into the model definition for easier serialization
         self.lm_head = nn.Linear(self.embedding_dim, self.vocab_size, bias=False)
         self.mlm_head = nn.Linear(self.embedding_dim, self.vocab_size, bias=False)
-        self.physchem_head = RegressionHead(embedding_dim=self.embedding_dim, prediction_hidden_dim=physchem_hidden_dim, output_dim=num_physchem_tasks)
+        self.physchem_head = RegressionHead(embedding_dim=self.embedding_dim, prediction_hidden_dim=256, output_dim=num_physchem_tasks)
         
         # Weight tying https://paperswithcode.com/method/weight-tying
         if tie_weights:
@@ -75,7 +74,7 @@ class Jointformer(Transformer, TrainableModel):
         if task == 'generation':
             _is_causal = True
             _attention_mask = None
-        elif task in ['physchem', 'prediction', 'mlm']:
+        elif task in ['physchem', 'prediction', 'mlm', 'reconstruction']:
             _is_causal = False
             _attention_mask = attention_mask
         else:
@@ -115,14 +114,14 @@ class Jointformer(Transformer, TrainableModel):
             ):
         if task == 'lm' or task == 'generation':
             return self.get_loss_lm(input_ids, attention_mask, input_labels)
-        elif task == 'mlm':
+        elif task == 'mlm' or task == 'reconstruction':
             return self.get_loss_mlm(input_ids, attention_mask, input_labels)
         elif task == 'prediction':
             return self.get_loss_prediction(input_ids, attention_mask, properties)
         elif task == 'physchem':
             return self.get_loss_physchem(input_ids, attention_mask, properties)
         else:
-            raise ValueError('Variable `task` must be either `lm`, `mlm`, `prediction` or `finetune`.')
+            raise ValueError(f'Variable `task` must be either `lm`, `mlm`, `prediction` or `finetune` and {task} was given.')
 
     def get_loss_lm(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, input_labels: torch.Tensor, **kwargs):
         outputs = self(input_ids=input_ids, attention_mask=attention_mask, task='generation', next_token_only=False)
@@ -137,14 +136,19 @@ class Jointformer(Transformer, TrainableModel):
         return outputs
 
     def get_loss_mlm(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, input_labels: torch.Tensor, **kwargs):
+            
+        # if input_labels is not None:
+        #     batch_size, sequence_length = input_labels.size()
+        #     loss = F.cross_entropy(logits.view(batch_size * sequence_length, -1), input_labels.view(batch_size * sequence_length), ignore_index=-100)
+        
         outputs = self.forward(input_ids=input_ids, attention_mask=attention_mask, task='mlm')
-        outputs["logits_generation"] = self.mlm_head(outputs['embeddings'])
+        outputs["logits_generation"] = self.mlm_head(outputs['embeddings'][:, 1:])
         if input_labels is not None:
             logits = outputs['logits_generation']
             labels = input_labels
-            batch_size, seq_length, vocab_size = logits.size()
+            batch_size, seq_length = input_labels.size()
             outputs["loss"] = F.cross_entropy(
-                logits.view(batch_size * seq_length, vocab_size),
+                logits.view(batch_size * seq_length, -1),
                 labels.view(batch_size * seq_length),
                 ignore_index=TOKEN_DICT['ignore'],
                 reduction='mean')
@@ -259,7 +263,6 @@ class Jointformer(Transformer, TrainableModel):
             num_layers=config.num_layers,
             bias=config.bias,
             num_heads=config.num_heads,
-            physchem_hidden_dim=config.prediction_hidden_dim,
             num_physchem_tasks=config.num_physchem_tasks,
             layer_norm_eps=config.layer_norm_eps,
             flash_attention=config.flash_attention

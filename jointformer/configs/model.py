@@ -72,7 +72,7 @@ class ModelConfig(BaseConfig):
         
     def _post_init(self):
         if self.embedding_dim is not None and self.num_heads is not None:
-            assert self.embedding_dim % self.num_heads == 0, "Embedding dimension must be 0 modulo number of heads."
+            assert self.embedding_dim % self.num_heads == 0, f"Embedding dimension {self.embedding_dim} must be 0 modulo number of heads {self.num_heads}."
         if self.embedding_hidden_dim is None and self.embedding_dim is not None:
             self.embedding_hidden_dim = find_multiple(self.embedding_dim * EMBEDDING_DIM_HIDDEN_FACTOR, EMBEDDIND_DIM_MULTIPLE_OF)
         if self.prediction_hidden_dim is None and self.embedding_dim is not None:
