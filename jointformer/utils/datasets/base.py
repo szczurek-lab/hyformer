@@ -1,9 +1,3 @@
-""" Base class for datasets.
-
-The BaseDataset class is a base class for datasets. It provides a common interface for handling datasets and their
-corresponding targets, including methods for subsetting the dataset.
-"""
-
 import os
 import random
 
@@ -17,8 +11,8 @@ from jointformer.utils.runtime import set_seed
 
 
 class BaseDataset(Dataset):
-    """Base class for datasets."""
-
+    """Base class for all datasets.
+    """
     def __init__(
             self,
             data: Any = None,

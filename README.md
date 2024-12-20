@@ -1,12 +1,14 @@
 # Jointformer
 
-The official implementation of the [Jointformer](https://arxiv.org/abs/2310.02066), which is a [joint model](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/LasserreBishopMinka06.pdf) that simultaneously generates novel molecules and predicts their properties.
+The official implementation of [Jointformer](https://arxiv.org/abs/2310.02066), a [joint model](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/LasserreBishopMinka06.pdf) that simultaneously generates new molecules and predicts their properties.
+
+For using Jointformer, refer to [Getting Started](#getting-started) section. For reproducing experiments TBA. 
 
 
 ## Getting Started
 
 ### Installation
-To create an environment that satisfies the requirements necessary to run Jointformer, run
+To create an environment that satisfies the necessary requirements run
 ```
  conda env create -f jointformer.yml
 ```
@@ -24,29 +26,19 @@ conda install -n base conda-libmamba-solver
 conda config --set solver libmamba
 ```
 
-In order to reproduce all experiments, use the `jointformer-experiments.yml` configuration file. 
-
-### Repository Structure
-
-```
-.
-├── configs/              # configuration files
-├── experiments/          # scripts and examples
-└── jointformer/          # source code
-    ├── configs/            # configurations
-    ├── models/             # models
-    ├── trainers/           # trainers
-    └── utils/           
-        ├── datasets/       # datasets
-        ├── tokenizers/     # tokenizers
-        └── ...             # utilities
-
-```
-
----
-## Basic Usage
+In order to reproduce all experiments, refer to TBA. 
 
 
+### Basic Usage
+
+#### Config files
+
+Handling hyperparameters and paths is done through config files stored in `configs/`.
+
+
+#### Data and Datasets
+
+For data, Jointformer assumes an `.npz` file file a `sequence` and `properties` arrays for sequences strings and their properties. Data should be preprocessed. 
 ```
 # Loads custom data and finetunes jointformer 
 
@@ -54,14 +46,16 @@ In order to reproduce all experiments, use the `jointformer-experiments.yml` con
 trainer.train()
 ```
 
-### Hyperparameters
-
-All hyperparameters, defining tasks, models, trainers and loggers, are stored in `configs/`.
 
 Show running experiment where you have your own data SMILES and properties optionally, maybe actual as a .npy file :) 
 Instead of GuacaMol. 
 
-### Vocabularies
+### Train Jointformer on your own data
+
+First, you need to specify a config file. Data processed. Then simply run the script. 
+
+
+#### Vocabularies
 
 Vocabularies are stored in `data/vocabularies/` and can be built with
 ```python
@@ -204,6 +198,22 @@ The data should consist of a data file containing sequences and a property file 
 
 In order to train Jointformer to a new dataset, add a 
 
+### Repository Structure
+
+```
+.
+├── configs/              # configuration files
+├── experiments/          # scripts and examples
+└── jointformer/          # source code
+    ├── configs/            # configurations
+    ├── models/             # models
+    ├── trainers/           # trainers
+    └── utils/           
+        ├── datasets/       # datasets
+        ├── tokenizers/     # tokenizers
+        └── ...             # utilities
+
+```
 ----
 ## References
 

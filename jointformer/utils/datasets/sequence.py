@@ -4,7 +4,6 @@
 import os
 
 import numpy as np
-import pandas as pd
 
 from typing import List, Callable, Optional, Union
 
@@ -13,7 +12,12 @@ from jointformer.utils.datasets.base import BaseDataset
 from jointformer.utils.transforms.auto import AutoTransform, AutoTargetTransform
 
 
-class SMILESDataset(BaseDataset):
+class SequenceDataset(BaseDataset):
+    """Dataset for sequential data with or without properties.
+
+    Method `self._load` is used to load the data from a filepath. It assumes that the data is stored in a numpy `.npz` file.
+    The data is expected to have a key `sequence` for the data and a key `properties` for the target.
+    """
 
     def __init__(
             self,
@@ -25,17 +29,6 @@ class SMILESDataset(BaseDataset):
             num_tasks: Optional[int] = None,
             task_metric: Optional[str] = None
     ) -> None:
-        """
-        Initializes a SequentialDataset object.
-
-        Args:
-            data (str, optional): The data.
-            target (nd.array, optional): The target.
-            data_transform (callable or list, optional): A function or a list of functions to apply to the data.
-            target_transform (callable or list, optional): A function or a list of functions to apply to the target.
-            max_sequence_length (int, optional): The maximum sequence length.
-        """
-
         super().__init__(data=data, target=target, data_transform=data_transform, target_transform=target_transform)
         self.task_type = task_type
         self.num_tasks = num_tasks
@@ -43,7 +36,6 @@ class SMILESDataset(BaseDataset):
     
     @staticmethod
     def _get_filepath(config: DatasetConfig, root: str, split: str) -> str:
-        
         if split == 'train':
             filepath = config.path_to_train_data
         elif split == 'val':
@@ -52,35 +44,32 @@ class SMILESDataset(BaseDataset):
             filepath = config.path_to_test_data
         else:
             raise ValueError("Provide a correct split value.")
-
         if root is not None:
             filepath = os.path.join(root, filepath)
-        
         return filepath
     
     @staticmethod
-    def _load(filepath: str, task_type: str = None) -> np.ndarray:
+    def _load(filepath: str, task_type: str = None, num_tasks: int = None) -> np.ndarray:
         
-        _df = pd.read_csv(filepath)
-        assert 'smiles' in _df.columns, "Column 'smiles' not found in the dataset."
-        
-        data = _df['smiles'].tolist()
-        _df = _df.drop(columns=['smiles'], inplace=False)
-        target = _df.values if len(_df.columns) > 0 else None
-        
+        _df = np.load(filepath)
+        data = _df['sequence'] if 'sequence' in _df else None
+        target = _df['properties'] if 'properties' in _df else None
+
+        if data is None:
+            raise ValueError("Data not loaded.")       
         if target is not None:
             assert len(target.shape) == 2, f"Target has an unexpected shape: {target.shape}."
             assert len(data) == len(target), f"Data and target have different lengths: {len(data)} and {len(target)}."
-
-        if task_type is not None:
+            if num_tasks is not None:
+                assert target.shape[1] == num_tasks, f"Target has an unexpected shape: {target.shape}."
             if task_type == 'classification':
-                try:
-                    target = target.long()
-                except:
-                    target = (target != 0).astype(int)
-            elif task_type == 'regression':
                 pass
-                target = target.astype(np.float32)
+            elif task_type == 'regression':
+                assert target.dtype == float, f"Target has an unexpected dtype: {target.dtype}."
+            else:
+                pass
+
+        #TODO: Add support for task_type and type checking excluding nan values or type conversion
 
         return data, target
 
@@ -88,7 +77,7 @@ class SMILESDataset(BaseDataset):
     def from_config(cls, config: DatasetConfig, split: str, root: str = None):
 
         filepath = cls._get_filepath(config, root, split)
-        data, target = cls._load(filepath, task_type=config.task_type)
+        data, target = cls._load(filepath, task_type=config.task_type, num_tasks=config.num_tasks if config.num_tasks is not None else None)
 
         data_transform = AutoTransform.from_config(config.transform) if config.transform is not None else None
         target_transform = AutoTargetTransform.from_config(config.target_transform) if config.target_transform is not None else None
