@@ -67,8 +67,8 @@ def find_best_hparams(args):
     # Load data
     dataset_config = DatasetConfig.from_config_file(args.path_to_dataset_config)
     tokenizer_config = TokenizerConfig.from_config_file(args.path_to_tokenizer_config)
-    train_dataset = AutoDataset.from_config(dataset_config, split='train', data_dir=args.data_dir)
-    val_dataset = AutoDataset.from_config(dataset_config, split='val', data_dir=args.data_dir)
+    train_dataset = AutoDataset.from_config(dataset_config, split='train', root=args.data_dir)
+    val_dataset = AutoDataset.from_config(dataset_config, split='val', root=args.data_dir)
     tokenizer = AutoTokenizer.from_config(tokenizer_config)
 
     model_config = ModelConfig.from_config_file(args.path_to_model_config)

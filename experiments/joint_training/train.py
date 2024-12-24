@@ -92,8 +92,8 @@ def main(args):
         trainer_config.log_interval = 1
 
     # Initialize
-    train_dataset = AutoDataset.from_config(dataset_config, split='train', data_dir=args.data_dir)
-    val_dataset = AutoDataset.from_config(dataset_config, split='val', data_dir=args.data_dir)
+    train_dataset = AutoDataset.from_config(dataset_config, split='train', root=args.data_dir)
+    val_dataset = AutoDataset.from_config(dataset_config, split='val', root=args.data_dir)
     tokenizer = AutoTokenizer.from_config(tokenizer_config)
     if tokenizer.mlm_probability == 'MAGE': 
         tokenizer.mlm_probability = MLMProbability()
