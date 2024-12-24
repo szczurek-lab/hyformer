@@ -38,6 +38,7 @@ class SmilesTokenizerSeparateTaskToken(SmilesTokenizerWithPrefix):
         self.tokenizer.add_special_tokens({'additional_special_tokens': list(TASK_TOKEN_DICT.values())})
 
     def __call__(self, x: Union[str, List[str], Tuple[str, torch.Tensor], List[Tuple[str, torch.Tensor]]], task: str) -> ModelInput:
+        # return self.tokenizer.encode(task_token + " " + text, **kwargs)
         inputs = super().__call__(x, task)
         inputs['input_ids'][:, 0] = self.task_token_id(task)  # Add task token to the beginning of the sequence
         inputs['input_ids'] = inputs['input_ids'].contiguous()

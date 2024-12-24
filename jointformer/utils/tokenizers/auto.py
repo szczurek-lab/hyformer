@@ -13,6 +13,10 @@ class AutoTokenizer:
             return getattr(importlib.import_module(
                 "jointformer.utils.tokenizers.smiles"),
                 "SmilesTokenizer").from_config(config)
+        if config.tokenizer == 'SmilesBPETokenizer':
+            return getattr(importlib.import_module(
+                "jointformer.utils.tokenizers.smiles_bpe"),
+                "SmilesBPETokenizer").from_config(config)
         elif config.tokenizer == 'SmilesTokenizerWithPrefix':
             return getattr(importlib.import_module(
                 "jointformer.utils.tokenizers.smiles_with_prefix"),

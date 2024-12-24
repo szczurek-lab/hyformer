@@ -1,7 +1,7 @@
 {
   "dataset_name": "sequence_dataset",
   "path_to_train_data": "molecule_net/scaffold/lipo/train.npz",
-  "path_to_val_data": "molecule_net/scaffold/lipo/val.npz",  
+  "path_to_val_data": "molecule_net/scaffold/lipo/valid.npz",  
   "path_to_test_data": "molecule_net/scaffold/lipo/test.npz",
   "transform": null,
   "target_transform": {

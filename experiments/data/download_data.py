@@ -37,9 +37,9 @@ def main(args):
     dataset_config = DatasetConfig.from_config_file(args.path_to_task_config)
     
     # Data
-    train_dataset = AutoDataset.from_config(dataset_config, split='train', out_dir=args.data_dir)
-    val_dataset = AutoDataset.from_config(dataset_config, split='val', out_dir=args.data_dir)
-    test_dataset = AutoDataset.from_config(dataset_config, split='test', out_dir=args.data_dir)
+    train_dataset = AutoDataset.from_config(dataset_config, split='train', out_dir=args.root)
+    val_dataset = AutoDataset.from_config(dataset_config, split='val', out_dir=args.root)
+    test_dataset = AutoDataset.from_config(dataset_config, split='test', out_dir=args.root)
     
 
 if __name__ == "__main__":
