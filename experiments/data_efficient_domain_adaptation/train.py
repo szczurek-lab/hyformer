@@ -109,11 +109,11 @@ def main(args, hparams=None, disable_logging=False):
     logger = AutoLogger.from_config(logger_config) if logger_config else None
     if logger is not None:
         logger.store_configs(dataset_config, tokenizer_config, model_config, trainer_config, logger_config)
-
+    device = torch.device('cuda:0')
     trainer = Trainer(
         out_dir=None if disable_logging else args.out_dir, seed=1337+args.seed, config=trainer_config, model=model,
         train_dataset=train_dataset, val_dataset=val_dataset, test_dataset=val_dataset,
-        tokenizer=tokenizer, logger=logger)
+        tokenizer=tokenizer, logger=logger, device=device)
 
     if args.path_to_model_ckpt is not None:
         if not os.path.exists(args.path_to_model_ckpt):

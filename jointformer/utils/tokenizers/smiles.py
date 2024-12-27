@@ -60,7 +60,7 @@ class SmilesTokenizer(BaseTokenizer):
     def __len__(self):
         return len(self.tokenizer)
 
-    def _tokenize(self, data: Union[str, List[str]]):
+    def _tokenize(self, data: Union[str, List[str]], **kwargs):
         return self.tokenizer(
             data, truncation=True, padding='max_length', max_length=self.max_molecule_length,
             return_special_tokens_mask=True, return_token_type_ids=False, return_tensors='pt')

@@ -9,6 +9,7 @@ from jointformer.models.utils import ModelInput
 TASK_TOKEN_DICT = {
     'generation': '[GEN]',
     'prediction': '[PRED]',
+    'physchem': '[PRED]',
     'reconstruction': '[REC]'
 }
 

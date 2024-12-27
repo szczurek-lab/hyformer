@@ -2,7 +2,7 @@ import os
 import sys
 import logging
 import argparse
-
+import torch 
 from socket import gethostname
 
 from jointformer.configs.dataset import DatasetConfig
@@ -78,13 +78,14 @@ def main(args, hparams=None):
     logger = AutoLogger.from_config(logger_config) if logger_config else None
     
     # Test
+    device = torch.device('cuda:0')
     trainer = Trainer(
         out_dir=args.out_dir, config=trainer_config, model=model,
-        test_dataset=test_dataset, tokenizer=tokenizer, logger=logger, seed=1337 + args.seed)
+        test_dataset=test_dataset, tokenizer=tokenizer, logger=logger, seed=1337 + args.seed, device=device)
     trainer._init_data_loaders()
     trainer.resume_from_file(path_to_model_ckpt)
 
-    test_metric = dataset_config.metric
+    test_metric = dataset_config.task_metric
     objective_metric = trainer.test(metric=test_metric)
     print(f"Test {test_metric}: {objective_metric}")
     if args.destroy_ckpt and os.path.exists(path_to_model_ckpt):
