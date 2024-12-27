@@ -2,6 +2,7 @@
 """
 
 import os
+import torch 
 
 import numpy as np
 
@@ -65,7 +66,7 @@ class SequenceDataset(BaseDataset):
             if task_type == 'classification':
                 pass
             elif task_type == 'regression':
-                assert target.dtype == float, f"Target has an unexpected dtype: {target.dtype}."
+                target = target.astype(np.float32) if target.dtype != np.float32 else target
             else:
                 pass
 

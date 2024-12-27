@@ -1,6 +1,7 @@
 import os
 import optuna
 import argparse
+import torch 
 
 import numpy as np
 
@@ -49,8 +50,9 @@ def objective(trial, hparams_grid, train_dataset, val_dataset, tokenizer, model_
 
     # Init
     model = AutoModel.from_config(model_config, downstream_task=downstream_task_type, num_tasks=num_downstream_tasks, hidden_dim=256)
+    device = torch.device('cuda:0')
     trainer = Trainer(out_dir=None, seed=1337, config=trainer_config, model=model, train_dataset=train_dataset,
-                      val_dataset=val_dataset, test_dataset=val_dataset, tokenizer=tokenizer, test_metric=metric)
+                      val_dataset=val_dataset, test_dataset=val_dataset, tokenizer=tokenizer, test_metric=metric, device=device)
 
     # Load
     if path_to_model_ckpt is not None:
@@ -79,12 +81,12 @@ def find_best_hparams(args):
     # Attempt to load the study; if it doesn't exist, create it
         
     # set direction
-    if dataset_config.metric in ['rmse']:
+    if dataset_config.task_metric in ['rmse']:
         direction = 'minimize'
-    elif dataset_config.metric in ['accuracy', 'f1', 'precision', 'recall', 'roc_auc']:
+    elif dataset_config.task_metric in ['accuracy', 'f1', 'precision', 'recall', 'roc_auc']:
         direction = 'maximize'
     else:
-        raise ValueError(f"Invalid metric: {dataset_config.metric}")
+        raise ValueError(f"Invalid metric: {dataset_config.task_metric}")
 
     # set sampler
     if args.sampler == 'grid':
@@ -103,7 +105,7 @@ def find_best_hparams(args):
     # Optimize
     hparams_grid = load_json(args.hparams_grid_filepath)
     objective_function = partial(objective, hparams_grid=hparams_grid, train_dataset=train_dataset, val_dataset=val_dataset, tokenizer=tokenizer,
-                                 model_config=model_config, trainer_config=trainer_config, debug_only=args.debug_only, metric=dataset_config.metric,
+                                 model_config=model_config, trainer_config=trainer_config, debug_only=args.debug_only, metric=dataset_config.task_metric,
                                  downstream_task_type=dataset_config.task_type, num_downstream_tasks=dataset_config.num_tasks, path_to_model_ckpt=args.path_to_model_ckpt)
     study.optimize(objective_function, n_trials=args.optuna_n_trials, n_jobs=args.optuna_n_jobs) # works for hasattr(self.model, 'predict')
     

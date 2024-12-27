@@ -1,11 +1,11 @@
 {
   "compile": true,
-  "enable_ddp": false,
+  "enable_ddp": true,
   "dtype": "bfloat16",
   "eval_only": false,
   "max_iters": 50000,
   "max_epochs": null,
-  "batch_size": 512,
+  "batch_size": 2048,
   "learning_rate": 6e-4,
   "weight_decay": 1e-1,
   "beta1": 0.9,
@@ -29,5 +29,5 @@
       "reconstruction": 12,
       "physchem": 12
     },
-  "save_snapshot": false
+  "save_snapshot": true
 }

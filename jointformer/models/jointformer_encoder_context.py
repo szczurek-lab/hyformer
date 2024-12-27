@@ -16,7 +16,7 @@ from jointformer.models.layers.prediction import DownstreamPredictionHead
 DEFAULT_NUM_PHYCHEM_TASKS = 200
 
 
-class Jointformer(Transformer, TrainableModel):
+class JointformerWithEncoderContext(Transformer, TrainableModel):
 
     def __init__(
             self,

@@ -80,7 +80,7 @@ class BaseTokenizer:
         else:
             raise ValueError('Variable `data` must be either a string, a list of strings or a tuple of strings and tensors.')
 
-        batch = self._tokenize(data)
+        batch = self._tokenize(data, task=task)
         batch["attention_mask"] = batch["attention_mask"].bool()
         special_tokens_mask = batch.pop("special_tokens_mask", None)
         batch["task"] = task

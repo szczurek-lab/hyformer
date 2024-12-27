@@ -49,7 +49,7 @@ class SmilesTokenizerWithPrefix(SmilesTokenizer):
         if add_prefix_token:
             self.tokenizer.add_special_tokens({'additional_special_tokens': [PREFIX_TOKEN_DICT['prefix']]})
 
-    def _tokenize(self, data: Union[str, List[str]]):
+    def _tokenize(self, data: Union[str, List[str]], **kwargs):
         prefix = [' ' for _ in range(len(data))] if isinstance(data, list) or isinstance(data, tuple) else ' '
         inputs = self.tokenizer(
             text=prefix, text_pair=data, truncation=True, padding='max_length', max_length=self.max_molecule_length,

@@ -201,6 +201,7 @@ class Trainer:
         loss = 0.
         for _, batch in enumerate(self.test_loader):
             properties = batch['properties']
+            properties = properties.to(self.device)
             batch.to(self.device)
             
             with self.ctx:
