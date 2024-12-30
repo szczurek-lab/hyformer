@@ -83,11 +83,11 @@ def main(args, hparams=None, disable_logging=False):
                 trainer_config._normalize_task_probabilities()
 
     # Init
-    train_dataset = AutoDataset.from_config(dataset_config, split='train', root=args.root)
+    train_dataset = AutoDataset.from_config(dataset_config, split='train', root=args.data_dir)
     # num_subsamples =  int(len(train_dataset) * args.fraction_train_dataset)
     # train_dataset._subset(num_samples=num_subsamples, seed=args.seed)
     # console.info(f"Selected {len(train_dataset)} training examples")
-    val_dataset = AutoDataset.from_config(dataset_config, split='val', root=args.root)
+    val_dataset = AutoDataset.from_config(dataset_config, split='val', root=args.data_dir)
     tokenizer = AutoTokenizer.from_config(tokenizer_config)
 
     trainer_config.correct_for_num_train_examples(num_train_examples=len(train_dataset))  # adjust trainer config to dataset size
@@ -103,6 +103,8 @@ def main(args, hparams=None, disable_logging=False):
 
     # Dump configs
     if not disable_logging:
+        if args.path_to_model_ckpt is None:
+            model_config.path_to_model_ckpt = args.path_to_model_ckpt
         dump_configs(args.out_dir, dataset_config, tokenizer_config, model_config, trainer_config, logger_config)
 
     model = AutoModel.from_config(model_config, downstream_task=dataset_config.task_type, num_tasks=dataset_config.num_tasks, hidden_dim=256)
