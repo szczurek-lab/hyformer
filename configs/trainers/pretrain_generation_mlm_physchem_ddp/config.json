@@ -1,11 +1,11 @@
 {
   "compile": true,
-  "enable_ddp": true,
+  "enable_ddp": false,
   "dtype": "bfloat16",
   "eval_only": false,
   "max_iters": 50000,
   "max_epochs": null,
-  "batch_size": 2048,
+  "batch_size": 512,
   "learning_rate": 6e-4,
   "weight_decay": 1e-1,
   "beta1": 0.9,

@@ -71,7 +71,7 @@ def main(args, hparams=None):
                 trainer_config[key] = value
 
     # Init
-    test_dataset = AutoDataset.from_config(dataset_config, split='test', root=args.root)
+    test_dataset = AutoDataset.from_config(dataset_config, split='test', root=args.data_dir)
     tokenizer = AutoTokenizer.from_config(tokenizer_config)
 
     model = AutoModel.from_config(model_config, downstream_task=dataset_config.task_type, num_tasks=dataset_config.num_tasks, hidden_dim=256)

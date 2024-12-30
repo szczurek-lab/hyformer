@@ -133,7 +133,7 @@ def main(args):
 
     # Find best hyperparameters
     hparams = None
-    if args.search_space_filepath:
+    if args.search_space_filepath is not None:
         if not os.path.exists(os.path.join(args.out_dir, args.best_hparams_filename)):
             print("Finding best hyperparameters...")
             find_best_hparams(args)
