@@ -52,7 +52,7 @@ class SequenceDataset(BaseDataset):
     @staticmethod
     def _load(filepath: str, task_type: str = None, num_tasks: int = None) -> np.ndarray:
         
-        _df = np.load(filepath)
+        _df = np.load(filepath, allow_pickle=True)
         data = _df['sequence'] if 'sequence' in _df else None
         target = _df['properties'] if 'properties' in _df else None
 
@@ -64,9 +64,13 @@ class SequenceDataset(BaseDataset):
             if num_tasks is not None:
                 assert target.shape[1] == num_tasks, f"Target has an unexpected shape: {target.shape}."
             if task_type == 'classification':
-                pass
+                if target.dtype != bool:
+                    target = target.astype(bool)
+                    print("Converting target to boolean.")
             elif task_type == 'regression':
-                target = target.astype(np.float32) if target.dtype != np.float32 else target
+                if target.dtype != np.float32:
+                    target = target.astype(np.float32)
+                    print("Converting target to float32.")
             else:
                 pass
 

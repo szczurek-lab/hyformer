@@ -16,7 +16,7 @@ from jointformer.models.layers.prediction import DownstreamPredictionHead
 DEFAULT_NUM_PHYCHEM_TASKS = 200
 
 
-class JointformerWithEncoderContext(Transformer, TrainableModel):
+class JointformerWithContext(Transformer, TrainableModel):
 
     def __init__(
             self,
@@ -45,7 +45,8 @@ class JointformerWithEncoderContext(Transformer, TrainableModel):
         self.lm_head = nn.Linear(self.embedding_dim, self.vocab_size, bias=False)
         self.mlm_head = nn.Linear(self.embedding_dim, self.vocab_size, bias=False)
         self.physchem_head = RegressionHead(embedding_dim=self.embedding_dim, prediction_hidden_dim=256, output_dim=num_physchem_tasks)
-        
+        self.context_encoder = nn.Linear(512, embedding_dim)
+
         # Weight tying https://paperswithcode.com/method/weight-tying
         if tie_weights:
             self.token_embedding.weight = self.lm_head.weight
@@ -68,6 +69,7 @@ class JointformerWithEncoderContext(Transformer, TrainableModel):
             input_ids: torch.Tensor,
             task: str,
             attention_mask: torch.Tensor,
+            context: Optional[torch.Tensor] = None,
             next_token_only: Optional[bool] = False,
             **kwargs
             ):
@@ -81,7 +83,9 @@ class JointformerWithEncoderContext(Transformer, TrainableModel):
         else:
             raise ValueError('Variable `task` must be either `generation`, `mlm`, `prediction` or `physchem`. Passed value: {}'.format(task))
         
-        outputs = super().forward(input_ids=input_ids, attention_mask=_attention_mask, is_causal=_is_causal)
+        if task in ['reconstruction', 'mlm']:
+            context_embedding = self.context_encoder(context) if context is not None else None
+        outputs = super().forward(input_ids=input_ids, attention_mask=_attention_mask, is_causal=_is_causal, cls_context=context_embedding)
         cls_embeddings = self._get_cls_embeddings(outputs['embeddings'], attention_mask=attention_mask)
         lm_embeddings = self._get_lm_embeddings(outputs['embeddings'], next_token_only)
 
@@ -110,13 +114,14 @@ class JointformerWithEncoderContext(Transformer, TrainableModel):
             input_ids: torch.Tensor,
             attention_mask: torch.Tensor,
             task: str,
+            context: Optional[torch.Tensor] = None,
             input_labels: Optional[torch.Tensor] = None,
             properties: Optional[torch.Tensor] = None
             ):
         if task == 'lm' or task == 'generation':
             return self.get_loss_lm(input_ids, attention_mask, input_labels)
         elif task == 'mlm' or task == 'reconstruction':
-            return self.get_loss_mlm(input_ids, attention_mask, input_labels)
+            return self.get_loss_mlm(input_ids, attention_mask, input_labels, context)
         elif task == 'prediction':
             return self.get_loss_prediction(input_ids, attention_mask, properties)
         elif task == 'physchem':
@@ -136,13 +141,13 @@ class JointformerWithEncoderContext(Transformer, TrainableModel):
             reduction='mean')
         return outputs
 
-    def get_loss_mlm(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, input_labels: torch.Tensor, **kwargs):
+    def get_loss_mlm(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, input_labels: torch.Tensor, context: torch.Tensor = None, **kwargs):
             
         # if input_labels is not None:
         #     batch_size, sequence_length = input_labels.size()
         #     loss = F.cross_entropy(logits.view(batch_size * sequence_length, -1), input_labels.view(batch_size * sequence_length), ignore_index=-100)
         
-        outputs = self.forward(input_ids=input_ids, attention_mask=attention_mask, task='mlm')
+        outputs = self.forward(input_ids=input_ids, attention_mask=attention_mask, task='mlm', context=context)
         outputs["logits_generation"] = self.mlm_head(outputs['embeddings'][:, 1:])
         if input_labels is not None:
             logits = outputs['logits_generation']
@@ -270,21 +275,13 @@ class JointformerWithEncoderContext(Transformer, TrainableModel):
         )
 
 
-class JointformerWithPrefix(Jointformer):
+class JointformerWithPrefix(JointformerWithContext):
 
     def _get_lm_embeddings(self, embeddings, next_token_only):
         return super()._get_lm_embeddings(embeddings[:, 1:], next_token_only)
 
 
-class JointformerWithMaxEmbeddings(Jointformer):
 
-    def _get_cls_embeddings(self, embeddings, attention_mask=None):
-        _, _, embedding_dim = embeddings.size()
-        if attention_mask is not None:
-            attention_mask = attention_mask.unsqueeze(-1).repeat(1, 1, embedding_dim)
-            embeddings = embeddings.masked_fill(attention_mask.logical_not(), float("-inf"))
-        embeddings = embeddings.max(dim=1).values
-        return embeddings
 
 
 class JointformerForDownstreamPrediction(JointformerWithPrefix):

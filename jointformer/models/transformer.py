@@ -43,10 +43,16 @@ class Transformer(nn.Module):
             input_ids: torch.Tensor,
             is_causal: bool,
             attention_mask: torch.Tensor,
+            cls_context: Optional[torch.Tensor] = None,
             **kwargs
     ):
         #assert False, (self.token_embedding, input_ids)
         x = self.token_embedding(input_ids)
+
+        # add the context vector if present to cls token
+        if cls_context is not None:
+            x[:, 0] += cls_context
+
         for _, layer in enumerate(self.layers):
             x = layer(x, is_causal=is_causal, mask=attention_mask)
         x = self.layer_norm(x)

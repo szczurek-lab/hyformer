@@ -1,0 +1,11 @@
+{
+  "dataset_name": "sequence_dataset",
+  "path_to_train_data": "hi/sol/train_seed_0.npz",
+  "path_to_val_data": "hi/sol/val_seed_0.npz",  
+  "path_to_test_data": "hi/sol/test_seed_0.npz",
+  "transform": null,
+  "target_transform": null,
+  "task_type": "classification",
+  "task_metric": "prc_auc",
+  "num_tasks": 1
+}

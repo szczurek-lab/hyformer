@@ -3,6 +3,8 @@ from typing import List, Optional, Union
 
 from jointformer.utils.tokenizers.base import BaseTokenizer, TOKEN_DICT
 
+import transformers
+transformers.logging.set_verbosity_error()
 
 class SmilesTokenizer(BaseTokenizer):
 

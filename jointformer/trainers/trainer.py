@@ -7,6 +7,7 @@ import json
 import logging
 
 from torch import nn
+import numpy as np
 from typing import Optional, Any
 from contextlib import nullcontext
 from torch.distributions.categorical import Categorical
@@ -22,6 +23,8 @@ from jointformer.utils.datasets.base import BaseDataset
 from jointformer.utils.runtime import set_seed
 from jointformer.utils.collator import DataCollator
 from jointformer.utils.chemistry import is_valid
+
+from jointformer.trainers.utils import get_test_metric
 
 console = logging.getLogger(__name__)
 SNAPSHOT_FILENAME = 'snapshot.pt'
@@ -46,7 +49,7 @@ class Trainer:
             test_dataset: Optional[BaseDataset] = None,
             tokenizer: Optional[Any] = None,
             logger: Optional[WandbLogger] = None,
-            test_metric: Optional[str] = 'rmse'
+            test_metric: Optional[str] = None
     ):
 
         # set args
@@ -187,43 +190,35 @@ class Trainer:
         return self.tokenizer(sampled, task=task)
 
     @torch.no_grad()
-    def test(self, metric: str = 'rmse'):
-        
-        self.model.eval()
-        assert metric in ['rmse', 'mae'], f"Metric {metric} not supported."
-        
-        criterion = nn.MSELoss(reduction='sum') if metric == 'rmse' else nn.L1Loss(reduction='sum')
+    def test(self, metric=None):
+        metric = self.test_metric if metric is None else metric
+        assert metric in ['rmse', 'roc_auc', 'prc_auc'], f"Metric {metric} not supported."
 
+        self.model.eval()
+
+        y_true = None
+        y_pred = None
+
+        for _, batch in enumerate(self.test_loader):
+            
+            y_true = batch['properties'] if y_true is None else torch.cat((y_true, batch['properties']))
+            
+            batch = batch.to(self.device)
+            _y_pred = self.model.predict(**batch).cpu()
+            y_pred = _y_pred if y_pred is None else torch.cat((y_pred, _y_pred))
+
+        if metric == 'rmse':    
+            if self.test_dataset.target_transform is not None:
+                y_true = self.test_dataset.target_transform.inverse_transform(y_true)
+                y_pred = self.test_dataset.target_transform.inverse_transform(y_pred)
+            else:
+                print("No target transform found. Assuming target is not transformed.")
+        
+        assert y_true.shape == y_pred.shape, f"Shapes of y_true and y_pred do not match: {y_true.shape} and {y_pred.shape}."
+        test_metric = get_test_metric(y_true.numpy(), y_pred.numpy(), metric)
+        
         if self.logger is not None:
             self.logger.init_run()
-
-        n = 0
-        loss = 0.
-        for _, batch in enumerate(self.test_loader):
-            properties = batch['properties']
-            properties = properties.to(self.device)
-            batch.to(self.device)
-            
-            with self.ctx:
-                outputs = self.model.module.predict(**batch)["logits_prediction"].cpu() if dist.is_initialized() else self.model.predict(**batch)["logits_prediction"]
-            
-            if outputs.dtype != torch.float32:
-                outputs = outputs.to(torch.float32)
-
-            if hasattr(self.test_dataset, '_target_transform'):
-                properties = self.test_dataset.undo_target_transform(properties)
-                outputs = self.test_dataset.undo_target_transform(outputs)
-            
-            if self.test_dataset.target_transform is not None:
-                properties = self.test_dataset.target_transform.inverse_transform(properties)
-                outputs = self.test_dataset.target_transform.inverse_transform(outputs)
-            
-            loss += criterion(properties, outputs)
-            n += len(outputs)
-        
-        test_metric = torch.sqrt(loss / n).item() if metric == 'rmse' else (loss / n).item()
-
-        if self.logger is not None:
             self.logger.log({f"test/{metric}": test_metric})
             
         return test_metric
