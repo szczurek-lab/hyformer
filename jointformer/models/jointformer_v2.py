@@ -346,12 +346,15 @@ class Jointformer(nn.Module):
 class JointformerForDownstreamPrediction(Jointformer):
 
     def __init__(self, config):
-            
         super().__init__(config)
         self.prediction_task_type = config.downstream_task
         self.num_prediction_tasks = config.num_tasks
         self.downstream_prediction_task_head = DownstreamPredictionHead(
-            config.n_embd, 2 if config.downstream_task == 'classification' and config.num_tasks == 1 else config.num_tasks, config.hidden_dim, pooler_dropout=config.pooler_dropout)
+            config.n_embd,
+            2 if config.downstream_task == 'classification' and config.num_tasks == 1 else config.num_tasks,
+            config.hidden_dim,
+            pooler_dropout=config.pooler_dropout
+            )
 
     def _forward_prediction(
             self,
@@ -376,7 +379,7 @@ class JointformerForDownstreamPrediction(Jointformer):
         loss = None        
         logits = self.downstream_prediction_task_head(x[:, 0, :])
 
-        return {'token_embeddings': embeddings, 'embeddings': x, 'logits_prediction': logits, 'loss': loss}
+        return {'token_embeddings': embeddings, 'embeddings': x, 'logits_prediction': logits, 'loss': loss, 'y_pred': None}
 
 
     def forward(self, input_ids: torch.Tensor, task: str = 'generation', input_labels: torch.Tensor = None, attention_mask: torch.Tensor = None,
@@ -394,8 +397,20 @@ class JointformerForDownstreamPrediction(Jointformer):
         return outputs
 
     def predict(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, **kwargs):
-        return self(input_ids=input_ids, attention_mask=attention_mask, task='prediction')
-
+        outputs = self(input_ids=input_ids, attention_mask=attention_mask, task='prediction')
+        _logits = outputs['logits_prediction']
+        if self.prediction_task_type == 'classification':
+            if self.num_prediction_tasks == 1:
+                return torch.softmax(_logits, dim=-1)[:, [1]]
+            elif self.num_prediction_tasks > 1:
+                return torch.sigmoid(_logits)
+        elif self.prediction_task_type == 'regression':
+            return _logits
+        else:
+            raise ValueError('Variable `downstream_task` must be either `classification` or `regression`.')
+        
+        return outputs
+        
     def get_loss(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, properties: torch.Tensor, task: str, input_labels: torch.Tensor = None, **kwargs):
         
         if task in ['generation', 'reconstruction', 'mlm', 'physchem']:
