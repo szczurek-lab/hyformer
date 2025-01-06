@@ -340,6 +340,7 @@ class GPTForDownstreamPrediction(GPT):
         self.num_prediction_tasks = config.num_tasks
         self.downstream_prediction_task_head = DownstreamPredictionHead(
             config.n_embd, 2 if config.downstream_task == 'classification' and config.num_tasks == 1 else config.num_tasks, config.hidden_dim, config.pooler_dropout)
+        self.apply(self._init_weights)
 
     def forward(self, input_ids: torch.Tensor, input_labels: torch.Tensor = None, attention_mask: torch.Tensor = None,
                 properties: torch.Tensor = None, next_token_only: Optional[bool] = False, **kwargs):

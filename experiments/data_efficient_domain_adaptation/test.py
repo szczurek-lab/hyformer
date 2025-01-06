@@ -47,11 +47,15 @@ def parse_args():
     parser.add_argument("--model_seed", type=int, required=True)
     parser.add_argument("--metric", type=str, required=True)
     parser.add_argument("--destroy_ckpt", default=False, action=argparse.BooleanOptionalAction)
+    parser.add_argument("--adjust_dataset_seed", default=False, action=argparse.BooleanOptionalAction)
     args = parser.parse_args()
     return args
 
 
 def main(args, hparams=None):
+
+    # Set seed
+    set_seed(1337+args.seed)
 
     path_to_model_ckpt = os.path.join(args.out_dir, 'ckpt.pt')
 
@@ -62,8 +66,15 @@ def main(args, hparams=None):
     trainer_config = TrainerConfig.from_config_file(args.path_to_trainer_config)
     logger_config = LoggerConfig.from_config_file(args.path_to_logger_config) if args.path_to_logger_config else None
 
+    if args.adjust_dataset_seed:
+        for key, value in dataset_config.__dict__.items():
+            if value is not None and isinstance(value, str) and 'seed_0' in value:
+                dataset_config[key] = value.replace('seed_0', f'seed_{args.seed}')
+                print(f"Updated {key} to {dataset_config[key]}")
+
     # Load trainer hparams
     if hparams is not None:
+        print("Updating hparams")
         for key, value in hparams.items():
             if key in model_config.__dict__.keys():
                 model_config[key] = value
@@ -81,9 +92,10 @@ def main(args, hparams=None):
     device = torch.device('cuda:0')
     trainer = Trainer(
         out_dir=args.out_dir, config=trainer_config, model=model,
-        test_dataset=test_dataset, tokenizer=tokenizer, logger=logger, seed=1337 + args.seed, device=device)
+        test_dataset=test_dataset, tokenizer=tokenizer, logger=logger, seed=1337 + args.seed, device=device, test_metric=dataset_config.task_metric)
     trainer._init_data_loaders()
-    trainer.resume_from_file(path_to_model_ckpt)
+    print(f"Loading model from {path_to_model_ckpt}")
+    trainer.model.load_state_dict(torch.load(path_to_model_ckpt, map_location=device)['model'], strict=True)
 
     test_metric = dataset_config.task_metric
     objective_metric = trainer.test(metric=test_metric)
@@ -91,7 +103,7 @@ def main(args, hparams=None):
     if args.destroy_ckpt and os.path.exists(path_to_model_ckpt):
         os.remove(path_to_model_ckpt)
     
-    write_dict_to_file({f'{test_metric}': objective_metric}, os.path.join(args.out_dir, 'test_loss.json'))
+    write_dict_to_file({f'{test_metric}': str(objective_metric)}, os.path.join(args.out_dir, 'test_loss.json'))
     
     return objective_metric
 

@@ -17,7 +17,7 @@ class AutoTransform:
 
                 if transform_config['name'] == 'smiles_enumerator':
                     transform.append(getattr(importlib.import_module(
-                        "jointformer.utils.transforms.smiles.enumerate"),
+                        "jointformer.utils.transforms.enumerator"),
                         "SmilesEnumerator").from_config(transform_config['params']))
 
             return transforms.Compose(transform)
@@ -32,5 +32,12 @@ class AutoTargetTransform:
             return getattr(importlib.import_module(
                 "jointformer.utils.transforms.scaler"),
                 "Scaler").from_config(config['params'])
+        
+        elif config['name'] == 'scaler_test_time_only':
+            return getattr(importlib.import_module(
+                "jointformer.utils.transforms.scaler"),
+                "ScalerTestTimeOnly").from_config(config['params'])
+    
         else:
             raise ValueError(f"Target transform {config['name']} not supported.")
+        

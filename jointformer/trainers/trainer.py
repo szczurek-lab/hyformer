@@ -70,6 +70,7 @@ class Trainer:
         self._iter_num = 0
         self._best_val_loss = 1e9
         self._optuna_loss = 1e9 if hasattr(self.model, 'predict') else None 
+        self._optuna_loss = 0.0 if hasattr(self.model, 'predict') and self.test_metric in ['roc_auc', 'prc_auc'] else self._optuna_loss
         self._snapshot_filepath = os.path.join(self.out_dir, SNAPSHOT_FILENAME) if self.out_dir else None
         self._learning_rate = None
         self._running_mfu = 0.0
@@ -109,15 +110,19 @@ class Trainer:
 
     def resume_from_file(self, filepath, resume_training=False):
         checkpoint = torch.load(filepath, map_location=self.device)
-        try:
-            state_dict = checkpoint['model']
-            unwanted_prefix = '_orig_mod.'  # compile
-            for k, v in list(state_dict.items()):
+        state_dict = checkpoint['model']
+        if not any(key.startswith("_orig_mod") for key in self.model.state_dict().keys()):
+            unwanted_prefix = '_orig_mod.'  # compile artifacts
+            for k, _ in list(state_dict.items()):
                 if k.startswith(unwanted_prefix):
-                    state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
-            self.model.load_state_dict(state_dict, strict=False)
+                    state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)    
+        try:
+            self.model.load_state_dict(state_dict, strict=True)
         except RuntimeError:
-            self.model.load_state_dict(checkpoint['model'], strict=False)
+            missing_keys, unexpected_keys = self.model.load_state_dict(state_dict, strict=False)
+            print("Model state_dict loaded with strict=False.")
+            print(f"Missing keys: {missing_keys}")
+            print(f"Unexpected keys: {unexpected_keys}")
 
         if resume_training:
             try:
@@ -301,7 +306,7 @@ class Trainer:
                 _optuna_running_loss = self.test(metric=self.test_metric)
                 if self.test_metric in ['rmse']:            
                     self._optuna_loss = min(self._optuna_loss, _optuna_running_loss)
-                elif self.test_metric in ['roc_auc']:
+                elif self.test_metric in ['roc_auc', 'prc_auc']:
                     self._optuna_loss = max(self._optuna_loss, _optuna_running_loss)
                 else:
                     raise ValueError(f"Test metric {self.test_metric} not supported.")

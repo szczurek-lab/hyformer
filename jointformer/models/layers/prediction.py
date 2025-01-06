@@ -11,7 +11,7 @@ class DownstreamPredictionHead(nn.Module):
     def __init__(self, embedding_dim, num_tasks, hidden_dim, pooler_dropout):
         super().__init__()
         self.pooling_layer = nn.Dropout(p=pooler_dropout) if pooler_dropout > 0 else nn.Identity()
-        self.linear = nn.Linear(hidden_dim, num_tasks, bias=True)
+        self.linear = nn.Linear(embedding_dim, num_tasks, bias=True)
 
     def _init_weights(self, m):
         if isinstance(m, nn.Linear):

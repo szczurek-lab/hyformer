@@ -64,17 +64,15 @@ class SequenceDataset(BaseDataset):
             if num_tasks is not None:
                 assert target.shape[1] == num_tasks, f"Target has an unexpected shape: {target.shape}."
             if task_type == 'classification':
-                if target.dtype != bool:
-                    target = target.astype(bool)
-                    print("Converting target to boolean.")
+                if target.dtype != np.int64:
+                    target = target.astype(np.int64)
+                    print("Converting target to long.")
             elif task_type == 'regression':
                 if target.dtype != np.float32:
                     target = target.astype(np.float32)
                     print("Converting target to float32.")
             else:
                 pass
-
-        #TODO: Add support for task_type and type checking excluding nan values or type conversion
 
         return data, target
 

@@ -51,11 +51,15 @@ def parse_args():
     parser.add_argument("--test", default=False, action=argparse.BooleanOptionalAction)
     parser.add_argument("--dataset_seed", type=int, required=True)
     parser.add_argument("--model_seed", type=int, required=True)
+    parser.add_argument("--adjust_dataset_seed", default=False, action=argparse.BooleanOptionalAction)
     args = parser.parse_args()
     return args
 
 
 def main(args, hparams=None, disable_logging=False):
+
+    # Set seed
+    set_seed(1337+args.seed)
 
     if not os.path.exists(args.out_dir) and not disable_logging:
         os.makedirs(args.out_dir, exist_ok=False)
@@ -69,8 +73,15 @@ def main(args, hparams=None, disable_logging=False):
     trainer_config = TrainerConfig.from_config_file(args.path_to_trainer_config)
     logger_config = LoggerConfig.from_config_file(args.path_to_logger_config) if args.path_to_logger_config else None
 
+    if args.adjust_dataset_seed:
+        for key, value in dataset_config.__dict__.items():
+            if value is not None and isinstance(value, str) and 'seed_0' in value:
+                dataset_config[key] = value.replace('seed_0', f'seed_{args.seed}')
+                print(f"Updated {key} to {dataset_config[key]}")
+
     # Load trainer hparams
     if hparams is not None:
+        print("Updating hparams")
         for key, value in hparams.items():
             if key in model_config.__dict__.keys():
                 model_config[key] = value
@@ -115,7 +126,7 @@ def main(args, hparams=None, disable_logging=False):
     trainer = Trainer(
         out_dir=None if disable_logging else args.out_dir, seed=1337+args.seed, config=trainer_config, model=model,
         train_dataset=train_dataset, val_dataset=val_dataset, test_dataset=val_dataset,
-        tokenizer=tokenizer, logger=logger, device=device)
+        tokenizer=tokenizer, logger=logger, device=device, test_metric=dataset_config.task_metric)
 
     if args.path_to_model_ckpt is not None:
         if not os.path.exists(args.path_to_model_ckpt):

@@ -138,9 +138,12 @@ def main(args):
             print("Finding best hyperparameters...")
             find_best_hparams(args)
         
-        # Load best hyperparameters
+    # Load best hyperparameters
+    if os.path.exists(os.path.join(args.out_dir, args.best_hparams_filename)):
         print("Loading best hyperparameters...")
         hparams = load_best_hparams(args)
+    else:
+        print("Defaulting to hyperparameters from the config file.")
 
     # Train and Test model
     root_dir = args.out_dir
@@ -149,8 +152,11 @@ def main(args):
         print(f"Training and testing model with best hyperparameters for seed {seed}...")
         args.seed = seed
         args.out_dir = os.path.join(root_dir, f"seed_{seed}")
-        val_loss = model_training_loop(args, hparams)
-        print(f"Best validation loss with hparams: {val_loss}")
+        if not os.path.exists(os.path.join(args.out_dir, 'ckpt.pt')):    
+            val_loss = model_training_loop(args, hparams)
+            print(f"Best validation loss with hparams: {val_loss}")
+        else:
+            print(f"Model already trained for seed {seed}. Loading checkpoint...")
         test_loss = model_testing_loop(args, hparams)
         print(f"Test loss with hparams: {test_loss}")
         test_loss_arrary[seed] = test_loss
@@ -159,6 +165,8 @@ def main(args):
     print(f"Test loss array: {test_loss_arrary}")
     print(f"Mean test loss: {np.mean(test_loss_arrary)}")
     print(f"Std test loss: {np.std(test_loss_arrary)}")
+    print(f"Latex entry: {round(np.mean(test_loss_arrary), 3)}$\pm${round(np.std(test_loss_arrary), 3)}")
+    
     save_json(os.path.join(args.out_dir, "test_loss_aggregated.json"), {"mean": np.mean(test_loss_arrary), "std": np.std(test_loss_arrary), "se": np.std(test_loss_arrary) / np.sqrt(3)})
 
 if __name__ == "__main__":
@@ -185,5 +193,6 @@ if __name__ == "__main__":
     parser.add_argument("--load_if_exists", default=False, action=argparse.BooleanOptionalAction)
     parser.add_argument("--path_to_logger_config", type=str, nargs='?')
     parser.add_argument("--destroy_ckpt", default=False, action=argparse.BooleanOptionalAction)
+    parser.add_argument("--adjust_dataset_seed", default=False, action=argparse.BooleanOptionalAction)
     args = parser.parse_args()
     main(args)

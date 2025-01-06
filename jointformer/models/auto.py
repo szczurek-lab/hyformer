@@ -48,6 +48,11 @@ class AutoModel:
                 "jointformer.models.jointformer_v2"),
                 "JointformerForDownstreamPrediction").from_config(config, **kwargs)
         
+        elif config.model_name == 'JointformerLlamaForDownstreamPrediction':
+            return getattr(importlib.import_module(
+                "jointformer.models.jointformer"),
+                "JointformerForDownstreamPrediction").from_config(config, **kwargs)
+        
         elif config.model_name == 'JointformerWithPrefix':
             return getattr(importlib.import_module(
                 "jointformer.models.jointformer"),
