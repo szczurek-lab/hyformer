@@ -306,6 +306,7 @@ class JointformerForDownstreamPrediction(JointformerWithPrefix):
             flash_attention=config.flash_attention
         )
         self.prediction_task_type = downstream_task
+        self.num_prediction_tasks = num_tasks
         self.prediction_head = DownstreamPredictionHead(
             config.embedding_dim,
             2 if downstream_task == 'classification' and num_tasks == 1 else num_tasks,
@@ -318,9 +319,19 @@ class JointformerForDownstreamPrediction(JointformerWithPrefix):
         if task == 'prediction':
             _outputs["logits_prediction"] = self.prediction_head(_outputs['cls_embeddings'])
         return _outputs
-
+    
     def predict(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, **kwargs):
-        return self(input_ids=input_ids, attention_mask=attention_mask, task='prediction')
+        outputs = self(input_ids=input_ids, attention_mask=attention_mask, task='prediction')
+        _logits = outputs['logits_prediction']
+        if self.prediction_task_type == 'classification':
+            if self.num_prediction_tasks == 1:
+                return torch.softmax(_logits, dim=-1)[:, [1]]
+            elif self.num_prediction_tasks > 1:
+                return torch.sigmoid(_logits)
+        elif self.prediction_task_type == 'regression':
+            return _logits
+        else:
+            raise ValueError('Variable `downstream_task` must be either `classification` or `regression`.')
 
     def get_loss(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, properties: torch.Tensor, task: str, input_labels: torch.Tensor = None, **kwargs):
         
@@ -335,14 +346,15 @@ class JointformerForDownstreamPrediction(JointformerWithPrefix):
             
             if self.prediction_task_type == 'classification':
                 if self.num_prediction_tasks == 1:
-                    outputs["loss"] = F.cross_entropy(outputs["logits_prediction"], properties, reduction='mean')
+                    assert properties.size(1) == 1, f"Expected properties to have shape (batch_size, 1) but got {properties.size()}."
+                    outputs["loss"] = F.cross_entropy(outputs["logits_prediction"], properties.view(-1, ), reduction='mean')
                 elif self.num_prediction_tasks > 1:
                     outputs["loss"] = F.binary_cross_entropy_with_logits(outputs["logits_prediction"], properties, reduction='mean')
                 else:
                     raise ValueError('Variable `num_prediction_tasks` must be greater than 0.')
                 
             elif self.prediction_task_type == 'regression':
-                outputs["loss"] = F.mse_loss(outputs["logits_prediction"].flatten(), properties.flatten(), 'mean')
+                outputs["loss"] = F.mse_loss(outputs["logits_prediction"].flatten(), properties.flatten(), reduction='mean')
             
             else:
                 raise ValueError('Variable `downstream_task` must be either `classification` or `regression`.')

@@ -3,6 +3,12 @@
   "path_to_train_data": "unimol/train.npz",
   "path_to_val_data": "unimol/test.npz",  
   "path_to_test_data": "unimol/test.npz",
-  "transform": null,
+  "transform": [
+    {
+      "name": "smiles_enumerator",
+      "params": {
+        "enumeration_probability": 0.9
+      }
+      }],
   "target_transform": null
 }
