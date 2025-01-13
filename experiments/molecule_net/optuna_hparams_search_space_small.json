@@ -1,6 +1,0 @@
-{   
-    "decay_lr": [false],
-    "learning_rate": [6e-5, 1e-4, 6e-4, 1e-3],
-    "batch_size": [16, 32, 64],
-    "pooler_dropout": [0.0, 0.1]
-}

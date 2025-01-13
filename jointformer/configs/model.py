@@ -38,6 +38,7 @@ class ModelConfig(BaseConfig):
         dropout: Optional[float] = None,
         lambda_hparam: Optional[float] = None,
         pooler_dropout: Optional[float] = None,
+        pooler_hidden_dim: Optional[int] = None,
     ):
         super().__init__()
         self.model_name = model_name
@@ -67,6 +68,7 @@ class ModelConfig(BaseConfig):
         self.dropout = dropout
         self.lambda_hparam = lambda_hparam
         self.pooler_dropout = pooler_dropout
+        self.pooler_hidden_dim = pooler_hidden_dim
         if self.model_name not in ["Moler", "UniMol", "RegressionTransformer", "MolGPT"]:
             self._post_init()
         

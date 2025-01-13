@@ -83,6 +83,9 @@ def main(args, hparams=None, disable_logging=False):
     if hparams is not None:
         print("Updating hparams")
         for key, value in hparams.items():
+            if key == 'scale_beta' and value:
+                trainer_config.beta1 = 0.9
+                trainer_config.beta1 = 0.999
             if key in model_config.__dict__.keys():
                 model_config[key] = value
             if key in trainer_config.__dict__.keys():
@@ -126,7 +129,7 @@ def main(args, hparams=None, disable_logging=False):
     trainer = Trainer(
         out_dir=None if disable_logging else args.out_dir, seed=1337+args.seed, config=trainer_config, model=model,
         train_dataset=train_dataset, val_dataset=val_dataset, test_dataset=val_dataset,
-        tokenizer=tokenizer, logger=logger, device=device, test_metric=dataset_config.task_metric)
+        tokenizer=tokenizer, logger=logger, device=device, test_metric=dataset_config.task_metric, eval_metric=args.eval_metric)
 
     if args.path_to_model_ckpt is not None:
         if not os.path.exists(args.path_to_model_ckpt):

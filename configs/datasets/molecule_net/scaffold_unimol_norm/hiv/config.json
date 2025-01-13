@@ -1,0 +1,11 @@
+{
+  "dataset_name": "sequence_dataset",
+  "path_to_train_data": "molecule_net/scaffold/hiv/train.npz",
+  "path_to_val_data": "molecule_net/scaffold/hiv/valid.npz",  
+  "path_to_test_data": "molecule_net/scaffold/hiv/test.npz",
+  "transform": null,
+  "target_transform": null,
+  "task_type": "classification",
+  "task_metric": "auc_roc",
+  "num_tasks": 1
+}

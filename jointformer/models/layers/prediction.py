@@ -22,6 +22,29 @@ class DownstreamPredictionHead(nn.Module):
     def forward(self, x):
         return self.linear(self.pooling_layer(x))
 
+class DownstreamPredictionHeadDeep(nn.Module):
+
+    def __init__(self, embedding_dim, num_tasks, hidden_dim, pooler_dropout):
+        super().__init__()
+        self.dense = nn.Linear(embedding_dim, embedding_dim)
+        self.activation_fn = nn.GELU()
+        self.dropout = nn.Dropout(p=pooler_dropout)
+        self.out_proj = nn.Linear(embedding_dim, num_tasks)
+
+    def _init_weights(self, m):
+        if isinstance(m, nn.Linear):
+            trunc_normal_(m.weight, std=0.02)
+            if isinstance(m, nn.Linear) and m.bias is not None:
+                nn.init.constant_(m.bias, 0)
+    
+    def forward(self, features, **kwargs):
+        x = self.dropout(features)
+        x = self.dense(x)
+        x = self.activation_fn(x)
+        x = self.dropout(x)
+        x = self.out_proj(x)
+        return x
+    
 
 class RegressionHead(nn.Module):
 

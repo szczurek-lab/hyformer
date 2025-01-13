@@ -76,6 +76,27 @@ class SequenceDataset(BaseDataset):
 
         return data, target
 
+    def __add__(self, other):
+        if not isinstance(other, SequenceDataset):
+            raise ValueError("Can only add SequenceDataset to SequenceDataset")
+        
+        data = np.concatenate((self.data, other.data), axis=0)
+        target = None if self.target is None else np.concatenate((self.target, other.target), axis=0)
+        data_transform = self.data_transform if self.data_transform is not None else other.data_transform
+        target_transform = self.target_transform if self.target_transform is not None else other.target_transform
+        task_type = self.task_type
+        num_tasks = self.num_tasks
+        task_metric = self.task_metric
+        return SequenceDataset(
+            data=data,
+            target=target,
+            data_transform=data_transform,
+            target_transform=target_transform,
+            task_type=task_type,
+            num_tasks=num_tasks,
+            task_metric=task_metric
+        )
+
     @classmethod
     def from_config(cls, config: DatasetConfig, split: str, root: str = None):
 

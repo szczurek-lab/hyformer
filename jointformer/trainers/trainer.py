@@ -49,6 +49,7 @@ class Trainer:
             test_dataset: Optional[BaseDataset] = None,
             tokenizer: Optional[Any] = None,
             logger: Optional[WandbLogger] = None,
+            eval_metric: Optional[str] = None,
             test_metric: Optional[str] = None
     ):
 
@@ -63,14 +64,16 @@ class Trainer:
         self.test_dataset = test_dataset
         self.tokenizer = tokenizer
         self.logger = logger
+        self.eval_metric = eval_metric if eval_metric is not None else 'combined'
         self.test_metric = test_metric
         
         # Trainer State
         self._loss_dict = {}
         self._iter_num = 0
         self._best_val_loss = 1e9
-        self._optuna_loss = 1e9 if hasattr(self.model, 'predict') else None 
-        self._optuna_loss = 0.0 if hasattr(self.model, 'predict') and self.test_metric in ['roc_auc', 'prc_auc'] else self._optuna_loss
+        self._best_iter = 0
+        self._optuna_loss = 1e9 if hasattr(self.model, 'predict') and self.test_metric is not None else None 
+        self._optuna_loss = 0.0 if hasattr(self.model, 'predict') and self.test_metric is not None and self.test_metric in ['roc_auc', 'prc_auc'] else self._optuna_loss
         self._snapshot_filepath = os.path.join(self.out_dir, SNAPSHOT_FILENAME) if self.out_dir else None
         self._learning_rate = None
         self._running_mfu = 0.0
@@ -91,7 +94,7 @@ class Trainer:
         self.model = torch.compile(self.model) if self.config.compile else self.model
 
         self.task_distribution = Categorical(torch.Tensor(list(self.config.tasks.values())))
-
+        
         # Miscellanuous
         self.ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[self.config.dtype]
         if self.tokenizer is not None and hasattr(self.tokenizer, '__len__') and hasattr(self.model, 'vocab_size'):
@@ -197,6 +200,8 @@ class Trainer:
     @torch.no_grad()
     def test(self, metric=None):
         metric = self.test_metric if metric is None else metric
+        if metric is None:
+            raise ValueError("No test metric specified.")
         assert metric in ['rmse', 'roc_auc', 'prc_auc'], f"Metric {metric} not supported."
 
         self.model.eval()
@@ -302,7 +307,7 @@ class Trainer:
 
     def evaluate(self):
         if self._iter_num % self.config.eval_interval == 0 and (self._resumed_from_iter_num != self._iter_num or self._iter_num ==  0):
-            if self._optuna_loss is not None and hasattr(self, "test_loader"):
+            if self._optuna_loss is not None and hasattr(self, "test_loader") and self.test_metric is not None:
                 _optuna_running_loss = self.test(metric=self.test_metric)
                 if self.test_metric in ['rmse']:            
                     self._optuna_loss = min(self._optuna_loss, _optuna_running_loss)
@@ -316,9 +321,9 @@ class Trainer:
             self._loss_dict[self._iter_num] = losses
             info = f"Evaluation at step {self._iter_num}"
             if 'train' in losses:
-                info += f": train loss {losses['train']['combined']:.4f}"
+                info += f": train loss {losses['train'][self.eval_metric]:.4f}"
             if 'val' in losses:
-                info += f", val loss {losses['val']['combined']:.4f}"
+                info += f", val loss {losses['val'][self.eval_metric]:.4f}"
             console.info(info)
             if self.out_dir:
                 with open(os.path.join(self.out_dir, 'loss_dict.json'), 'w') as fp:
@@ -335,10 +340,11 @@ class Trainer:
 
             if self._iter_num > 0: # More logging here
                 if 'val' in losses: # save checkpoint if validation loss is better
-                    console.info(f"Validation loss: {losses['val']['combined']:.4f}")
-                    console.info(f"Best validation loss: {self._best_val_loss:.4f}")
-                    if losses['val']['combined'] < self._best_val_loss or self.config.always_save_checkpoint:
-                        self._best_val_loss = losses['val']['combined']
+                    console.info(f"Validation loss: {losses['val'][self.eval_metric]:.4f}")
+                    console.info(f"Cuurent best validation loss: {self._best_val_loss:.4f} at iteration {self._best_iter}")
+                    if losses['val'][self.eval_metric] < self._best_val_loss or self.config.always_save_checkpoint:
+                        self._best_val_loss = losses['val'][self.eval_metric]
+                        self._best_iter = self._iter_num
                         self._save_ckpt(MODEL_FILENAME)
                         console.info(f"Checkpoint updated at iteration {self._iter_num}")
                     
@@ -385,8 +391,11 @@ class Trainer:
                 break
                 
             self._set_lr()
-            if self._master_process:
-                self.evaluate()
+            if self.val_dataset is not None:
+                if self._master_process:
+                    self.evaluate()
+            else:
+                self._save_ckpt(MODEL_FILENAME)
             if dist.is_initialized():
                 dist.barrier()
             

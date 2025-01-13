@@ -53,12 +53,14 @@ class SmilesTokenizerSeparateTaskToken(SmilesTokenizerWithPrefix):
         )
 
     def task_token_id(self, task: str) -> int:
-        if task in ['prediction', 'physchem']:
+        if task == 'prediction':
             task_token = TASK_TOKEN_DICT['prediction']
         elif task == 'generation':
             task_token = TASK_TOKEN_DICT['generation']
         elif task == 'reconstruction':
             task_token = TASK_TOKEN_DICT['reconstruction']
+        elif task == 'physchem':
+            task_token = TASK_TOKEN_DICT['physchem']
         else:
             raise ValueError('Variable `task` must be either `generation`, `mlm` or `prediction`.')
         return self.tokenizer.convert_tokens_to_ids(task_token)

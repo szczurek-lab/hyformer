@@ -11,7 +11,7 @@ from jointformer.models.layers.prediction import RegressionHead, ClassificationH
 from jointformer.models.utils import ModelOutput
 
 from jointformer.utils.tokenizers.base import TOKEN_DICT
-from jointformer.models.layers.prediction import DownstreamPredictionHead
+from jointformer.models.layers.prediction import DownstreamPredictionHead, DownstreamPredictionHeadDeep
 
 DEFAULT_NUM_PHYCHEM_TASKS = 200
 
@@ -166,9 +166,11 @@ class Jointformer(Transformer, TrainableModel):
         if properties is not None:
             if self.prediction_task_type == 'classification':
                 if self.num_prediction_tasks == 1:
-                    outputs["loss"] = F.cross_entropy(outputs["logits_prediction"], properties, reduction='mean')
+                    outputs["loss"] = F.cross_entropy(outputs["logits_prediction"].view(-1, ), properties.view(-1, ), reduction='mean')
                 elif self.num_prediction_tasks > 1:
-                    outputs["loss"] = F.binary_cross_entropy_with_logits(outputs["logits_prediction"], properties, reduction='mean')
+                    _logits = outputs["logits_prediction"][properties != -1].view(-1, )
+                    _properties = properties[properties != -1].view(-1, )
+                    outputs["loss"] = F.binary_cross_entropy_with_logits(_logits, _properties, reduction='mean')
                 else:
                     raise ValueError('Variable `num_prediction_tasks` must be greater than 0.')
             elif self.prediction_task_type == 'regression':
@@ -349,7 +351,7 @@ class JointformerForDownstreamPrediction(JointformerWithPrefix):
                     assert properties.size(1) == 1, f"Expected properties to have shape (batch_size, 1) but got {properties.size()}."
                     outputs["loss"] = F.cross_entropy(outputs["logits_prediction"], properties.view(-1, ), reduction='mean')
                 elif self.num_prediction_tasks > 1:
-                    outputs["loss"] = F.binary_cross_entropy_with_logits(outputs["logits_prediction"], properties, reduction='mean')
+                    outputs["loss"] = F.binary_cross_entropy_with_logits(outputs["logits_prediction"][properties >= 0], properties[properties >= 0].float(), reduction='mean')
                 else:
                     raise ValueError('Variable `num_prediction_tasks` must be greater than 0.')
                 
@@ -365,8 +367,21 @@ class JointformerForDownstreamPrediction(JointformerWithPrefix):
         return outputs
     
     @classmethod
-    def from_config(cls, config, downstream_task, num_tasks, hidden_dim):
+    def from_config(cls, config, downstream_task, num_tasks, hidden_dim=None):
         assert downstream_task in ['classification', 'regression'], f"Downstream task {downstream_task} must be either 'classification' or 'regression'."
         assert num_tasks > 0, f"Number of tasks {num_tasks} must be greater than 0."
-        assert hidden_dim > 0, f"Hidden dimension {hidden_dim} must be greater than 0."
         return cls(config, downstream_task, num_tasks, hidden_dim)
+
+
+class JointformerForDownstreamPredictionDeep(JointformerForDownstreamPrediction):
+
+    def __init__(self, config, downstream_task, num_tasks, hidden_dim=None):
+            
+        super().__init__(config, downstream_task, num_tasks, hidden_dim)
+        
+        self.prediction_head = DownstreamPredictionHeadDeep(
+            embedding_dim=config.embedding_dim,
+            num_tasks=2 if downstream_task == 'classification' and num_tasks == 1 else num_tasks,
+            hidden_dim=config.pooler_hidden_dim,
+            pooler_dropout=config.pooler_dropout
+            )
