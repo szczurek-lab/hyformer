@@ -4,7 +4,7 @@
   "attention_dropout": 0.0,
   "feed_forward_dropout": 0.0,
   "embedding_dim": 768,
-  "embedding_hidden_dim": 2048,
+  "embedding_hidden_dim": 3072,
   "layer_norm_eps": 1e-05,
   "max_seq_len": 128,
   "num_heads": 12,

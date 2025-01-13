@@ -24,44 +24,59 @@ from experiments.data_efficient_domain_adaptation.test import main as model_test
 
 
 def objective(trial, hparams_grid, train_dataset, val_dataset, tokenizer, model_config, trainer_config,
-              debug_only, downstream_task_type, num_downstream_tasks, path_to_model_ckpt, metric):
-    hparams = get_hparam_search_space(trial, hparams_grid)
+              debug_only, downstream_task_type, num_downstream_tasks, path_to_model_ckpt, metric, direction):
 
-    # Update configs // TODO: Refactor this to optuna_utils 
-    for key, value in hparams.items():
-        if key in model_config.__dict__.keys():
-            model_config[key] = value
-        if key in trainer_config.__dict__.keys():
-            trainer_config[key] = value
-        if key == 'generation_task':
-            trainer_config['tasks'] = {"prediction": 100 - value, "generation": value}
-            trainer_config._normalize_task_probabilities()
-    
-    # and adjust trainer config to dataset size
-    trainer_config.correct_for_num_train_examples(num_train_examples=len(train_dataset)) 
+    try:
+        hparams = get_hparam_search_space(trial, hparams_grid)
 
-    # Debug
-    if debug_only:
-        trainer_config.max_iters = 2
-        trainer_config.batch_size = 2
-        trainer_config.eval_iters = 1
-        trainer_config.eval_interval = 1
-        trainer_config.log_interval = 1
+        # Update configs // TODO: Refactor this to optuna_utils 
+        for key, value in hparams.items():
+            if key == 'scale_beta' and value:
+                trainer_config.beta1 = 0.9
+                trainer_config.beta1 = 0.999
+            if key in model_config.__dict__.keys():
+                model_config[key] = value
+            if key in trainer_config.__dict__.keys():
+                trainer_config[key] = value
+                if key == 'learning_rate':
+                    trainer_config['min_lr'] = 0.1 * value
+            if key == 'generation_task':
+                trainer_config['tasks'] = {"prediction": 100 - value, "generation": value}
+                trainer_config._normalize_task_probabilities()
+        
+        # and adjust trainer config to dataset size
+        trainer_config.correct_for_num_train_examples(num_train_examples=len(train_dataset)) 
 
-    # Init
-    model = AutoModel.from_config(model_config, downstream_task=downstream_task_type, num_tasks=num_downstream_tasks, hidden_dim=256)
-    device = torch.device('cuda:0')
-    trainer = Trainer(out_dir=None, seed=1337, config=trainer_config, model=model, train_dataset=train_dataset,
-                      val_dataset=val_dataset, test_dataset=val_dataset, tokenizer=tokenizer, test_metric=metric, device=device)
+        # Debug
+        if debug_only:
+            trainer_config.max_iters = 2
+            trainer_config.batch_size = 2
+            trainer_config.eval_iters = 1
+            trainer_config.eval_interval = 1
+            trainer_config.log_interval = 1
 
-    # Load
-    if path_to_model_ckpt is not None:
-        if not os.path.exists(path_to_model_ckpt):
-            raise ValueError(f"Model checkpoint {path_to_model_ckpt} does not exist.")
-        trainer.resume_from_file(path_to_model_ckpt)
+        # Init
+        model = AutoModel.from_config(model_config, downstream_task=downstream_task_type, num_tasks=num_downstream_tasks)
+        device = torch.device('cuda:0')
+        trainer = Trainer(out_dir=None, seed=1337, config=trainer_config, model=model, train_dataset=train_dataset, eval_metric='prediction',
+                        val_dataset=val_dataset, test_dataset=val_dataset, tokenizer=tokenizer, test_metric=metric, device=device)
 
-    trainer.train()
-    return trainer._optuna_loss
+        # Load
+        if path_to_model_ckpt is not None:
+            if not os.path.exists(path_to_model_ckpt):
+                raise ValueError(f"Model checkpoint {path_to_model_ckpt} does not exist.")
+            trainer.resume_from_file(path_to_model_ckpt)
+
+        trainer.train()
+        return trainer._optuna_loss
+    except:
+        print(f"Trial: {hparams} diverged...")
+        if direction == 'minimize':
+            return 1e-9
+        elif direction == 'maximize':
+            return 0.0
+        else:
+            return ValueError
 
 
 def find_best_hparams(args):
@@ -76,7 +91,8 @@ def find_best_hparams(args):
     model_config = ModelConfig.from_config_file(args.path_to_model_config)
     trainer_config = TrainerConfig.from_config_file(args.path_to_trainer_config)
     
-    trainer_config.max_epochs = max(trainer_config.max_epochs, args.optuna_max_epochs)  # set max_epochs
+    trainer_config.max_epochs = min(trainer_config.max_epochs, args.optuna_max_epochs)  # set max_epochs
+    print(f"Max epochs set to {trainer_config.max_epochs}")
 
     # Attempt to load the study; if it doesn't exist, create it
         
@@ -93,7 +109,7 @@ def find_best_hparams(args):
         search_space = load_json(args.search_space_filepath)
         print("Search space:", search_space)
         assert search_space is not None
-        sampler = optuna.samplers.GridSampler(search_space=search_space, seed=args.seed)
+        sampler = optuna.samplers.GridSampler(search_space=search_space)
     elif args.sampler == 'TPE':
         sampler = optuna.samplers.RandomSampler(seed=args.seed)
     else:
@@ -104,7 +120,8 @@ def find_best_hparams(args):
 
     # Optimize
     hparams_grid = load_json(args.hparams_grid_filepath)
-    objective_function = partial(objective, hparams_grid=hparams_grid, train_dataset=train_dataset, val_dataset=val_dataset, tokenizer=tokenizer,
+    print("Hyperparameters grid:", hparams_grid)
+    objective_function = partial(objective, hparams_grid=hparams_grid, train_dataset=train_dataset, val_dataset=val_dataset, tokenizer=tokenizer, direction=direction,
                                  model_config=model_config, trainer_config=trainer_config, debug_only=args.debug_only, metric=dataset_config.task_metric,
                                  downstream_task_type=dataset_config.task_type, num_downstream_tasks=dataset_config.num_tasks, path_to_model_ckpt=args.path_to_model_ckpt)
     study.optimize(objective_function, n_trials=args.optuna_n_trials, n_jobs=args.optuna_n_jobs) # works for hasattr(self.model, 'predict')
@@ -137,7 +154,7 @@ def main(args):
         if not os.path.exists(os.path.join(args.out_dir, args.best_hparams_filename)):
             print("Finding best hyperparameters...")
             find_best_hparams(args)
-        
+    
     # Load best hyperparameters
     if os.path.exists(os.path.join(args.out_dir, args.best_hparams_filename)):
         print("Loading best hyperparameters...")
@@ -153,6 +170,11 @@ def main(args):
         args.seed = seed
         args.out_dir = os.path.join(root_dir, f"seed_{seed}")
         if not os.path.exists(os.path.join(args.out_dir, 'ckpt.pt')):    
+            # if args.joint_training:
+            #     args.eval_metric = 'generation'
+            #     _ = model_training_loop(args, hparams)
+            #     args.path_to_model_ckpt = os.path.join(args.out_dir, 'ckpt.pt')
+            #     args.eval_metric = 'prediction'
             val_loss = model_training_loop(args, hparams)
             print(f"Best validation loss with hparams: {val_loss}")
         else:
@@ -173,7 +195,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Distributed Optuna Worker")
     parser.add_argument("--out-dir", type=str, required=True, help="Root directory for the experiment")
     parser.add_argument("--data_dir", type=str, nargs='?', help="Path to the data directory")
-    parser.add_argument("--study-name", type=str, default=None, help="Name of the Optuna study")
+    parser.add_argument("--study_name", type=str, default=None, help="Name of the Optuna study")
     parser.add_argument("--storage", type=str, default=None, help="Database URL for Optuna study")
     parser.add_argument("--optuna-n-trials", type=int, default=None, help="Number of trials to run in this instance")
     parser.add_argument("--optuna-n-jobs", type=int, default=1, help="Number of parallel jobs to run")
@@ -188,11 +210,12 @@ if __name__ == "__main__":
     parser.add_argument("--path_to_model_ckpt", type=str, nargs='?')
     parser.add_argument("--debug_only", default=False, action=argparse.BooleanOptionalAction)
     parser.add_argument("--test", default=False, action=argparse.BooleanOptionalAction)
-    parser.add_argument("--optuna-max_epochs", type=int, default=20, help="Maximum number of epochs to train models for hparams search.")
+    parser.add_argument("--optuna_max_epochs", type=int, default=20, help="Maximum number of epochs to train models for hparams search.")
     parser.add_argument("--best_hparams_filename", type=str, default="best_hparams.json", help="Filename to save best hyperparameters to.")
     parser.add_argument("--load_if_exists", default=False, action=argparse.BooleanOptionalAction)
     parser.add_argument("--path_to_logger_config", type=str, nargs='?')
     parser.add_argument("--destroy_ckpt", default=False, action=argparse.BooleanOptionalAction)
     parser.add_argument("--adjust_dataset_seed", default=False, action=argparse.BooleanOptionalAction)
+    parser.add_argument("--eval_metric", type=str, default=None, help="Evaluation metric for the model")
     args = parser.parse_args()
     main(args)
