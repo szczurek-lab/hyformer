@@ -1,7 +1,7 @@
 {
   "compile": true,
   "enable_ddp": false,
-  "dtype": "bfloat16",
+  "dtype": "float32",
   "eval_only": false,
   "max_iters": 60000,
   "max_epochs": 10,

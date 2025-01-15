@@ -128,18 +128,24 @@ def load_best_hparams(args):
 def main(args):
     
     _master_ckpt = args.path_to_model_ckpt
-    root_dir = args.out_dir
+    _root_dir = args.out_dir
     test_loss_arrary = np.zeros(shape=(3,))
+
+    # Iterate over seeds
     for dataset_seed in [0, 1, 2]:
         
-        print(f"Training and testing model with seed {dataset_seed}...")
-        
-        args.out_dir = os.path.join(root_dir, f"seed_{dataset_seed}")
+        args.out_dir = os.path.join(_root_dir, f"seed_{dataset_seed}")
         args.seed = dataset_seed
-        _path_to_pretrained = args.path_to_model_ckpt
-        
+        _path_to_pretrained = _master_ckpt
+        print(f"Training model with seed {dataset_seed}...")
+
+        # Train model
         if not os.path.exists(os.path.join(args.out_dir, 'ckpt.pt')):    
             
+            _out_dir = args.out_dir
+            args.out_dir = os.path.join(args.out_dir, f"infer_training_epochs")
+            args.path_to_model_ckpt = _path_to_pretrained
+
             # Create root directory
             if not os.path.exists(args.out_dir):
                 os.makedirs(args.out_dir, exist_ok=False)
@@ -153,8 +159,14 @@ def main(args):
             args.path_to_trainer_config = args.path_to_predictive_trainer_config
             _predictive_max_iters = model_training_loop(args, max_iters='infer')
             print(f"Predictive max iters: {_predictive_max_iters}")
-            if args.path_to_model_ckpt != _master_ckpt and args.path_to_generative_trainer_config is not None:
-                os.remove(args.path_to_model_ckpt)
+            
+            # Test intermediate model
+            test_loss = model_testing_loop(args)
+            print(f"Test loss (uncorrected): {test_loss}")
+            args.out_dir = _out_dir
+            
+            # if args.path_to_model_ckpt != _master_ckpt and args.path_to_generative_trainer_config is not None:
+            #     os.remove(args.path_to_model_ckpt)
 
             if args.path_to_generative_trainer_config is not None:
                 args.path_to_model_ckpt = _path_to_pretrained
@@ -167,18 +179,20 @@ def main(args):
             print(f"Best predictive validation loss with hparams: {val_loss}")
         else:
             print(f"Model already trained for seed {dataset_seed}. Loading checkpoint for ...")
-            
+        
+        if not hasattr(args, 'path_to_trainer_config'):
+            args.path_to_trainer_config = args.path_to_predictive_trainer_config
         test_loss = model_testing_loop(args)
         print(f"Test loss with hparams: {test_loss}")
         test_loss_arrary[dataset_seed] = test_loss
-        args.out_dir = root_dir
 
     print(f"Test loss array: {test_loss_arrary}")
     print(f"Mean test loss: {np.mean(test_loss_arrary)}")
     print(f"Std test loss: {np.std(test_loss_arrary)}")
     print(f"Latex entry: {round(np.mean(test_loss_arrary), 3)}$\pm${round(np.std(test_loss_arrary), 3)}")
     
-    save_json(os.path.join(args.out_dir, "test_loss_aggregated.json"), {"mean": np.mean(test_loss_arrary), "std": np.std(test_loss_arrary), "se": np.std(test_loss_arrary) / np.sqrt(3)})
+    save_json(os.path.join(_root_dir, "test_loss_aggregated.json"), {"mean": np.mean(test_loss_arrary), "std": np.std(test_loss_arrary), "se": np.std(test_loss_arrary) / np.sqrt(3)})
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run Hi experiment.")

@@ -130,21 +130,42 @@ def main(args):
     # Infer number of training epochs with train, train with train + valid and test
     root_dir = args.out_dir
     test_loss_arrary = np.zeros(shape=(3,))
+
+    # Iterate over dataset seeds
     for dataset_seed in [0, 1, 2]:
         print(f"Training and testing model with seed {dataset_seed}...")
         args.out_dir = os.path.join(root_dir, f"seed_{dataset_seed}")
         args.seed = dataset_seed
+
         if not os.path.exists(os.path.join(args.out_dir, 'ckpt.pt')):    
+
             # Create root directory
+            _out_dir = args.out_dir
+            args.out_dir = os.path.join(args.out_dir, f"infer_training_epochs")
             if not os.path.exists(args.out_dir):
                 os.makedirs(args.out_dir, exist_ok=False)
-            # Train model
+            
+
+            # Infer number of training epochs
             max_iters = model_training_loop(args, max_iters='infer')
             print(f"Early stopping set to Max iters: {max_iters}")
+
+            # Test intermediate model
+            test_loss = model_testing_loop(args)
+            print(f"Test loss (uncorrected) array: {test_loss_arrary}")
+            print(f"Mean test loss (uncorrected): {np.mean(test_loss_arrary)}")
+            print(f"Std test loss (uncorrected): {np.std(test_loss_arrary)}")
+            print(f"Latex entry (uncorrected): {round(np.mean(test_loss_arrary), 3)}$\pm${round(np.std(test_loss_arrary), 3)}")
+
+            # Train with a fixed number of epochs
+            args.out_dir = _out_dir
             val_loss = model_training_loop(args, max_iters=max_iters)
             print(f"Best validation loss with hparams: {val_loss}")
+
         else:
             print(f"Model already trained for seed {dataset_seed}. Loading checkpoint...")
+
+        # Test model
         test_loss = model_testing_loop(args)
         print(f"Test loss with hparams: {test_loss}")
         test_loss_arrary[dataset_seed] = test_loss
