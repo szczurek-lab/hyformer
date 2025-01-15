@@ -38,8 +38,8 @@ def main(args, hparams=None, disable_logging=False, max_iters=None):
     set_seed(1337)
 
     # Disable logging for infer_max_num_epochs
-    if max_iters is not None and max_iters == 'infer':
-        disable_logging = True
+    # if max_iters is not None and max_iters == 'infer':
+    #     disable_logging = True
     
     # Load configs
     dataset_config = DatasetConfig.from_config_file(args.path_to_dataset_config)
