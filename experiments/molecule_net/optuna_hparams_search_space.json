@@ -1,5 +1,8 @@
 {   
-    "learning_rate": [1e-5, 2e-5, 4e-5, 6e-5, 1e-4, 2e-4, 4e-4],
-    "weight_decay": [3e-1, 2e-1, 1e-1, 6e-2],
-    "scale_beta": [true, false]
+    "batch_size": [16, 64, 128],
+    "learning_rate": [1e-5, 3e-5, 6e-5, 1e-4],
+    "weight_decay": [1e-1],
+    "scale_beta": [false],
+    "pooler_dropout": [0.0, 0.2],
+    "decay_lr": [true, false]
 }

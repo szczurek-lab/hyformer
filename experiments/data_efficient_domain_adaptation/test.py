@@ -16,7 +16,7 @@ from jointformer.utils.tokenizers.auto import AutoTokenizer
 from jointformer.models.auto import AutoModel
 from jointformer.utils.loggers.auto import AutoLogger
 
-from jointformer.trainers.trainer import Trainer
+from jointformer.trainers.trainer_fixed import Trainer
 
 from jointformer.utils.runtime import set_seed, create_output_dir, set_to_dev_mode, log_args, dump_configs
 from jointformer.utils.ddp import init_ddp, end_ddp

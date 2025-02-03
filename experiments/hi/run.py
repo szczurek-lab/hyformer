@@ -13,7 +13,7 @@ from jointformer.configs.model import ModelConfig
 from jointformer.configs.trainer import TrainerConfig
 
 from jointformer.models.auto import AutoModel
-from jointformer.trainers.trainer import Trainer
+from jointformer.trainers.trainer_fixed import Trainer
 
 from jointformer.utils.datasets.auto import AutoDataset
 from jointformer.utils.tokenizers.auto import AutoTokenizer
