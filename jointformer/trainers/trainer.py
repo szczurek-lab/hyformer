@@ -50,7 +50,8 @@ class Trainer:
             tokenizer: Optional[Any] = None,
             logger: Optional[WandbLogger] = None,
             eval_metric: Optional[str] = None,
-            test_metric: Optional[str] = None
+            test_metric: Optional[str] = None,
+            patience: Optional[int] = None,
     ):
 
         # set args
@@ -66,7 +67,8 @@ class Trainer:
         self.logger = logger
         self.eval_metric = eval_metric if eval_metric is not None else 'combined'
         self.test_metric = test_metric
-        
+        self.patience = patience
+
         # Trainer State
         self._loss_dict = {}
         self._iter_num = 0
@@ -78,6 +80,7 @@ class Trainer:
         self._learning_rate = None
         self._running_mfu = 0.0
         self._resumed_from_iter_num = 0
+        self._not_improved_for_eval_iters = 0
 
         self._is_distributed_run = dist.is_initialized()
         self._master_process = True if int(os.environ.get('LOCAL_RANK', 0)) == 0 else False
@@ -230,7 +233,8 @@ class Trainer:
         if self.logger is not None:
             self.logger.init_run()
             self.logger.log({f"test/{metric}": test_metric})
-            
+        
+        self.model.train()
         return test_metric
 
     @torch.no_grad()
@@ -347,7 +351,9 @@ class Trainer:
                         self._best_iter = self._iter_num
                         self._save_ckpt(MODEL_FILENAME)
                         console.info(f"Checkpoint updated at iteration {self._iter_num}")
-                    
+                    else:
+                        self._not_improved_for_eval_iters += 1
+                        
                 if self.config.save_checkpoint_every is not None: # save checkpoint every n iterations
                     if self._iter_num % self.config.save_checkpoint_every == 0:
                         self._save_ckpt(f"ckpt_{self._iter_num}.pt")
@@ -371,7 +377,9 @@ class Trainer:
         return samples
 
     def train(self) -> None:
-
+        
+        self.model.train()
+        
         if self._iter_num > self.config.max_iters:
             return
 
@@ -381,6 +389,7 @@ class Trainer:
 
         inputs = self.get_training_batch()
         local_iter_num = 0  # number of iterations in the lifetime of this process
+        self._not_improved_for_eval_iters = 0
 
         start_timer = torch.cuda.Event(enable_timing=True)
         end_timer = torch.cuda.Event(enable_timing=True)
@@ -394,6 +403,10 @@ class Trainer:
             if self.val_dataset is not None:
                 if self._master_process:
                     self.evaluate()
+                    if self.patience is not None:
+                        if self.patience < self._not_improved_for_eval_iters:
+                            console.info(f"Validation loss has not improved for {self._not_improved_for_eval_iters * self.config.eval_interval} iterations. Stopping training.")
+                            break
             else:
                 self._save_ckpt(MODEL_FILENAME)
             if dist.is_initialized():

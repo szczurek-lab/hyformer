@@ -18,7 +18,7 @@ from jointformer.utils.tokenizers.auto import AutoTokenizer
 from jointformer.models.auto import AutoModel
 from jointformer.utils.loggers.auto import AutoLogger
 
-from jointformer.trainers.trainer import Trainer
+from jointformer.trainers.trainer_fixed import Trainer
 
 from jointformer.utils.runtime import set_seed, create_output_dir, set_to_dev_mode, log_args, dump_configs
 from jointformer.utils.ddp import init_ddp, end_ddp
@@ -88,14 +88,27 @@ def main(args, hparams=None, disable_logging=False):
                 trainer_config.beta1 = 0.999
             if key in model_config.__dict__.keys():
                 model_config[key] = value
+                print(f"Updated {key} to {value}")
             if key in trainer_config.__dict__.keys():
                 trainer_config[key] = value
+                print(f"Updated {key} to {value}")
                 if key == 'learning_rate':
                     trainer_config['min_lr'] = 0.1 * value
             if key == 'generation_task':
                 trainer_config['tasks'] = {"prediction": 100 - value, "generation": value}
                 trainer_config._normalize_task_probabilities()
 
+    if hasattr(args, 'lr') and args.lr is not None:
+        trainer_config.learning_rate = args.lr
+        trainer_config.min_lr = 0.1 * args.lr
+        print("Learning rate updated to", trainer_config.learning_rate)
+    if hasattr(args, 'wd') and args.lr is not None:
+        trainer_config.weight_decay = args.wd
+        print("Weight decay updated to", trainer_config.weight_decay)
+    if hasattr(args, 'pooler_dropout') and args.pooler_dropout is not None:
+        model_config.pooler_dropout = args.pooler_dropout
+        print("Pooler dropout updated to", model_config.pooler_dropout)
+        
     # Init
     train_dataset = AutoDataset.from_config(dataset_config, split='train', root=args.data_dir)
     # num_subsamples =  int(len(train_dataset) * args.fraction_train_dataset)
@@ -129,7 +142,7 @@ def main(args, hparams=None, disable_logging=False):
     trainer = Trainer(
         out_dir=None if disable_logging else args.out_dir, seed=1337+args.seed, config=trainer_config, model=model,
         train_dataset=train_dataset, val_dataset=val_dataset, test_dataset=val_dataset,
-        tokenizer=tokenizer, logger=logger, device=device, test_metric=dataset_config.task_metric, eval_metric=args.eval_metric)
+        tokenizer=tokenizer, logger=logger, device=device, test_metric=dataset_config.task_metric, eval_metric=args.eval_metric, patience=args.patience)
 
     if args.path_to_model_ckpt is not None:
         if not os.path.exists(args.path_to_model_ckpt):

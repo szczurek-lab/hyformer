@@ -1,5 +1,5 @@
 {
-  "model_name": "JointformerLlamaForDownstreamPrediction",
+  "model_name": "JointformerLlamaForDownstreamPredictionDeep",
   "bias": false,
   "attention_dropout": 0.0,
   "feed_forward_dropout": 0.0,
@@ -11,5 +11,6 @@
   "num_layers": 16,
   "vocab_size": 596,
   "num_physchem_tasks": 200,
-  "pooler_dropout": 0.0
+  "pooler_dropout": 0.0,
+  "pooler_hidden_dim": 512
 }

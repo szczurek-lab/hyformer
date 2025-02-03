@@ -335,7 +335,7 @@ class JointformerForDownstreamPrediction(JointformerWithPrefix):
         else:
             raise ValueError('Variable `downstream_task` must be either `classification` or `regression`.')
 
-    def get_loss(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, properties: torch.Tensor, task: str, input_labels: torch.Tensor = None, **kwargs):
+    def get_loss(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, properties: torch.Tensor, task: str, input_labels: torch.Tensor = None, reduction = 'mean', **kwargs):
         
         if task in ['generation', 'reconstruction', 'mlm', 'physchem']:
             return super().get_loss(
@@ -349,14 +349,14 @@ class JointformerForDownstreamPrediction(JointformerWithPrefix):
             if self.prediction_task_type == 'classification':
                 if self.num_prediction_tasks == 1:
                     assert properties.size(1) == 1, f"Expected properties to have shape (batch_size, 1) but got {properties.size()}."
-                    outputs["loss"] = F.cross_entropy(outputs["logits_prediction"], properties.view(-1, ), reduction='mean')
+                    outputs["loss"] = F.cross_entropy(outputs["logits_prediction"], properties.view(-1, ), reduction=reduction)
                 elif self.num_prediction_tasks > 1:
-                    outputs["loss"] = F.binary_cross_entropy_with_logits(outputs["logits_prediction"][properties >= 0], properties[properties >= 0].float(), reduction='mean')
+                    outputs["loss"] = F.binary_cross_entropy_with_logits(outputs["logits_prediction"][properties >= 0], properties[properties >= 0].float(), reduction=reduction)
                 else:
                     raise ValueError('Variable `num_prediction_tasks` must be greater than 0.')
                 
             elif self.prediction_task_type == 'regression':
-                outputs["loss"] = F.mse_loss(outputs["logits_prediction"].flatten(), properties.flatten(), reduction='mean')
+                outputs["loss"] = F.mse_loss(outputs["logits_prediction"].flatten(), properties.flatten(), reduction=reduction)
             
             else:
                 raise ValueError('Variable `downstream_task` must be either `classification` or `regression`.')

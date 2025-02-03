@@ -13,7 +13,7 @@ from jointformer.configs.model import ModelConfig
 from jointformer.configs.trainer import TrainerConfig
 
 from jointformer.models.auto import AutoModel
-from jointformer.trainers.trainer import Trainer
+from jointformer.trainers.trainer_fixed import Trainer
 
 from jointformer.utils.datasets.auto import AutoDataset
 from jointformer.utils.tokenizers.auto import AutoTokenizer
@@ -23,7 +23,7 @@ from experiments.data_efficient_domain_adaptation.train import main as model_tra
 from experiments.data_efficient_domain_adaptation.test import main as model_testing_loop
 
 
-def objective(trial, hparams_grid, train_dataset, val_dataset, tokenizer, model_config, trainer_config,
+def objective(trial, hparams_grid, train_dataset, val_dataset, test_dataset, tokenizer, model_config, trainer_config,
               debug_only, downstream_task_type, num_downstream_tasks, path_to_model_ckpt, metric, direction):
 
     try:
@@ -36,14 +36,16 @@ def objective(trial, hparams_grid, train_dataset, val_dataset, tokenizer, model_
                 trainer_config.beta1 = 0.999
             if key in model_config.__dict__.keys():
                 model_config[key] = value
+                print(f"Setting {key} to {value}")
             if key in trainer_config.__dict__.keys():
                 trainer_config[key] = value
+                print(f"Setting {key} to {value}")
                 if key == 'learning_rate':
                     trainer_config['min_lr'] = 0.1 * value
             if key == 'generation_task':
                 trainer_config['tasks'] = {"prediction": 100 - value, "generation": value}
                 trainer_config._normalize_task_probabilities()
-        
+            
         # and adjust trainer config to dataset size
         trainer_config.correct_for_num_train_examples(num_train_examples=len(train_dataset)) 
 
@@ -59,7 +61,7 @@ def objective(trial, hparams_grid, train_dataset, val_dataset, tokenizer, model_
         model = AutoModel.from_config(model_config, downstream_task=downstream_task_type, num_tasks=num_downstream_tasks)
         device = torch.device('cuda:0')
         trainer = Trainer(out_dir=None, seed=1337, config=trainer_config, model=model, train_dataset=train_dataset, eval_metric='prediction',
-                        val_dataset=val_dataset, test_dataset=val_dataset, tokenizer=tokenizer, test_metric=metric, device=device)
+                          val_dataset=val_dataset, test_dataset=test_dataset, tokenizer=tokenizer, test_metric=metric, device=device, patience=args.patience)
 
         # Load
         if path_to_model_ckpt is not None:
@@ -86,6 +88,7 @@ def find_best_hparams(args):
     tokenizer_config = TokenizerConfig.from_config_file(args.path_to_tokenizer_config)
     train_dataset = AutoDataset.from_config(dataset_config, split='train', root=args.data_dir)
     val_dataset = AutoDataset.from_config(dataset_config, split='val', root=args.data_dir)
+    test_dataset = AutoDataset.from_config(dataset_config, split='test', root=args.data_dir)
     tokenizer = AutoTokenizer.from_config(tokenizer_config)
 
     model_config = ModelConfig.from_config_file(args.path_to_model_config)
@@ -121,9 +124,10 @@ def find_best_hparams(args):
     # Optimize
     hparams_grid = load_json(args.hparams_grid_filepath)
     print("Hyperparameters grid:", hparams_grid)
-    objective_function = partial(objective, hparams_grid=hparams_grid, train_dataset=train_dataset, val_dataset=val_dataset, tokenizer=tokenizer, direction=direction,
-                                 model_config=model_config, trainer_config=trainer_config, debug_only=args.debug_only, metric=dataset_config.task_metric,
-                                 downstream_task_type=dataset_config.task_type, num_downstream_tasks=dataset_config.num_tasks, path_to_model_ckpt=args.path_to_model_ckpt)
+    objective_function = partial(objective, hparams_grid=hparams_grid, train_dataset=train_dataset, val_dataset=val_dataset, test_dataset=test_dataset,
+                                tokenizer=tokenizer, direction=direction, model_config=model_config, trainer_config=trainer_config, debug_only=args.debug_only,
+                                metric=dataset_config.task_metric, downstream_task_type=dataset_config.task_type, num_downstream_tasks=dataset_config.num_tasks,
+                                path_to_model_ckpt=args.path_to_model_ckpt)
     study.optimize(objective_function, n_trials=args.optuna_n_trials, n_jobs=args.optuna_n_jobs) # works for hasattr(self.model, 'predict')
     
     # Save the study
@@ -170,11 +174,16 @@ def main(args):
         args.seed = seed
         args.out_dir = os.path.join(root_dir, f"seed_{seed}")
         if not os.path.exists(os.path.join(args.out_dir, 'ckpt.pt')):    
-            # if args.joint_training:
-            #     args.eval_metric = 'generation'
-            #     _ = model_training_loop(args, hparams)
-            #     args.path_to_model_ckpt = os.path.join(args.out_dir, 'ckpt.pt')
-            #     args.eval_metric = 'prediction'
+            if args.path_to_generative_trainer_config is not None:
+                _predictive_trainer = args.path_to_trainer_config
+                _out_dir = args.out_dir
+                args.path_to_trainer_config = args.path_to_generative_trainer_config
+                args.out_dir = os.path.join(_out_dir, "generative")
+                val_loss = model_training_loop(args, hparams)
+                args.path_to_model_ckpt = os.path.join(args.out_dir, "ckpt.pt")
+                args.path_to_trainer_config = _predictive_trainer
+                args.out_dir = _out_dir
+
             val_loss = model_training_loop(args, hparams)
             print(f"Best validation loss with hparams: {val_loss}")
         else:
@@ -187,7 +196,8 @@ def main(args):
     print(f"Test loss array: {test_loss_arrary}")
     print(f"Mean test loss: {np.mean(test_loss_arrary)}")
     print(f"Std test loss: {np.std(test_loss_arrary)}")
-    print(f"Latex entry: {round(np.mean(test_loss_arrary), 3)}$\pm${round(np.std(test_loss_arrary), 3)}")
+    print(f"Latex entry regression: {round(np.mean(test_loss_arrary), 3)}$\pm${round(np.std(test_loss_arrary), 3)}")
+    print(f"Latex entry classification: {round(np.mean(test_loss_arrary) * 100, 1)}({round(np.std(test_loss_arrary) * 100, 1)})")
     
     save_json(os.path.join(args.out_dir, "test_loss_aggregated.json"), {"mean": np.mean(test_loss_arrary), "std": np.std(test_loss_arrary), "se": np.std(test_loss_arrary) / np.sqrt(3)})
 
@@ -206,6 +216,7 @@ if __name__ == "__main__":
     parser.add_argument("--path_to_dataset_config", type=str, required=True)
     parser.add_argument("--path_to_tokenizer_config", type=str, required=True)
     parser.add_argument("--path_to_model_config", type=str, required=True)
+    parser.add_argument("--path_to_generative_trainer_config", type=str, default=None)
     parser.add_argument("--path_to_trainer_config", type=str, required=True)
     parser.add_argument("--path_to_model_ckpt", type=str, nargs='?')
     parser.add_argument("--debug_only", default=False, action=argparse.BooleanOptionalAction)
@@ -217,5 +228,9 @@ if __name__ == "__main__":
     parser.add_argument("--destroy_ckpt", default=False, action=argparse.BooleanOptionalAction)
     parser.add_argument("--adjust_dataset_seed", default=False, action=argparse.BooleanOptionalAction)
     parser.add_argument("--eval_metric", type=str, default=None, help="Evaluation metric for the model")
+    parser.add_argument("--lr", type=float, default=None, help="Learning rate for the model")
+    parser.add_argument("--wd", type=float, default=None, help="Learning rate for the model")
+    parser.add_argument("--pooler_dropout", type=float, default=None, help="Dropout for the model")
+    parser.add_argument("--patience", type=int, default=None, help="Patience for the model")
     args = parser.parse_args()
     main(args)

@@ -11,5 +11,6 @@
   "num_layers": 8,
   "vocab_size": 596,
   "num_physchem_tasks": 200,
-  "pooler_dropout": 0.0
+  "pooler_dropout": 0.0,
+  "pooler_hidden_dim": 256
 }
