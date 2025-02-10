@@ -56,7 +56,6 @@ def main(args, hparams=None):
 
     # Set seed
     set_seed(1337)
-
     path_to_model_ckpt = os.path.join(args.out_dir, 'ckpt.pt')
 
     # Load configs

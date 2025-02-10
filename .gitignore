@@ -176,6 +176,7 @@ wandb/
 *.log
 .err
 *.err
+logs/
 
 checkpoints
 outputs

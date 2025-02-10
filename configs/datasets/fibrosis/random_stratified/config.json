@@ -1,0 +1,11 @@
+{
+  "dataset_name": "sequence_dataset",
+  "path_to_train_data": "fibrosis/random_stratified/train.npz",
+  "path_to_val_data": "fibrosis/random_stratified/val.npz",  
+  "path_to_test_data": "fibrosis/random_stratified/test.npz",
+  "transform": null,
+  "target_transform": null,
+  "task_type": "classification",
+  "task_metric": "prc_auc",
+  "num_tasks": 1
+}
