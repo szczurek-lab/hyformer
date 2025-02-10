@@ -54,6 +54,20 @@ def main(args, hparams=None, disable_logging=False, max_iters=None):
             dataset_config[key] = value.replace('seed_0', f'seed_{args.seed}')
             print(f"Updated {key} to {dataset_config[key]}")
 
+    if hasattr(args, 'lr') and args.lr is not None:
+        trainer_config.learning_rate = args.lr
+        trainer_config.min_lr = 0.1 * args.lr
+        print("Learning rate updated to", trainer_config.learning_rate)
+    if hasattr(args, 'wd') and args.lr is not None:
+        trainer_config.weight_decay = args.wd
+        print("Weight decay updated to", trainer_config.weight_decay)
+    if hasattr(args, 'pooler_dropout') and args.pooler_dropout is not None:
+        model_config.pooler_dropout = args.pooler_dropout
+        print("Pooler dropout updated to", model_config.pooler_dropout)
+    if hasattr(args, 'batch_size') and args.batch_size is not None:
+        trainer_config.batch_size = args.batch_size
+        print("Batch size updated to", trainer_config.batch_size)
+
     # Init
     train_dataset = AutoDataset.from_config(dataset_config, split='train', root=args.data_dir)
     val_dataset = AutoDataset.from_config(dataset_config, split='val', root=args.data_dir)
@@ -92,7 +106,7 @@ def main(args, hparams=None, disable_logging=False, max_iters=None):
     trainer = Trainer(
         out_dir=None if disable_logging else args.out_dir, seed=1337, config=trainer_config, model=model,
         train_dataset=train_dataset, val_dataset=val_dataset, test_dataset=val_dataset,
-        tokenizer=tokenizer, logger=logger, device=device, test_metric=None)
+        tokenizer=tokenizer, logger=logger, device=device, test_metric=None, patience=args.patience)
 
     if args.path_to_model_ckpt is not None:
         if not os.path.exists(args.path_to_model_ckpt):

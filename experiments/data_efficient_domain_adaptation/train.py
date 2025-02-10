@@ -98,17 +98,26 @@ def main(args, hparams=None, disable_logging=False):
                 trainer_config['tasks'] = {"prediction": 100 - value, "generation": value}
                 trainer_config._normalize_task_probabilities()
 
-    if hasattr(args, 'lr') and args.lr is not None:
-        trainer_config.learning_rate = args.lr
-        trainer_config.min_lr = 0.1 * args.lr
+    if hasattr(args, 'decay_lr') and args.decay_lr is not None:
+        trainer_config.decay_lr = args.decay_lr
+        print("Decay learning rate updated to", trainer_config.decay_lr)
+    if hasattr(args, 'batch_size') and args.batch_size is not None:
+        trainer_config.batch_size = args.batch_size
+        print("Batch size updated to", trainer_config.batch_size)
+    if hasattr(args, 'learning_rate') and args.learning_rate is not None:
+        trainer_config.learning_rate = args.learning_rate
+        trainer_config.min_lr = 0.1 * args.learning_rate
         print("Learning rate updated to", trainer_config.learning_rate)
-    if hasattr(args, 'wd') and args.lr is not None:
-        trainer_config.weight_decay = args.wd
+    if hasattr(args, 'weight_decay') and args.weight_decay is not None:
+        trainer_config.weight_decay = args.weight_decay
         print("Weight decay updated to", trainer_config.weight_decay)
     if hasattr(args, 'pooler_dropout') and args.pooler_dropout is not None:
         model_config.pooler_dropout = args.pooler_dropout
         print("Pooler dropout updated to", model_config.pooler_dropout)
-        
+    if hasattr(args, 'max_epochs') and args.max_epochs is not None:
+        trainer_config.max_epochs = args.max_epochs
+        print("Max epochs updated to", trainer_config.max_epochs)
+
     # Init
     train_dataset = AutoDataset.from_config(dataset_config, split='train', root=args.data_dir)
     # num_subsamples =  int(len(train_dataset) * args.fraction_train_dataset)
