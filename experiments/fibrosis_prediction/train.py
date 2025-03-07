@@ -35,7 +35,7 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 def main(args, hparams=None, disable_logging=False, max_iters=None):
 
     # Set seed
-    set_seed(1337)
+    set_seed(args.model_seed)
 
     # Disable logging for infer_max_num_epochs
     # if max_iters is not None and max_iters == 'infer':
@@ -49,30 +49,25 @@ def main(args, hparams=None, disable_logging=False, max_iters=None):
     logger_config = LoggerConfig.from_config_file(args.path_to_logger_config) if args.path_to_logger_config else None
 
     # Adjust filepats for varying dataset seeds
-    for key, value in dataset_config.__dict__.items():
-        if value is not None and isinstance(value, str) and 'seed_0' in value:
-            dataset_config[key] = value.replace('seed_0', f'seed_{args.seed}')
-            print(f"Updated {key} to {dataset_config[key]}")
+    if hasattr(args, 'seed') and args.seed is not None:
+        for key, value in dataset_config.__dict__.items():
+            if value is not None and isinstance(value, str) and 'split_0' in value:
+                dataset_config[key] = value.replace('split_0', f'split_{args.seed}')
+                print(f"Updated {key} to {dataset_config[key]}")
 
-    if hasattr(args, 'decay_lr') and args.decay_lr is not None:
-        trainer_config.decay_lr = args.decay_lr
-        print("Decay learning rate updated to", trainer_config.decay_lr)
-    if hasattr(args, 'batch_size') and args.batch_size is not None:
-        trainer_config.batch_size = args.batch_size
-        print("Batch size updated to", trainer_config.batch_size)
-    if hasattr(args, 'learning_rate') and args.learning_rate is not None:
-        trainer_config.learning_rate = args.learning_rate
-        trainer_config.min_lr = 0.1 * args.learning_rate
+    if hasattr(args, 'lr') and args.lr is not None:
+        trainer_config.learning_rate = args.lr
+        trainer_config.min_lr = 0.1 * args.lr
         print("Learning rate updated to", trainer_config.learning_rate)
-    if hasattr(args, 'weight_decay') and args.weight_decay is not None:
-        trainer_config.weight_decay = args.weight_decay
+    if hasattr(args, 'wd') and args.lr is not None:
+        trainer_config.weight_decay = args.wd
         print("Weight decay updated to", trainer_config.weight_decay)
     if hasattr(args, 'pooler_dropout') and args.pooler_dropout is not None:
         model_config.pooler_dropout = args.pooler_dropout
         print("Pooler dropout updated to", model_config.pooler_dropout)
-    if hasattr(args, 'max_epochs') and args.max_epochs is not None:
-        trainer_config.max_epochs = args.max_epochs
-        print("Max epochs updated to", trainer_config.max_epochs)
+    if hasattr(args, 'batch_size') and args.batch_size is not None:
+        trainer_config.batch_size = args.batch_size
+        print("Batch size updated to", trainer_config.batch_size)
 
     # Init
     train_dataset = AutoDataset.from_config(dataset_config, split='train', root=args.data_dir)
@@ -110,7 +105,7 @@ def main(args, hparams=None, disable_logging=False, max_iters=None):
         logger.store_configs(dataset_config, tokenizer_config, model_config, trainer_config, logger_config)
     device = torch.device('cuda:0')
     trainer = Trainer(
-        out_dir=None if disable_logging else args.out_dir, seed=1337, config=trainer_config, model=model,
+        out_dir=None if disable_logging else args.out_dir, seed=args.model_seed, config=trainer_config, model=model,
         train_dataset=train_dataset, val_dataset=val_dataset, test_dataset=val_dataset,
         tokenizer=tokenizer, logger=logger, device=device, test_metric=None, patience=args.patience)
 

@@ -237,31 +237,6 @@ class Trainer:
         
         self.model.train()
         return test_metric
-    
-    @torch.no_grad()
-    def get_predictions(self, split):
-        self.model.eval()
-        y_true = None
-        y_pred = None
-
-        if split == 'train':
-            loader = self.train_loader
-        elif split == 'val':
-            loader = self.val_loader
-        elif split == 'test':
-            loader = self.test_loader
-        else:
-            raise ValueError(f"Split {split} not supported.")
-
-        for _, batch in enumerate(loader):
-            
-            y_true = batch['properties'] if y_true is None else torch.cat((y_true, batch['properties']))
-            
-            batch = batch.to(self.device)
-            _y_pred = self.model.predict(**batch).cpu()
-            y_pred = _y_pred if y_pred is None else torch.cat((y_pred, _y_pred))
-        
-        return {'y_true': y_true, 'y_pred': y_pred}
 
     @torch.no_grad()
     def estimate_loss(self, split):

@@ -4,8 +4,8 @@
   "dtype": "float32",
   "eval_only": false,
   "max_iters": 60000,
-  "max_epochs": 10,
-  "batch_size": 16,
+  "max_epochs": 20,
+  "batch_size": 256,
   "learning_rate": 4e-5,
   "weight_decay": 1e-1,
   "beta1": 0.9,
@@ -15,7 +15,7 @@
   "decay_lr": true,
   "warmup_iters": 6000,
   "lr_decay_iters": 60000,
-  "min_lr": 4e-6,
+  "min_lr": 1e-6,
   "eval_iters": 24,
   "eval_interval": 50,
   "log_interval": 50,
@@ -25,8 +25,8 @@
   "block_size": 128,
   "tasks":
     {
-      "prediction": 9,
-      "generation": 1
+      "prediction": 4,
+      "generation": 6
     },
   "eval_generation": false
 }

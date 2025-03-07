@@ -13,6 +13,11 @@ class AutoModel:
                 "jointformer.models.fancy_model"),
                 "FancyModel").from_config(config)
         
+        elif config.model_name == 'DummyClassifierConstant':
+            return getattr(importlib.import_module(
+                "jointformer.models.dummy_classifier"),
+                "DummyClassifierConstant").from_config(config, **kwargs)
+        
         elif config.model_name == 'FancyModelForDownstreamPrediction':
             return getattr(importlib.import_module(
                 "jointformer.models.fancy_model"),

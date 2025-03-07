@@ -103,7 +103,7 @@ class SequenceDataset(BaseDataset):
         filepath = cls._get_filepath(config, root, split)
         data, target = cls._load(filepath, task_type=config.task_type, num_tasks=config.num_tasks if config.num_tasks is not None else None)
 
-        data_transform = AutoTransform.from_config(config.transform) if config.transform is not None else None
+        data_transform = AutoTransform.from_config(config.transform) if config.transform is not None and split == 'train' else None
         target_transform = AutoTargetTransform.from_config(config.target_transform) if config.target_transform is not None else None
 
         return cls(
