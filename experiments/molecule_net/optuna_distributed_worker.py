@@ -152,6 +152,11 @@ def main(args):
     if not os.path.exists(args.out_dir):
         os.makedirs(args.out_dir, exist_ok=False)
 
+    # Check if experiment has already been run
+    if os.path.exists(os.path.join(args.out_dir, "test_loss_aggregated.json")):
+        print("Experiment already run. Exiting...")
+        return None
+    
     # Find best hyperparameters
     hparams = None
     if args.search_space_filepath is not None:

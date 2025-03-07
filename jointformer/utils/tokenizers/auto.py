@@ -25,10 +25,10 @@ class AutoTokenizer:
             return getattr(importlib.import_module(
                 "jointformer.utils.tokenizers.smiles_separate_task_token"),
                 "SmilesTokenizerSeparateTaskToken").from_config(config)
-        elif config.tokenizer == 'SmilesTokenizerSeparateTaskTokenRec':
+        elif config.tokenizer == 'SmilesTokenizerSeparateTaskTokenFuture':
             return getattr(importlib.import_module(
-                "jointformer.utils.tokenizers.smiles_separate_task_token_rec"),
-                "SmilesTokenizerSeparateTaskTokenRec").from_config(config)
+                "jointformer.utils.tokenizers.smiles_separate_task_token_future"),
+                "SmilesTokenizerSeparateTaskTokenFuture").from_config(config)
         elif config.tokenizer == "ESMTokenizer":
             return getattr(importlib.import_module(
                 "jointformer.utils.tokenizers.amp"),

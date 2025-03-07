@@ -1,0 +1,17 @@
+{
+  "dataset_name": "sequence_dataset",
+  "path_to_train_data": "molecule_net/scaffold/freesolv/train.npz",
+  "path_to_val_data": "molecule_net/scaffold/freesolv/valid.npz",  
+  "path_to_test_data": "molecule_net/scaffold/freesolv/test.npz",
+  "transform": null,
+  "target_transform": {
+    "name": "scaler",
+    "params": {
+      "mean": -3.2594736842105267,
+      "std": 3.2775297233608893
+    }
+  },
+  "task_type": "regression",
+  "task_metric": "rmse",
+  "num_tasks": 1
+}

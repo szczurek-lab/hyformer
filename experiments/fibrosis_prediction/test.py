@@ -22,6 +22,10 @@ from jointformer.utils.runtime import set_seed, create_output_dir, set_to_dev_mo
 from jointformer.utils.ddp import init_ddp, end_ddp
 from jointformer.utils.data import write_dict_to_file
 
+import pandas as pd
+
+from experiments.fibrosis_prediction.metrics import get_test_metrics
+
 
 console = logging.getLogger(__file__)
 logging.basicConfig(
@@ -52,7 +56,7 @@ def parse_args():
     return args
 
 
-def main(args, hparams=None):
+def main(args, hparams=None, split='test'):
 
     # Set seed
     set_seed(1337)
@@ -67,8 +71,8 @@ def main(args, hparams=None):
 
     # Adjust filepats for varying dataset seeds
     for key, value in dataset_config.__dict__.items():
-        if value is not None and isinstance(value, str) and 'seed_0' in value:
-            dataset_config[key] = value.replace('seed_0', f'seed_{args.seed}')
+        if value is not None and isinstance(value, str) and 'split_0' in value:
+            dataset_config[key] = value.replace('split_0', f'split_{args.seed}')
             print(f"Updated {key} to {dataset_config[key]}")
 
     # Load trainer hparams
@@ -80,28 +84,8 @@ def main(args, hparams=None):
             if key in trainer_config.__dict__.keys():
                 trainer_config[key] = value
 
-    if hasattr(args, 'decay_lr') and args.decay_lr is not None:
-        trainer_config.decay_lr = args.decay_lr
-        print("Decay learning rate updated to", trainer_config.decay_lr)
-    if hasattr(args, 'batch_size') and args.batch_size is not None:
-        trainer_config.batch_size = args.batch_size
-        print("Batch size updated to", trainer_config.batch_size)
-    if hasattr(args, 'learning_rate') and args.learning_rate is not None:
-        trainer_config.learning_rate = args.learning_rate
-        trainer_config.min_lr = 0.1 * args.learning_rate
-        print("Learning rate updated to", trainer_config.learning_rate)
-    if hasattr(args, 'weight_decay') and args.weight_decay is not None:
-        trainer_config.weight_decay = args.weight_decay
-        print("Weight decay updated to", trainer_config.weight_decay)
-    if hasattr(args, 'pooler_dropout') and args.pooler_dropout is not None:
-        model_config.pooler_dropout = args.pooler_dropout
-        print("Pooler dropout updated to", model_config.pooler_dropout)
-    if hasattr(args, 'max_epochs') and args.max_epochs is not None:
-        trainer_config.max_epochs = args.max_epochs
-        print("Max epochs updated to", trainer_config.max_epochs)
-
     # Init
-    test_dataset = AutoDataset.from_config(dataset_config, split='test', root=args.data_dir)
+    test_dataset = AutoDataset.from_config(dataset_config, split=split, root=args.data_dir)
     tokenizer = AutoTokenizer.from_config(tokenizer_config)
 
     model = AutoModel.from_config(model_config, downstream_task=dataset_config.task_type, num_tasks=dataset_config.num_tasks, hidden_dim=256)
@@ -116,10 +100,27 @@ def main(args, hparams=None):
     print(f"Loading model from {path_to_model_ckpt}")
     trainer.model.load_state_dict(torch.load(path_to_model_ckpt, map_location=device)['model'], strict=True)
 
-    test_metric = dataset_config.task_metric
-    objective_metric = trainer.test(metric=test_metric)
-    print(f"Test {test_metric}: {objective_metric}")
-    write_dict_to_file({f'{test_metric}': str(objective_metric)}, os.path.join(args.out_dir, 'test_loss.json'))
+    # Get model loss
+    objective_metric = trainer.test(split='test')
+    print(f"Test loss: {objective_metric}")
+
+    # Get predictions
+    _predictions = trainer.get_predictions(split='test')
+    y_true, y_pred = _predictions['properties'], _predictions['predictions']
+
+    # Save predictions to .csv
+    pd.DataFrame({'y_true': y_true, 'y_pred': y_pred}).to_csv(os.path.join(args.out_dir, 'predictions.csv'), index=False)
+
+    # Get test metrics
+    test_metrics = get_test_metrics(y_pred, y_true)
+    test_metrics['loss'] = objective_metric
+
+    print(f"Test loss: {objective_metric}")
+    write_dict_to_file({
+        
+    }, os.path.join(args.out_dir, 'test_loss.json'))
+
+    # save prediction and target in .csv file
     
     return objective_metric
 
