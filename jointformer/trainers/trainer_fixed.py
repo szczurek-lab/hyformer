@@ -261,6 +261,7 @@ class Trainer:
             _y_pred = self.model.predict(**batch).cpu()
             y_pred = _y_pred if y_pred is None else torch.cat((y_pred, _y_pred))
         
+        self.model.train()
         return {'y_true': y_true, 'y_pred': y_pred}
 
     @torch.no_grad()

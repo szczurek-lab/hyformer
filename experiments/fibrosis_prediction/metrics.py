@@ -12,16 +12,16 @@ def get_test_metrics(predictions, targets, threshold=0.5):
     test_metrics['auroc'] = rocauc(predictions, targets)
     test_metrics['auprc'] = prauc(predictions, targets)
     test_metrics['precision'] = precision(predictions, targets, k=None, threshold=threshold)
-    test_metrics['precision_at_100'] = precision(predictions, targets, k=100, threshold=threshold)
-    test_metrics['bedroc_20'] = bedroc(predictions, targets, alpha=20)
+    # test_metrics['precision_at_100'] = precision(predictions, targets, k=100, threshold=threshold)
+    # test_metrics['bedroc_20'] = bedroc(predictions, targets, alpha=20)
     test_metrics['recall'] = recall(predictions, targets, k=None, threshold=threshold)
-    test_metrics['recall_at_100'] = recall(predictions, targets, k=100, threshold=threshold)
+    # test_metrics['recall_at_100'] = recall(predictions, targets, k=100, threshold=threshold)
     test_metrics['accuracy'] = accuracy(predictions, targets, threshold=threshold)
     return test_metrics
 
 
 def accuracy(y_pred, y_true, threshold, *args, **kwargs):
-    return accuracy_score(y_true=y_true, y_pred=y_pred >= threshold, *args, **kwargs).item()
+    return accuracy_score(y_true=y_true, y_pred=y_pred >= threshold, *args, **kwargs)
 
 
 def bedroc(y_pred, y_true, alpha):

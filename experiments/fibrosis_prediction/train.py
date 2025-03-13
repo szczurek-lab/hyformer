@@ -107,7 +107,7 @@ def main(args, hparams=None, disable_logging=False, max_iters=None):
     trainer = Trainer(
         out_dir=None if disable_logging else args.out_dir, seed=args.model_seed, config=trainer_config, model=model,
         train_dataset=train_dataset, val_dataset=val_dataset, test_dataset=val_dataset,
-        tokenizer=tokenizer, logger=logger, device=device, test_metric=None, patience=args.patience)
+        tokenizer=tokenizer, logger=logger, device=device, test_metric=dataset_config.task_metric, patience=args.patience)
 
     if args.path_to_model_ckpt is not None:
         if not os.path.exists(args.path_to_model_ckpt):

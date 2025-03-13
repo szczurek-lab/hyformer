@@ -59,6 +59,8 @@ class SequenceDataset(BaseDataset):
         if data is None:
             raise ValueError("Data not loaded.")       
         if target is not None:
+            if len(target.shape) == 1:
+                target = target.reshape(-1, 1)
             assert len(target.shape) == 2, f"Target has an unexpected shape: {target.shape}."
             assert len(data) == len(target), f"Data and target have different lengths: {len(data)} and {len(target)}."
             if num_tasks is not None:
