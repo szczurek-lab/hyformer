@@ -1,11 +1,8 @@
 import os
-
 import argparse 
 
 from jointformer.utils.optuna import save_json
-
 from experiments.fibrosis_prediction.train import main as model_training_loop
-from experiments.fibrosis_prediction.test import main as model_testing_loop
 
 
 def main(args):
@@ -20,8 +17,9 @@ def main(args):
         # Train Model
         _loss = model_training_loop(args)
 
+        # Save the validation loss
         print(f"Validation loss with hparams: {_loss}")
-        save_json(os.path.join(args.out_dir, "validation_loss_aggregated.json"), {"mean": _loss})
+        save_json(os.path.join(args.out_dir, "validation_loss_aggregated.json"), {"validation_loss": _loss})
 
 
 if __name__ == "__main__":

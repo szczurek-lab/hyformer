@@ -18,8 +18,7 @@ from jointformer.utils.loggers.auto import AutoLogger
 
 from jointformer.trainers.trainer_fixed import Trainer
 
-from jointformer.utils.runtime import set_seed, create_output_dir, set_to_dev_mode, log_args, dump_configs
-from jointformer.utils.ddp import init_ddp, end_ddp
+from jointformer.utils.runtime import set_seed
 from jointformer.utils.data import write_dict_to_file
 
 import pandas as pd
@@ -101,12 +100,11 @@ def main(args, hparams=None, split='test'):
     trainer.model.load_state_dict(torch.load(path_to_model_ckpt, map_location=device)['model'], strict=True)
 
     # Get model loss
-    objective_metric = trainer.test(split='test')
-    print(f"Test loss: {objective_metric}")
+    objective_metric = trainer.test()
 
     # Get predictions
     _predictions = trainer.get_predictions(split='test')
-    y_true, y_pred = _predictions['properties'], _predictions['predictions']
+    y_true, y_pred = _predictions['y_true'].flatten(), _predictions['y_pred'].flatten()
 
     # Save predictions to .csv
     pd.DataFrame({'y_true': y_true, 'y_pred': y_pred}).to_csv(os.path.join(args.out_dir, 'predictions.csv'), index=False)
@@ -116,12 +114,8 @@ def main(args, hparams=None, split='test'):
     test_metrics['loss'] = objective_metric
 
     print(f"Test loss: {objective_metric}")
-    write_dict_to_file({
-        
-    }, os.path.join(args.out_dir, 'test_loss.json'))
+    write_dict_to_file(test_metrics, os.path.join(args.out_dir, 'test_loss.json'))
 
-    # save prediction and target in .csv file
-    
     return objective_metric
 
 
