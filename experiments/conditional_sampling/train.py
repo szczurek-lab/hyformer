@@ -2,20 +2,20 @@ import os, logging, argparse, sys
 
 import torch
 
-from jointformer.configs.dataset import DatasetConfig
-from jointformer.configs.tokenizer import TokenizerConfig
-from jointformer.configs.model import ModelConfig
-from jointformer.configs.trainer import TrainerConfig
-from jointformer.configs.logger import LoggerConfig
+from hyformer.configs.dataset import DatasetConfig
+from hyformer.configs.tokenizer import TokenizerConfig
+from hyformer.configs.model import ModelConfig
+from hyformer.configs.trainer import TrainerConfig
+from hyformer.configs.logger import LoggerConfig
 
-from jointformer.utils.datasets.auto import AutoDataset
-from jointformer.utils.tokenizers.auto import AutoTokenizer
-from jointformer.models.auto import AutoModel
-from jointformer.utils.loggers.auto import AutoLogger
+from hyformer.utils.datasets.auto import AutoDataset
+from hyformer.utils.tokenizers.auto import AutoTokenizer
+from hyformer.models.auto import AutoModel
+from hyformer.utils.loggers.auto import AutoLogger
 
-from jointformer.trainers.trainer_fixed import Trainer
+from hyformer.trainers.trainer import Trainer
 
-from jointformer.utils.runtime import set_seed, log_args, dump_configs
+from hyformer.utils.runtime import set_seed, log_args, dump_configs
 
 console = logging.getLogger(__file__)
 logging.basicConfig(
@@ -90,7 +90,7 @@ def main(args):
         val_dataset=val_dataset,
         tokenizer=tokenizer,
         logger=logger,
-        test_metric=dataset_config.task_metric,
+        test_metric=dataset_config.evaluation_metric,
         eval_metric=args.eval_metric,
         patience=args.patience
         )

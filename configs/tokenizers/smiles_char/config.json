@@ -1,6 +1,0 @@
-{
-    "tokenizer": "SmilesBPETokenizer",
-    "path_to_vocabulary": "/lustre/groups/aih/jointformer/icml25/data/tokenizers/smiles_char_tokenizer.model",
-    "max_molecule_length": 128
-  }
-  

@@ -1,0 +1,8 @@
+{
+  "model_type": "HyformerLlama",
+  "embedding_dim": 512,
+  "num_attention_heads": 8,
+  "num_layers": 8,
+  "vocab_size": 596,
+  "max_sequence_length": 128
+}

@@ -1,8 +1,8 @@
-# Jointformer
+# Hyformer
 
-The official implementation of [Jointformer](https://arxiv.org/abs/2310.02066), a [joint model](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/LasserreBishopMinka06.pdf) that simultaneously generates new molecules and predicts their properties.
+The official implementation of [Hyformer](https://arxiv.org/abs/2310.02066), a [joint model](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/LasserreBishopMinka06.pdf) that simultaneously generates new molecules and predicts their properties.
 
-For using Jointformer, refer to [Getting Started](#getting-started) section. For reproducing experiments TBA. 
+For using Hyformer, refer to [Getting Started](#getting-started) section. For reproducing experiments TBA. 
 
 
 ## Getting Started
@@ -10,9 +10,9 @@ For using Jointformer, refer to [Getting Started](#getting-started) section. For
 ### Installation
 To create an environment that satisfies the necessary requirements run
 ```
- conda env create -f jointformer.yml
+ conda env create -f hyformer.yml
 ```
-Next, install Jointformer from the project directory with 
+Next, install Hyformer from the project directory with 
 ```
 conda activate hybrid-transformer
 pip install -e .
@@ -38,9 +38,9 @@ Handling hyperparameters and paths is done through config files stored in `confi
 
 #### Data and Datasets
 
-For data, Jointformer assumes an `.npz` file file a `sequence` and `properties` arrays for sequences strings and their properties. Data should be preprocessed. 
+For data, Hyformer assumes an `.npz` file file a `sequence` and `properties` arrays for sequences strings and their properties. Data should be preprocessed. 
 ```
-# Loads custom data and finetunes jointformer 
+# Loads custom data and finetunes hyformer 
 
 
 trainer.train()
@@ -50,7 +50,7 @@ trainer.train()
 Show running experiment where you have your own data SMILES and properties optionally, maybe actual as a .npy file :) 
 Instead of GuacaMol. 
 
-### Train Jointformer on your own data
+### Train Hyformer on your own data
 
 First, you need to specify a config file. Data processed. Then simply run the script. 
 
@@ -68,9 +68,9 @@ Each task specifies a dataset and tokenizer configuration. As an example, one ca
 load the test split of the unsupervised GuacaMol dataset together with a SMILES tokenizer with
 
 ```python
-from jointformer.configs.task import TaskConfig
-from jointformer.utils.datasets.auto import AutoDataset
-from jointformer.utils.tokenizers.auto import AutoTokenizer
+from hyformer.configs.task import TaskConfig
+from hyformer.utils.datasets.auto import AutoDataset
+from hyformer.utils.tokenizers.auto import AutoTokenizer
 
 PATH_TO_TASK_CONFIG = './configs/tasks/guacamol/unsupervised/config.json'
 
@@ -79,7 +79,10 @@ task_config = TaskConfig.from_config_file(PATH_TO_TASK_CONFIG)
 dataset = AutoDataset.from_config(task_config, split='test')
 tokenizer = AutoTokenizer.from_config(task_config)
 
-smiles = next(iter(dataset))
+# Get a sample from the dataset (returns a dictionary with 'data' and 'target' keys)
+sample = dataset[0]
+smiles = sample['data']
+# Note: sample['target'] may be None if no target exists
 inputs = tokenizer(smiles)
 ```
 
@@ -94,11 +97,11 @@ and initialized with the `AutoModel` class using a model config file. As an exam
 loads a pre-trained model and generates a batch of SMILES strings. 
 
 ```python
-from jointformer.configs.model import ModelConfig
-from jointformer.models.auto import AutoModel
+from hyformer.configs.model import ModelConfig
+from hyformer.models.auto import AutoModel
 
-PATH_TO_MODEL_CONFIG = './configs/models/jointformer/'
-PATH_TO_PRETRAINED_MODEL = './results/pretrain/jointformer/'
+PATH_TO_MODEL_CONFIG = './configs/models/hyformer/'
+PATH_TO_PRETRAINED_MODEL = './results/pretrain/hyformer/'
 
 model_config = ModelConfig.from_config_file(PATH_TO_MODEL_CONFIG)
 model = AutoModel.from_config(model_config)
@@ -136,13 +139,13 @@ Trainers are used to handle models. A recommended way to initialize the model is
 appropriate config file. 
 
 ```python
-from jointformer.configs.trainer import TrainerConfig
-from jointformer.trainers.trainer import Trainer
+from hyformer.configs.trainer import TrainerConfig
+from hyformer.trainers.trainer import Trainer
 
 PATH_TO_TRAINER_CONFIG = './configs/trainers/fine-tune/'
 
 trainer_config = TrainerConfig.from_config_file(PATH_TO_TRAINER_CONFIG)
-trainer = Trainer(config=trainer_config, model=model, train_dataset=dataset, tokenizer=tokenizer)
+trainer = Trainer(config=trainer_config, model=model, train_dataset=dataset, tokenizer=tokenizer, seed=42)
 trainer.train()
 ```
 
@@ -154,7 +157,7 @@ In order to reproduce the experiments, an environment with additional dependenci
 To install the necessary dependencies, including [GuacaMol](https://github.com/BenevolentAI/guacamol)
  and [MoleculeNet](https://moleculenet.org/) benchmarks, run
 ```
-conda env create --file jointformer-experiments.yml
+conda env create --file hyformer-experiments.yml
 ```
 
 For installing [MOSES](https://github.com/molecularsets/moses/tree/master), additionally run
@@ -188,15 +191,15 @@ bash experiments/joint_learning/train.sh
 ```
 
 ----
-## Training Jointformer on new data
+## Training Hyformer on new data
 
-To train Jointformer on new data modify the `configs/datasets/sequence/config.json` config by specifying the relative paths to the train/val/test splits of the data.
+To train Hyformer on new data modify the `configs/datasets/sequence/config.json` config by specifying the relative paths to the train/val/test splits of the data.
 The data should consist of a data file containing sequences and a property file containing property values of sequences. 
 
 ----
-## Extending Jointformer to new datasets and tokenizers
+## Extending Hyformer to new datasets and tokenizers
 
-In order to train Jointformer to a new dataset, add a 
+In order to train Hyformer to a new dataset, add a 
 
 ### Repository Structure
 
@@ -204,7 +207,7 @@ In order to train Jointformer to a new dataset, add a
 .
 ├── configs/              # configuration files
 ├── experiments/          # scripts and examples
-└── jointformer/          # source code
+└── hyformer/          # source code
     ├── configs/            # configurations
     ├── models/             # models
     ├── trainers/           # trainers

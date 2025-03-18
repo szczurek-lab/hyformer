@@ -2,14 +2,15 @@
 
 import os
 import argparse
+import torch
 
 from tqdm import tqdm
 
-from jointformer.configs.dataset import DatasetConfig
+from hyformer.configs.dataset import DatasetConfig
 
-from jointformer.utils.datasets.auto import AutoDataset
-from jointformer.utils.tokenizers.smiles.regex import RegexSmilesTokenizer
-from jointformer.utils.runtime import save_strings_to_file
+from hyformer.utils.datasets.auto import AutoDataset
+from hyformer.utils.tokenizers.smiles.regex import RegexSmilesTokenizer
+from hyformer.utils.runtime import save_strings_to_file
 
 VOCABULARY_DIR = './data/vocabularies'
 
@@ -32,11 +33,28 @@ def main():
     tokenizer = RegexSmilesTokenizer()
 
     vocabulary = set()
-    for idx, x in enumerate(tqdm(dataset, desc='Extracting all tokens')):
-        tokens = tokenizer.tokenize(x)
-        vocabulary.update(set(tokens))
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=64, shuffle=False)
+    for batch in tqdm(dataloader, desc='Extracting all tokens'):
+        # Handle different batch formats
+        if isinstance(batch, dict):
+            # New dictionary format
+            smiles_batch = batch['data']
+        elif isinstance(batch, tuple):
+            # Old tuple format (data, target)
+            smiles_batch = batch[0]
+        else:
+            # Direct data format
+            smiles_batch = batch
+        
+        # Ensure smiles_batch is iterable
+        if not isinstance(smiles_batch, (list, tuple)):
+            smiles_batch = [smiles_batch]
+            
+        for smiles in smiles_batch:
+            tokens = tokenizer.tokenize(smiles)
+            vocabulary.update(set(tokens))
 
-    out_dir = os.path.join(VOCABULARY_DIR, f'{task_config.dataset_name.lower()}.txt')
+    out_dir = os.path.join(VOCABULARY_DIR, f'{task_config.dataset_type.lower()}.txt')
     save_strings_to_file(list(vocabulary), out_dir)
     print(f'Vocabulary saved to {out_dir}')
 

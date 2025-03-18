@@ -1,33 +1,24 @@
 {
-  "compile": true,
-  "enable_ddp": true,
-  "dtype": "bfloat16",
-  "eval_only": false,
-  "max_iters": 200000,
-  "max_epochs": null,
   "batch_size": 512,
   "learning_rate": 6e-4,
   "weight_decay": 1e-1,
+  "max_epochs": 40,
+  "tasks":
+      {
+        "generation":  90,
+        "reconstruction": 5,
+        "prediction": 5
+      },
+  "compile": true,
+  "enable_ddp": true,
+  "dtype": "bfloat16",
+  "num_workers": 16,
   "beta1": 0.9,
   "beta2": 0.95,
   "gradient_accumulation_steps": 1,
   "grad_clip": 1.0,
   "decay_lr": true,
   "warmup_iters": 2500,
-  "lr_decay_iters": 200000,
-  "min_lr": 6e-5,
-  "eval_iters": 20,
-  "eval_interval": 2500,
-  "log_interval": 1000,
-  "always_save_checkpoint": false,
-  "save_checkpoint_every": 50000,
-  "save_checkpoint": true,
-  "block_size": 256,
-  "tasks":
-    {
-      "generation":  75,
-      "reconstruction": 12,
-      "physchem": 12
-    },
-  "save_snapshot": true
+  "min_lr": 1e-6,
+  "log_interval": 1000
 }

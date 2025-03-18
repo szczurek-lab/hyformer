@@ -5,21 +5,21 @@ import argparse
 import torch 
 from socket import gethostname
 
-from jointformer.configs.dataset import DatasetConfig
-from jointformer.configs.tokenizer import TokenizerConfig
-from jointformer.configs.model import ModelConfig
-from jointformer.configs.trainer import TrainerConfig
-from jointformer.configs.logger import LoggerConfig
+from hyformer.configs.dataset import DatasetConfig
+from hyformer.configs.tokenizer import TokenizerConfig
+from hyformer.configs.model import ModelConfig
+from hyformer.configs.trainer import TrainerConfig
+from hyformer.configs.logger import LoggerConfig
 
-from jointformer.utils.datasets.auto import AutoDataset
-from jointformer.utils.tokenizers.auto import AutoTokenizer
-from jointformer.models.auto import AutoModel
-from jointformer.utils.loggers.auto import AutoLogger
+from hyformer.utils.datasets.auto import AutoDataset
+from hyformer.utils.tokenizers.auto import AutoTokenizer
+from hyformer.models.auto import AutoModel
+from hyformer.utils.loggers.auto import AutoLogger
 
-from jointformer.trainers.trainer_fixed import Trainer
+from hyformer.trainers.trainer import Trainer
 
-from jointformer.utils.runtime import set_seed
-from jointformer.utils.data import write_dict_to_file
+from hyformer.utils.runtime import set_seed
+from hyformer.utils.data import write_dict_to_file
 
 import pandas as pd
 
@@ -94,7 +94,7 @@ def main(args, hparams=None, split='test'):
     device = torch.device('cuda:0')
     trainer = Trainer(
         out_dir=args.out_dir, config=trainer_config, model=model,
-        test_dataset=test_dataset, tokenizer=tokenizer, logger=logger, seed=1337, device=device, test_metric=dataset_config.task_metric)
+        test_dataset=test_dataset, tokenizer=tokenizer, logger=logger, seed=1337, device=device, test_metric=dataset_config.evaluation_metric)
     trainer._init_data_loaders()
     print(f"Loading model from {path_to_model_ckpt}")
     trainer.model.load_state_dict(torch.load(path_to_model_ckpt, map_location=device)['model'], strict=True)

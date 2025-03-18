@@ -1,8 +1,8 @@
 {
-  "dataset_name": "sequence_dataset",
-  "path_to_train_data": "unimol/train.npz",
-  "path_to_val_data": "unimol/test.npz",  
-  "path_to_test_data": "unimol/test.npz",
-  "transform": null,
+  "dataset_type": "sequence_dataset",
+  "train_data_path": "unimol/train.npz",
+  "val_data_path": "unimol/test.npz",  
+  "test_data_path": "unimol/test.npz",
+  "data_transform": null,
   "target_transform": null
 }

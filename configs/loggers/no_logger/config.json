@@ -2,7 +2,7 @@
   "logger_name": "wandb",
   "enable_logging": false,
   "user": "adam-izdebski1",
-  "project": "jointformer",
+  "project": "hyformer",
   "resume": "allow",
   "display_name": null,
   "watch": true,

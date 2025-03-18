@@ -1,16 +1,16 @@
 from argparse import ArgumentParser
-from jointformer.configs.tokenizer import TokenizerConfig
-from jointformer.configs.model import ModelConfig
-from jointformer.configs.dataset import DatasetConfig
-from jointformer.utils.tokenizers.auto import AutoTokenizer
-from jointformer.utils.datasets.auto import AutoDataset
-from jointformer.models.auto import AutoModel
+from hyformer.configs.tokenizer import TokenizerConfig
+from hyformer.configs.model import ModelConfig
+from hyformer.configs.dataset import DatasetConfig
+from hyformer.utils.tokenizers.auto import AutoTokenizer
+from hyformer.utils.datasets.auto import AutoDataset
+from hyformer.models.auto import AutoModel
 import logging
 import sys
 import os
 import numpy as np
 from tqdm import tqdm
-from jointformer.models.base import SmilesEncoder
+from hyformer.models.base import SmilesEncoder
 import multiprocessing as mp
 from typing import Callable
 

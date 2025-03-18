@@ -5,20 +5,20 @@ import logging
 
 from socket import gethostname
 
-from jointformer.configs.dataset import DatasetConfig
-from jointformer.configs.tokenizer import TokenizerConfig
-from jointformer.configs.model import ModelConfig
-from jointformer.configs.trainer import TrainerConfig
-from jointformer.configs.logger import LoggerConfig
+from hyformer.configs.dataset import DatasetConfig
+from hyformer.configs.tokenizer import TokenizerConfig
+from hyformer.configs.model import ModelConfig
+from hyformer.configs.trainer import TrainerConfig
+from hyformer.configs.logger import LoggerConfig
 
-from jointformer.utils.datasets.auto import AutoDataset
-from jointformer.utils.tokenizers.auto import AutoTokenizer
-from jointformer.models.auto import AutoModel
-from jointformer.utils.loggers.auto import AutoLogger
+from hyformer.utils.datasets.auto import AutoDataset
+from hyformer.utils.tokenizers.auto import AutoTokenizer
+from hyformer.models.auto import AutoModel
+from hyformer.utils.loggers.auto import AutoLogger
 
-from jointformer.trainers.trainer_fixed import Trainer
+from hyformer.trainers.trainer import Trainer
 
-from jointformer.utils.runtime import set_seed, dump_configs
+from hyformer.utils.runtime import set_seed, dump_configs
 
 console = logging.getLogger(__file__)
 logging.basicConfig(
@@ -110,7 +110,7 @@ def main(args, hparams=None, disable_logging=False, max_iters=None):
         logger.store_configs(dataset_config, tokenizer_config, model_config, trainer_config, logger_config)
     device = torch.device('cuda:0')
     trainer = Trainer(
-        out_dir=None if disable_logging else args.out_dir, seed=1337, config=trainer_config, model=model,
+        out_dir=None if disable_logging else args.out_dir, seed=args.seed, config=trainer_config, model=model,
         train_dataset=train_dataset, val_dataset=val_dataset, test_dataset=val_dataset,
         tokenizer=tokenizer, logger=logger, device=device, test_metric=None, patience=args.patience)
 

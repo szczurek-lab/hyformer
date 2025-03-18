@@ -1,7 +1,7 @@
 import os
 import argparse
 
-from jointformer.utils.runtime import set_seed
+from hyformer.utils.runtime import set_seed
 from experiments.joint_training.train import DEFAULT_SEED_ARRAY
 
 
@@ -19,7 +19,7 @@ def parse_args():
 
 def main(args):
     if args.benchmark == "guacamol":
-        from jointformer.utils.evaluators.guacamol import GuacamolEvaluator
+        from hyformer.utils.evaluators.guacamol import GuacamolEvaluator
         evaluator = GuacamolEvaluator(
             generated_file_path=args.generated_file_path,
             reference_file_path=args.reference_file_path,
@@ -28,7 +28,7 @@ def main(args):
             seed=args.seed
         )
     elif args.benchmark == "moses":
-        from jointformer.utils.evaluators.moses import MosesEvaluator
+        from hyformer.utils.evaluators.moses import MosesEvaluator
         evaluator = MosesEvaluator(
             generated_file_path=args.generated_file_path,
             out_dir=args.out_dir,

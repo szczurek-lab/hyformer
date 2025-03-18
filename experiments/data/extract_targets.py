@@ -1,4 +1,4 @@
-from jointformer.utils.properties.auto import AutoTarget
+from hyformer.utils.properties.auto import AutoTarget
 import argparse
 import multiprocessing as mp
 import numpy as np

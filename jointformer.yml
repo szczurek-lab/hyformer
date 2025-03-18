@@ -1,4 +1,4 @@
-name: jointformer-experiments
+name: hyformer-experiments
 channels:
   - defaults
   - conda-forge

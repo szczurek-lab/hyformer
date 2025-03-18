@@ -1,0 +1,357 @@
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+from typing import Optional
+
+from hyformer.models.trainable import TrainableModel
+from hyformer.models.base import SmilesEncoder
+from hyformer.models.transformer import Transformer
+from hyformer.models.layers.prediction import RegressionHead, ClassificationHead
+from hyformer.models.utils import ModelOutput
+
+from hyformer.utils.tokenizers.base import TOKEN_DICT
+from hyformer.models.layers.prediction import DownstreamPredictionHead
+
+DEFAULT_NUM_PHYCHEM_TASKS = 200
+
+
+class HyformerWithContext(Transformer, TrainableModel):
+
+    def __init__(
+            self,
+            vocab_size: int,
+            max_seq_len: int,
+            embedding_dim: int,
+            embedding_hidden_dim: int,
+            attention_dropout: float,
+            feed_forward_dropout: float,
+            num_layers: int,
+            bias: int,
+            num_heads: int,
+            layer_norm_eps: float,
+            num_physchem_tasks: Optional[int] = DEFAULT_NUM_PHYCHEM_TASKS,
+            init_weights: bool = True,
+            tie_weights: bool = True,
+            flash_attention: bool = True
+    ):
+
+        super().__init__(
+            vocab_size=vocab_size, max_seq_len=max_seq_len, embedding_dim=embedding_dim, embedding_hidden_dim=embedding_hidden_dim, attention_dropout=attention_dropout,
+            feed_forward_dropout=feed_forward_dropout, num_layers=num_layers, bias=bias, num_heads=num_heads, layer_norm_eps=layer_norm_eps, flash_attention=flash_attention
+            )
+        
+        # Hardcoding all tasks into the model definition for easier serialization
+        self.lm_head = nn.Linear(self.embedding_dim, self.vocab_size, bias=False)
+        self.mlm_head = nn.Linear(self.embedding_dim, self.vocab_size, bias=False)
+        self.physchem_head = RegressionHead(embedding_dim=self.embedding_dim, prediction_hidden_dim=256, output_dim=num_physchem_tasks)
+        self.context_encoder = nn.Linear(512, embedding_dim)
+
+        # Weight tying https://paperswithcode.com/method/weight-tying
+        if tie_weights:
+            self.token_embedding.weight = self.lm_head.weight
+            self.mlm_head.weight = self.lm_head.weight
+
+        # Weight initialization
+        if init_weights:
+            self.initialize_parameters()
+
+    @staticmethod
+    def _get_cls_embeddings(embeddings, **kwargs):
+        return embeddings[:, 0]
+    
+    @staticmethod
+    def _get_lm_embeddings(embeddings, next_token_only, **kwargs):
+        return embeddings[:, [-1]] if next_token_only else embeddings
+
+    def forward(
+            self,
+            input_ids: torch.Tensor,
+            task: str,
+            attention_mask: torch.Tensor,
+            context: Optional[torch.Tensor] = None,
+            next_token_only: Optional[bool] = False,
+            **kwargs
+            ):
+        
+        if task == 'generation':
+            _is_causal = True
+            _attention_mask = None
+        elif task in ['physchem', 'prediction', 'mlm', 'reconstruction']:
+            _is_causal = False
+            _attention_mask = attention_mask
+        else:
+            raise ValueError('Variable `task` must be either `generation`, `mlm`, `prediction` or `physchem`. Passed value: {}'.format(task))
+        
+        if task in ['reconstruction', 'mlm']:
+            context_embedding = self.context_encoder(context) if context is not None else None
+        outputs = super().forward(input_ids=input_ids, attention_mask=_attention_mask, is_causal=_is_causal, cls_context=context_embedding)
+        cls_embeddings = self._get_cls_embeddings(outputs['embeddings'], attention_mask=attention_mask)
+        lm_embeddings = self._get_lm_embeddings(outputs['embeddings'], next_token_only)
+
+        if _is_causal:
+            outputs["logits_generation"] = self.lm_head(lm_embeddings)
+        else:
+            outputs["logits_physchem"] = self.physchem_head(cls_embeddings)
+            # outputs["logits_prediction"] = self.prediction_head(cls_embeddings)
+
+        return ModelOutput(
+            attention_mask=attention_mask,
+            embeddings=outputs['embeddings'],
+            cls_embeddings=cls_embeddings,
+            lm_embeddings=lm_embeddings,
+            logits_generation=outputs.get('logits_generation', None),
+            logits_physchem=outputs.get('logits_physchem', None),
+            logits_prediction=outputs.get('logits_prediction', None),
+            loss=None
+        )
+    
+    def predict(self, input_ids: Optional[torch.Tensor] = None, attention_mask: Optional[torch.Tensor] = None, **kwargs):
+        return self.forward(input_ids=input_ids, attention_mask=attention_mask, task='prediction')
+
+    def get_loss(
+            self,
+            input_ids: torch.Tensor,
+            attention_mask: torch.Tensor,
+            task: str,
+            context: Optional[torch.Tensor] = None,
+            input_labels: Optional[torch.Tensor] = None,
+            properties: Optional[torch.Tensor] = None
+            ):
+        if task == 'lm' or task == 'generation':
+            return self.get_loss_lm(input_ids, attention_mask, input_labels)
+        elif task == 'mlm' or task == 'reconstruction':
+            return self.get_loss_mlm(input_ids, attention_mask, input_labels, context)
+        elif task == 'prediction':
+            return self.get_loss_prediction(input_ids, attention_mask, properties)
+        elif task == 'physchem':
+            return self.get_loss_physchem(input_ids, attention_mask, properties)
+        else:
+            raise ValueError(f'Variable `task` must be either `lm`, `mlm`, `prediction` or `finetune` and {task} was given.')
+
+    def get_loss_lm(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, input_labels: torch.Tensor, **kwargs):
+        outputs = self(input_ids=input_ids, attention_mask=attention_mask, task='generation', next_token_only=False)
+        logits = outputs['logits_generation'][:, :-1, :].contiguous()
+        labels = input_labels[:, 1:].contiguous()
+        batch_size, seq_length, vocab_size = logits.size()
+        outputs["loss"] = F.cross_entropy(
+            logits.view(batch_size * seq_length, vocab_size),
+            labels.view(batch_size * seq_length),
+            ignore_index=TOKEN_DICT['ignore'],
+            reduction='mean')
+        return outputs
+
+    def get_loss_mlm(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, input_labels: torch.Tensor, context: torch.Tensor = None, **kwargs):
+            
+        # if input_labels is not None:
+        #     batch_size, sequence_length = input_labels.size()
+        #     loss = F.cross_entropy(logits.view(batch_size * sequence_length, -1), input_labels.view(batch_size * sequence_length), ignore_index=-100)
+        
+        outputs = self.forward(input_ids=input_ids, attention_mask=attention_mask, task='mlm', context=context)
+        outputs["logits_generation"] = self.mlm_head(outputs['embeddings'][:, 1:])
+        if input_labels is not None:
+            logits = outputs['logits_generation']
+            labels = input_labels
+            batch_size, seq_length = input_labels.size()
+            outputs["loss"] = F.cross_entropy(
+                logits.view(batch_size * seq_length, -1),
+                labels.view(batch_size * seq_length),
+                ignore_index=TOKEN_DICT['ignore'],
+                reduction='mean')
+        return outputs
+
+    def get_loss_physchem(self, input_ids: torch.Tensor, attention_mask:  torch.Tensor, properties: torch.Tensor, **kwargs):
+        outputs = self.predict(input_ids=input_ids, attention_mask=attention_mask)
+        if properties is not None:
+            outputs["loss"] = F.mse_loss(outputs["logits_physchem"].flatten(), properties.flatten(), reduction='mean')
+        return outputs
+
+    def get_loss_prediction(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, properties: torch.Tensor, **kwargs):
+        outputs = self.predict(input_ids=input_ids, attention_mask=attention_mask)
+        if properties is not None:
+            if self.prediction_task_type == 'classification':
+                if self.num_prediction_tasks == 1:
+                    outputs["loss"] = F.cross_entropy(outputs["logits_prediction"], properties, reduction='mean')
+                elif self.num_prediction_tasks > 1:
+                    outputs["loss"] = F.binary_cross_entropy_with_logits(outputs["logits_prediction"], properties, reduction='mean')
+                else:
+                    raise ValueError('Variable `num_prediction_tasks` must be greater than 0.')
+            elif self.prediction_task_type == 'regression':
+                outputs["loss"] = F.mse_loss(outputs["logits_prediction"].flatten(), properties.flatten(), 'mean')
+            else:
+                raise ValueError('Variable `prediction_task_type` must be either `classification` or `regression`.')
+        return outputs
+
+    def generate(self, tokenizer, batch_size, temperature, top_k, device):
+        """
+        Generate complete sequences of indices using the model.
+        """
+        assert hasattr(tokenizer, 'generation_prefix'), "Tokenizer must have a `generation_prefix` attribute."
+        eos_token_id = tokenizer.sep_token_id
+        pad_token_id = tokenizer.pad_token_id
+
+        # generate prefix
+        prefix = torch.tensor(tokenizer.generation_prefix, device=device).long().unsqueeze(0).expand(batch_size, -1)
+
+        # TODO: implement caching
+        idx = self.generate_single_token(prefix, tokenizer.max_molecule_length - 2, temperature, top_k, eos_token_id, pad_token_id)
+
+        # TODO: vectorize
+        # check for completion
+        for sequence_idx, sequence in enumerate(idx):
+            if eos_token_id not in sequence:
+                idx[sequence_idx, -1] = eos_token_id
+        return idx
+
+    @torch.no_grad()
+    def generate_single_token(self, idx, max_new_tokens, temperature, top_k, eos_token_id, pad_token_id):
+        """
+        Take a conditioning sequence of indices idx (LongTensor of shape (b,t)) and complete
+        the sequence max_new_tokens times, feeding the predictions back into the model each time.
+        Most likely you'll want to make sure to be in model.eval() mode of operation for this.
+        """
+
+        eos_flag = torch.zeros(size=(idx.size(0), 1), dtype=torch.bool, device=idx.device)
+
+        for _ in range(max_new_tokens):
+            if eos_token_id:
+                is_end = torch.logical_or(idx[:, [-1]] == eos_token_id, idx[:, [-1]] == pad_token_id)
+                eos_flag = torch.logical_or(eos_flag, is_end)
+            # if the sequence context is growing too long we must crop it at block_size
+            idx_cond = idx if idx.size(1) <= self.max_seq_len else idx[:, -self.max_seq_len:]
+            # forward the model to get the logits for the index in the sequence
+            outputs = self(input_ids=idx_cond, attention_mask=None, next_token_only=True, task='generation')
+            logits = outputs['logits_generation']
+
+            # pluck the logits at the final step and scale by desired temperature
+            logits = logits[:, -1, :] / temperature
+
+            # optionally crop the logits to only the top k options
+            if top_k is not None:
+                v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
+                logits[logits < v[:, [-1]]] = -float('Inf')
+
+            # apply softmax to convert logits to (normalized) probabilities
+            probs = F.softmax(logits, dim=-1)
+
+            # sample from the distribution
+            idx_next = torch.multinomial(probs, num_samples=1)
+            idx_next = torch.where(eos_flag, torch.ones_like(idx_next) * pad_token_id, idx_next)
+            # append sampled index to the running sequence and continue
+            idx = torch.cat((idx, idx_next), dim=1)
+
+        return idx
+
+    def to_guacamole_generator(self, tokenizer, batch_size, temperature, top_k, device) -> 'DistributionMatchingGenerator':
+        from hyformer.models.wrappers import HyformerSmilesGeneratorWrapper
+        return HyformerSmilesGeneratorWrapper(self, tokenizer, batch_size, temperature, top_k, device)
+
+    def to_smiles_encoder(self, tokenizer, batch_size, device) -> SmilesEncoder:
+        from hyformer.models.wrappers import HyformerSmilesEncoderWrapper
+        return HyformerSmilesEncoderWrapper(self, tokenizer, batch_size, device)
+
+    def to_downstream_predictive_model(self, task_type, num_tasks, prediction_hidden_dim):
+        from hyformer.models.wrappers import DownstreamPredictiveModelWrapper
+        return DownstreamPredictiveModelWrapper(self, task_type, num_tasks, prediction_hidden_dim)
+
+    def load_pretrained(self, filename, device='cpu'):
+        super().load_pretrained(filename, device=device)
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(
+            vocab_size=config.vocab_size,
+            max_seq_len=config.max_seq_len,
+            embedding_dim=config.embedding_dim,
+            embedding_hidden_dim=config.embedding_hidden_dim,
+            attention_dropout=config.attention_dropout,
+            feed_forward_dropout=config.feed_forward_dropout,
+            num_layers=config.num_layers,
+            bias=config.bias,
+            num_heads=config.num_heads,
+            num_physchem_tasks=config.num_physchem_tasks,
+            layer_norm_eps=config.layer_norm_eps,
+            flash_attention=config.flash_attention
+        )
+
+
+class HyformerWithPrefix(HyformerWithContext):
+
+    def _get_lm_embeddings(self, embeddings, next_token_only):
+        return super()._get_lm_embeddings(embeddings[:, 1:], next_token_only)
+
+
+
+
+
+class HyformerForDownstreamPrediction(HyformerWithPrefix):
+
+    def __init__(self, config, downstream_task, num_tasks, hidden_dim):
+            
+        super().__init__(
+            vocab_size=config.vocab_size,
+            max_seq_len=config.max_seq_len,
+            embedding_dim=config.embedding_dim,
+            embedding_hidden_dim=config.embedding_hidden_dim,
+            attention_dropout=config.attention_dropout,
+            feed_forward_dropout=config.feed_forward_dropout,
+            num_layers=config.num_layers,
+            bias=config.bias,
+            num_heads=config.num_heads,
+            num_physchem_tasks=config.num_physchem_tasks,
+            layer_norm_eps=config.layer_norm_eps,
+            flash_attention=config.flash_attention
+        )
+        self.prediction_task_type = downstream_task
+        self.prediction_head = DownstreamPredictionHead(
+            config.embedding_dim,
+            2 if downstream_task == 'classification' and num_tasks == 1 else num_tasks,
+            hidden_dim,
+            pooler_dropout=config.pooler_dropout)
+
+    def forward(self, input_ids: torch.Tensor, task: str = 'generation', input_labels: torch.Tensor = None, attention_mask: torch.Tensor = None,
+                properties: torch.Tensor = None, next_token_only: Optional[bool] = False, **kwargs):
+        _outputs = super().forward(input_ids=input_ids, task=task, attention_mask=attention_mask, next_token_only=next_token_only)
+        if task == 'prediction':
+            _outputs["logits_prediction"] = self.prediction_head(_outputs['cls_embeddings'])
+        return _outputs
+
+    def predict(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, **kwargs):
+        return self(input_ids=input_ids, attention_mask=attention_mask, task='prediction')
+
+    def get_loss(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, properties: torch.Tensor, task: str, input_labels: torch.Tensor = None, **kwargs):
+        
+        if task in ['generation', 'reconstruction', 'mlm', 'physchem']:
+            return super().get_loss(
+                input_ids=input_ids, input_labels=input_labels, attention_mask=attention_mask,
+                properties=properties, task=task, **kwargs)
+        
+        elif task == 'prediction':
+        
+            outputs = self(input_ids=input_ids, attention_mask=attention_mask, task=task)
+            
+            if self.prediction_task_type == 'classification':
+                if self.num_prediction_tasks == 1:
+                    outputs["loss"] = F.cross_entropy(outputs["logits_prediction"], properties, reduction='mean')
+                elif self.num_prediction_tasks > 1:
+                    outputs["loss"] = F.binary_cross_entropy_with_logits(outputs["logits_prediction"], properties, reduction='mean')
+                else:
+                    raise ValueError('Variable `num_prediction_tasks` must be greater than 0.')
+                
+            elif self.prediction_task_type == 'regression':
+                outputs["loss"] = F.mse_loss(outputs["logits_prediction"].flatten(), properties.flatten(), 'mean')
+            
+            else:
+                raise ValueError('Variable `downstream_task` must be either `classification` or `regression`.')
+        
+        else:
+            raise ValueError('Variable `task` must be either `generation`, `reconstruction`, `mlm`, `physchem`, or `prediction`.')
+
+        return outputs
+    
+    @classmethod
+    def from_config(cls, config, downstream_task, num_tasks, hidden_dim):
+        assert downstream_task in ['classification', 'regression'], f"Downstream task {downstream_task} must be either 'classification' or 'regression'."
+        assert num_tasks > 0, f"Number of tasks {num_tasks} must be greater than 0."
+        assert hidden_dim > 0, f"Hidden dimension {hidden_dim} must be greater than 0."
+        return cls(config, downstream_task, num_tasks, hidden_dim)

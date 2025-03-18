@@ -1,11 +1,11 @@
 {
-  "dataset_name": "sequence_dataset",
-  "path_to_train_data": "hi/kdr/train_seed_0.npz",
-  "path_to_val_data": "hi/kdr/val_seed_0.npz",  
-  "path_to_test_data": "hi/kdr/test_seed_0.npz",
-  "transform": null,
+  "dataset_type": "sequence_dataset",
+  "train_data_path": "hi/kdr/train_seed_0.npz",
+  "val_data_path": "hi/kdr/val_seed_0.npz",  
+  "test_data_path": "hi/kdr/test_seed_0.npz",
+  "data_transform": null,
   "target_transform": null,
   "task_type": "classification",
-  "task_metric": "prc_auc",
+  "evaluation_metric": "prc_auc",
   "num_tasks": 1
 }

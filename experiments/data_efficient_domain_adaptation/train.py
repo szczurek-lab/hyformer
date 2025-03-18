@@ -7,22 +7,22 @@ import argparse
 from socket import gethostname
 import torch.nn as nn
 
-from jointformer.configs.dataset import DatasetConfig
-from jointformer.configs.tokenizer import TokenizerConfig
-from jointformer.configs.model import ModelConfig
-from jointformer.configs.trainer import TrainerConfig
-from jointformer.configs.logger import LoggerConfig
+from hyformer.configs.dataset import DatasetConfig
+from hyformer.configs.tokenizer import TokenizerConfig
+from hyformer.configs.model import ModelConfig
+from hyformer.configs.trainer import TrainerConfig
+from hyformer.configs.logger import LoggerConfig
 
-from jointformer.utils.datasets.auto import AutoDataset
-from jointformer.utils.tokenizers.auto import AutoTokenizer
-from jointformer.models.auto import AutoModel
-from jointformer.utils.loggers.auto import AutoLogger
+from hyformer.utils.datasets.auto import AutoDataset
+from hyformer.utils.tokenizers.auto import AutoTokenizer
+from hyformer.models.auto import AutoModel
+from hyformer.utils.loggers.auto import AutoLogger
 
-from jointformer.trainers.trainer_fixed import Trainer
+from hyformer.trainers.trainer import Trainer
 
-from jointformer.utils.runtime import set_seed, create_output_dir, set_to_dev_mode, log_args, dump_configs
-from jointformer.utils.ddp import init_ddp, end_ddp
-from jointformer.utils.data import write_dict_to_file
+from hyformer.utils.runtime import set_seed, create_output_dir, set_to_dev_mode, log_args, dump_configs
+from hyformer.utils.ddp import init_ddp, end_ddp
+from hyformer.utils.data import write_dict_to_file
 
 
 console = logging.getLogger(__file__)
@@ -87,15 +87,15 @@ def main(args, hparams=None, disable_logging=False):
                 trainer_config.beta1 = 0.9
                 trainer_config.beta1 = 0.999
             if key in model_config.__dict__.keys():
-                model_config[key] = value
+                setattr(model_config, key, value)
                 print(f"Updated {key} to {value}")
             if key in trainer_config.__dict__.keys():
-                trainer_config[key] = value
+                setattr(trainer_config, key, value)
                 print(f"Updated {key} to {value}")
                 if key == 'learning_rate':
-                    trainer_config['min_lr'] = 0.1 * value
+                    trainer_config.min_lr = 0.1 * value
             if key == 'generation_task':
-                trainer_config['tasks'] = {"prediction": 100 - value, "generation": value}
+                trainer_config.tasks = {"prediction": 100 - value, "generation": value}
                 trainer_config._normalize_task_probabilities()
 
     if hasattr(args, 'decay_lr') and args.decay_lr is not None:
@@ -151,7 +151,7 @@ def main(args, hparams=None, disable_logging=False):
     trainer = Trainer(
         out_dir=None if disable_logging else args.out_dir, seed=1337+args.seed, config=trainer_config, model=model,
         train_dataset=train_dataset, val_dataset=val_dataset, test_dataset=val_dataset,
-        tokenizer=tokenizer, logger=logger, device=device, test_metric=dataset_config.task_metric, eval_metric=args.eval_metric, patience=args.patience)
+        tokenizer=tokenizer, logger=logger, device=device, test_metric=dataset_config.evaluation_metric, eval_metric=args.eval_metric, patience=args.patience)
 
     if args.path_to_model_ckpt is not None:
         if not os.path.exists(args.path_to_model_ckpt):

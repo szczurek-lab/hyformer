@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 from multiprocessing import Pool, cpu_count
 
-from jointformer.utils.properties.auto import AutoTarget
+from hyformer.utils.properties.auto import AutoTarget
 
 
 def get_parser():

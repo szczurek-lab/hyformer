@@ -4,9 +4,9 @@ import argparse
 
 from tqdm.contrib.logging import logging_redirect_tqdm
 
-from jointformer.configs.dataset import DatasetConfig
-from jointformer.utils.datasets.auto import AutoDataset
-from jointformer.utils.runtime import set_seed
+from hyformer.configs.dataset import DatasetConfig
+from hyformer.utils.datasets.auto import AutoDataset
+from hyformer.utils.runtime import set_seed
 
 console = logging.getLogger(__file__)
 logging.basicConfig(

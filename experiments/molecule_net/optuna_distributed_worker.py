@@ -7,17 +7,17 @@ import numpy as np
 
 from functools import partial
 
-from jointformer.configs.dataset import DatasetConfig
-from jointformer.configs.tokenizer import TokenizerConfig
-from jointformer.configs.model import ModelConfig
-from jointformer.configs.trainer import TrainerConfig
+from hyformer.configs.dataset import DatasetConfig
+from hyformer.configs.tokenizer import TokenizerConfig
+from hyformer.configs.model import ModelConfig
+from hyformer.configs.trainer import TrainerConfig
 
-from jointformer.models.auto import AutoModel
-from jointformer.trainers.trainer_fixed import Trainer
+from hyformer.models.auto import AutoModel
+from hyformer.trainers.trainer import Trainer
 
-from jointformer.utils.datasets.auto import AutoDataset
-from jointformer.utils.tokenizers.auto import AutoTokenizer
-from jointformer.utils.optuna import load_json, get_hparam_search_space, save_json
+from hyformer.utils.datasets.auto import AutoDataset
+from hyformer.utils.tokenizers.auto import AutoTokenizer
+from hyformer.utils.optuna import load_json, get_hparam_search_space, save_json
 
 from experiments.data_efficient_domain_adaptation.train import main as model_training_loop
 from experiments.data_efficient_domain_adaptation.test import main as model_testing_loop
@@ -35,15 +35,13 @@ def objective(trial, hparams_grid, train_dataset, val_dataset, test_dataset, tok
                 trainer_config.beta1 = 0.9
                 trainer_config.beta1 = 0.999
             if key in model_config.__dict__.keys():
-                model_config[key] = value
-                print(f"Setting {key} to {value}")
+                setattr(model_config, key, value)
             if key in trainer_config.__dict__.keys():
-                trainer_config[key] = value
-                print(f"Setting {key} to {value}")
-                if key == 'learning_rate':
-                    trainer_config['min_lr'] = 0.1 * value
+                setattr(trainer_config, key, value)
+            if key == 'learning_rate':
+                trainer_config.min_lr = 0.1 * value
             if key == 'generation_task':
-                trainer_config['tasks'] = {"prediction": 100 - value, "generation": value}
+                trainer_config.tasks = {"prediction": 100 - value, "generation": value}
                 trainer_config._normalize_task_probabilities()
             
         # and adjust trainer config to dataset size
@@ -60,7 +58,7 @@ def objective(trial, hparams_grid, train_dataset, val_dataset, test_dataset, tok
         # Init
         model = AutoModel.from_config(model_config, downstream_task=downstream_task_type, num_tasks=num_downstream_tasks)
         device = torch.device('cuda:0')
-        trainer = Trainer(out_dir=None, seed=1337, config=trainer_config, model=model, train_dataset=train_dataset, eval_metric='prediction',
+        trainer = Trainer(out_dir=None, seed=args.seed, config=trainer_config, model=model, train_dataset=train_dataset, eval_metric='prediction',
                           val_dataset=val_dataset, test_dataset=test_dataset, tokenizer=tokenizer, test_metric=metric, device=device, patience=args.patience)
 
         # Load
@@ -100,12 +98,12 @@ def find_best_hparams(args):
     # Attempt to load the study; if it doesn't exist, create it
         
     # set direction
-    if dataset_config.task_metric in ['rmse']:
+    if dataset_config.evaluation_metric in ['rmse']:
         direction = 'minimize'
-    elif dataset_config.task_metric in ['accuracy', 'f1', 'precision', 'recall', 'roc_auc']:
+    elif dataset_config.evaluation_metric in ['accuracy', 'f1', 'precision', 'recall', 'roc_auc']:
         direction = 'maximize'
     else:
-        raise ValueError(f"Invalid metric: {dataset_config.task_metric}")
+        raise ValueError(f"Invalid metric: {dataset_config.evaluation_metric}")
 
     # set sampler
     if args.sampler == 'grid':
@@ -126,7 +124,7 @@ def find_best_hparams(args):
     print("Hyperparameters grid:", hparams_grid)
     objective_function = partial(objective, hparams_grid=hparams_grid, train_dataset=train_dataset, val_dataset=val_dataset, test_dataset=test_dataset,
                                 tokenizer=tokenizer, direction=direction, model_config=model_config, trainer_config=trainer_config, debug_only=args.debug_only,
-                                metric=dataset_config.task_metric, downstream_task_type=dataset_config.task_type, num_downstream_tasks=dataset_config.num_tasks,
+                                metric=dataset_config.evaluation_metric, downstream_task_type=dataset_config.task_type, num_downstream_tasks=dataset_config.num_tasks,
                                 path_to_model_ckpt=args.path_to_model_ckpt)
     study.optimize(objective_function, n_trials=args.optuna_n_trials, n_jobs=args.optuna_n_jobs) # works for hasattr(self.model, 'predict')
     

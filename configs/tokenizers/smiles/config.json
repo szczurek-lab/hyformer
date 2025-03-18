@@ -1,6 +1,5 @@
 {
-    "tokenizer": "SmilesTokenizer",
-    "path_to_vocabulary": "data/vocabularies/deepchem.txt",
-    "max_molecule_length": 128
+    "tokenizer_type": "SMILESTokenizer",
+    "path_to_vocabulary": "data/vocabularies/deepchem.txt"
   }
   

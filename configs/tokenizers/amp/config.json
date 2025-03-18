@@ -1,6 +1,5 @@
 {
-    "tokenizer": "ESMTokenizer",
-    "path_to_vocabulary": "facebook/esm2_t33_650M_UR50D",
-    "max_molecule_length": 128
+    "tokenizer_type": "ESMTokenizer",
+    "path_to_vocabulary": "facebook/esm2_t33_650M_UR50D"
   }
   
