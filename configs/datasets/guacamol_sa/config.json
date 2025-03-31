@@ -1,0 +1,17 @@
+{
+  "dataset_name": "sequence_dataset",
+  "path_to_train_data": "guacamol_sa/train.npz",
+  "path_to_val_data": "guacamol_sa/val.npz",  
+  "path_to_test_data": "guacamol_sa/test.npz",
+  "transform": null,
+  "target_transform": {
+    "name": "scaler",
+    "params": {
+      "mean": 0.7896584646658871,
+      "std": 0.08999102410090047
+    }
+  },
+  "task_type": "regression",
+  "task_metric": "rmse",
+  "num_tasks": 1
+}

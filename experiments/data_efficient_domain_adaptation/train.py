@@ -144,6 +144,15 @@ def main(args, hparams=None, disable_logging=False):
         dump_configs(args.out_dir, dataset_config, tokenizer_config, model_config, trainer_config, logger_config)
 
     model = AutoModel.from_config(model_config, downstream_task=dataset_config.task_type, num_tasks=dataset_config.num_tasks, hidden_dim=256)
+
+    if args.freeze_weights:
+        for name, param in model.named_parameters():
+            if name.startswith('prediction_head') or name.startswith('layers.7') or name.startswith('layers.6'):
+                param.requires_grad = True
+            else:
+                param.requires_grad = False
+        print("Freezing all weights except for the predictor head...", flush=True)
+
     logger = AutoLogger.from_config(logger_config) if logger_config else None
     if logger is not None:
         logger.store_configs(dataset_config, tokenizer_config, model_config, trainer_config, logger_config)

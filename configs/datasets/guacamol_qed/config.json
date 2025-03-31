@@ -4,7 +4,13 @@
   "path_to_val_data": "guacamol_qed/val.npz",  
   "path_to_test_data": "guacamol_qed/test.npz",
   "transform": null,
-  "target_transform": null,
+  "target_transform": {
+    "name": "scaler",
+    "params": {
+      "mean": 0.5538574852115308,
+      "std": 0.21402050115973834
+    }
+  },
   "task_type": "regression",
   "task_metric": "rmse",
   "num_tasks": 1

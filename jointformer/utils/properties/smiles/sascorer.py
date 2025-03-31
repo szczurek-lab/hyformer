@@ -1,11 +1,3 @@
-# ---------------------------------------------------------------
-# Taken from the following link as is from:
-# https://github.com/wengong-jin/multiobj-rationale/blob/master/scripts/sascorer.py
-#
-# The license for the original version of this file can be
-# found in this directory (LICENSE_RATIONALE).
-# ---------------------------------------------------------------
-
 #
 # calculation of synthetic accessibility score as described in:
 #
@@ -23,17 +15,15 @@
 #
 # peter ertl & greg landrum, september 2013
 #
+from __future__ import print_function
 
-# Requires: https://github.com/wengong-jin/multiobj-rationale/blob/master/scripts/fpscores.pkl.gz
-
-from rdkit import Chem
-from rdkit.Chem import rdMolDescriptors
-import pickle
+import _pickle as cPickle
+import os.path as op
 
 import math
-from collections import defaultdict
-
-import os.path as op
+from rdkit import Chem
+from rdkit.Chem import rdMolDescriptors
+from rdkit.six import iteritems
 
 _fscores = None
 
@@ -44,7 +34,7 @@ def readFragmentScores(name='fpscores'):
     # generate the full path filename:
     if name == "fpscores":
         name = op.join(op.dirname(__file__), name)
-    _fscores = pickle.load(gzip.open('%s.pkl.gz' % name))
+    _fscores = cPickle.load(gzip.open('%s.pkl.gz' % name))
     outDict = {}
     for i in _fscores:
         for j in range(1, len(i)):
@@ -68,7 +58,7 @@ def calculateScore(m):
     fps = fp.GetNonzeroElements()
     score1 = 0.
     nf = 0
-    for bitId, v in fps.items():
+    for bitId, v in iteritems(fps):
         nf += v
         sfp = bitId
         score1 += _fscores.get(sfp, -4) * v
@@ -84,7 +74,7 @@ def calculateScore(m):
         if len(x) > 8:
             nMacrocycles += 1
 
-    sizePenalty = nAtoms**1.005 - nAtoms
+    sizePenalty = nAtoms ** 1.005 - nAtoms
     stereoPenalty = math.log10(nChiralCenters + 1)
     spiroPenalty = math.log10(nSpiro + 1)
     bridgePenalty = math.log10(nBridgeheads + 1)
@@ -135,8 +125,7 @@ def processMols(mols):
 
 
 if __name__ == '__main__':
-    import sys
-    import time
+    import sys, time
 
     t1 = time.time()
     readFragmentScores("fpscores")
@@ -150,22 +139,23 @@ if __name__ == '__main__':
     print('Reading took %.2f seconds. Calculating took %.2f seconds' % ((t2 - t1), (t4 - t3)),
           file=sys.stderr)
 
+
 #
 #  Copyright (c) 2013, Novartis Institutes for BioMedical Research Inc.
 #  All rights reserved.
-#
+# 
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
-# met:
+# met: 
 #
-#     * Redistributions of source code must retain the above copyright
+#     * Redistributions of source code must retain the above copyright 
 #       notice, this list of conditions and the following disclaimer.
 #     * Redistributions in binary form must reproduce the above
-#       copyright notice, this list of conditions and the following
-#       disclaimer in the documentation and/or other materials provided
+#       copyright notice, this list of conditions and the following 
+#       disclaimer in the documentation and/or other materials provided 
 #       with the distribution.
-#     * Neither the name of Novartis Institutes for BioMedical Research Inc.
-#       nor the names of its contributors may be used to endorse or promote
+#     * Neither the name of Novartis Institutes for BioMedical Research Inc. 
+#       nor the names of its contributors may be used to endorse or promote 
 #       products derived from this software without specific prior written permission.
 #
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
@@ -180,3 +170,9 @@ if __name__ == '__main__':
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
+
+def compute_sa_score(rdmol):
+    rdmol = Chem.MolFromSmiles(Chem.MolToSmiles(rdmol))
+    sa = calculateScore(rdmol)
+    sa_norm = round((10 - sa) / 9, 2)
+    return sa_norm

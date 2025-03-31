@@ -54,6 +54,6 @@ conda activate jointformer
 echo "Extracting $target for $split..."
 python3 experiments/data/extract_targets.py \
     --target $target \
-    --data_path /lustre/groups/aih/jointformer/data/data/unimol/truncate_only/smiles_${split}.npy \
-    --output /lustre/groups/aih/jointformer/data/data/unimol/truncate_only/smiles_${target}_${split}.npy \
+    --data_path /lustre/groups/aih/jointformer/icml25/data/moses/${split}.txt \
+    --output /lustre/groups/aih/jointformer/icml25/data/moses/${split}.txt \
     --n_workers $SLURM_CPUS_PER_TASK

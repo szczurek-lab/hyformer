@@ -7,7 +7,7 @@ from guacamol.assess_distribution_learning import assess_distribution_learning
 import logging
 import os
 import sys
-
+from jointformer.utils.runtime import set_seed
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
 
@@ -33,7 +33,7 @@ def main(args):
 
     tokenizer_config = TokenizerConfig.from_config_file(args.path_to_tokenizer_config)
     tokenizer = AutoTokenizer.from_config(tokenizer_config)
-    
+
     model.load_pretrained(args.path_to_model_ckpt)
     model = model.to_guacamole_generator(tokenizer, args.batch_size, args.temperature, args.top_k, args.device)
     
@@ -44,4 +44,5 @@ def main(args):
 if __name__ == "__main__":
     parser = get_parser()
     args = parser.parse_args()
+    set_seed(1337)
     main(args)

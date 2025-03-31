@@ -67,6 +67,7 @@ def main(args):
     tokenizer = AutoTokenizer.from_config(tokenizer_config)    
     model = AutoModel.from_config(model_config, downstream_task=dataset_config.task_type, num_tasks=dataset_config.num_tasks)
     
+    
     logger = AutoLogger.from_config(logger_config) if logger_config else None
     if logger is not None:
         logger.store_configs(dataset_config, tokenizer_config, model_config, trainer_config, logger_config) # Store configs, within the logger object
@@ -74,7 +75,9 @@ def main(args):
     # Freeze weights
     if args.freeze_weights:
         for name, param in model.named_parameters():
-            if not name.startswith('prediction_head'):
+            if name.startswith('prediction_head') or name.startswith('layers.7') or name.startswith('layers.6'):
+                param.requires_grad = True
+            else:
                 param.requires_grad = False
         print("Freezing weights...", flush=True)
 
