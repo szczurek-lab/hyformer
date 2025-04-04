@@ -46,7 +46,7 @@ def load_base_configs() -> Dict[str, BaseConfig]:
         dataset_type="example_dataset",
         train_data_path="path/to/train.csv",
         val_data_path="path/to/val.csv",
-        task_type="regression",
+        prediction_task_type="regression",
     )
     
     return {
@@ -129,7 +129,7 @@ def load_and_run_experiment(experiment_path: str):
     print(f"Model: {model_config.model_name} with {model_config.num_layers} layers")
     print(f"Training with batch size {trainer_config.batch_size} and LR {trainer_config.learning_rate}")
     print(f"Using {tokenizer_config.tokenizer} with max length {tokenizer_config.max_molecule_length}")
-    print(f"Dataset: {dataset_config.dataset_type} ({dataset_config.task_type})")
+    print(f"Dataset: {dataset_config.dataset_type} ({dataset_config.prediction_task_type})")
     
     # Here you would actually run the experiment
     print("Simulating experiment run...")

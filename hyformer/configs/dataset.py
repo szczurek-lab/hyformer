@@ -17,9 +17,9 @@ class DatasetConfig(BaseConfig):
     target_key: str  # Name of the array storing target values in the .npz file
     
     # Task-specific parameters
-    task_type: str  # Type of task (e.g., 'regression', 'classification')
-    evaluation_metric: str  # Metric used for evaluation
-    num_tasks: int  # Number of prediction tasks
+    prediction_task_type: str  # Type of task (e.g., 'regression', 'classification')
+    test_metric: str  # Metric used for evaluation
+    num_prediction_tasks: int  # Number of prediction tasks
     
     # Transformations
     data_transform: Union[Callable, List, None]  # Transformation applied to input data

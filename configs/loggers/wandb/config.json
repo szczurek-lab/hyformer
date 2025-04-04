@@ -1,8 +1,8 @@
 {
-  "logger_name": "wandb",
-  "enable_logging": true,
+  "logger_type": "wandb",
+  "enable": true,
   "user": "adam-izdebski1",
-  "project": "hyformer-icml",
+  "project": "hyformer",
   "resume": "allow",
   "display_name": null,
   "watch": true,

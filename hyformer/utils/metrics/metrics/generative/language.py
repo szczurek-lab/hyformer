@@ -7,7 +7,7 @@ class Perplexity(Metric):
     """Perplexity metric for language modeling."""
     
     def __init__(self):
-        super().__init__(name='perplexity', task_type='generative')
+        super().__init__(name='perplexity', prediction_task_type='generative')
         
     def compute(self, y_true: Union[torch.Tensor, np.ndarray], 
                 y_pred: Union[torch.Tensor, np.ndarray], 

@@ -104,7 +104,7 @@ def main(args, hparams=None, disable_logging=False, max_iters=None):
             model_config.path_to_model_ckpt = args.path_to_model_ckpt
         dump_configs(args.out_dir, dataset_config, tokenizer_config, model_config, trainer_config, logger_config)
 
-    model = AutoModel.from_config(model_config, downstream_task=dataset_config.task_type, num_tasks=dataset_config.num_tasks, hidden_dim=256)
+    model = AutoModel.from_config(model_config, downstream_task=dataset_config.prediction_task_type, num_prediction_tasks=dataset_config.num_prediction_tasks, hidden_dim=256)
     logger = AutoLogger.from_config(logger_config) if logger_config else None
     if logger is not None:
         logger.store_configs(dataset_config, tokenizer_config, model_config, trainer_config, logger_config)

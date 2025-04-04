@@ -8,7 +8,7 @@ class RMSE(Metric):
     """Root Mean Square Error metric."""
     
     def __init__(self):
-        super().__init__(name='rmse', task_type='predictive')
+        super().__init__(name='rmse', prediction_task_type='predictive')
         
     def compute(self, y_true: Union[torch.Tensor, np.ndarray], 
                 y_pred: Union[torch.Tensor, np.ndarray], 

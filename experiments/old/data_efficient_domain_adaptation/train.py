@@ -22,7 +22,7 @@ from hyformer.trainers.trainer import Trainer
 
 from hyformer.utils.experiments import set_seed, create_output_dir, set_to_dev_mode, log_args, dump_configs
 from hyformer.utils.ddp import init_ddp, end_ddp
-from hyformer.utils.data import write_dict_to_file
+from hyformer.utils.file_io import write_dict_to_file
 
 
 console = logging.getLogger(__file__)
@@ -143,7 +143,7 @@ def main(args, hparams=None, disable_logging=False):
             model_config.path_to_model_ckpt = args.path_to_model_ckpt
         dump_configs(args.out_dir, dataset_config, tokenizer_config, model_config, trainer_config, logger_config)
 
-    model = AutoModel.from_config(model_config, downstream_task=dataset_config.task_type, num_tasks=dataset_config.num_tasks, hidden_dim=256)
+    model = AutoModel.from_config(model_config, downstream_task=dataset_config.prediction_task_type, num_prediction_tasks=dataset_config.num_prediction_tasks, hidden_dim=256)
     logger = AutoLogger.from_config(logger_config) if logger_config else None
     if logger is not None:
         logger.store_configs(dataset_config, tokenizer_config, model_config, trainer_config, logger_config)
@@ -151,7 +151,7 @@ def main(args, hparams=None, disable_logging=False):
     trainer = Trainer(
         out_dir=None if disable_logging else args.out_dir, seed=1337+args.seed, config=trainer_config, model=model,
         train_dataset=train_dataset, val_dataset=val_dataset, test_dataset=val_dataset,
-        tokenizer=tokenizer, logger=logger, device=device, test_metric=dataset_config.evaluation_metric, eval_metric=args.eval_metric, patience=args.patience)
+        tokenizer=tokenizer, logger=logger, device=device, test_metric=dataset_config.test_metric, eval_metric=args.eval_metric, patience=args.patience)
 
     if args.path_to_model_ckpt is not None:
         if not os.path.exists(args.path_to_model_ckpt):

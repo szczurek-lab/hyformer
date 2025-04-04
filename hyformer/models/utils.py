@@ -19,7 +19,7 @@ class ModelInput(dict):
         input_labels : Optional[torch.Tensor], optional
             Input labels of type torch.Tensor with dtype torch.int in shape (batch_size, sequence_length).
         target : Optional[torch.Tensor], optional
-            target of type torch.Tensor with dtype torch.float in shape (batch_size, num_tasks).
+            target of type torch.Tensor with dtype torch.float in shape (batch_size, num_prediction_tasks).
         """
         super().__init__(input_ids=input_ids, task=task, attention_mask=attention_mask, input_labels=input_labels, target=target)
 
@@ -46,7 +46,7 @@ class ModelOutput(dict):
         task : str, optional
             Task of type str.
         loss : Optional[torch.Tensor], optional
-            Loss of type torch.Tensor with dtype torch.float in shape (batch_size, num_tasks).
+            Loss of type torch.Tensor with dtype torch.float in shape (batch_size, num_prediction_tasks).
         past_key_values : Optional[torch.Tensor], optional
             Past key values of type torch.Tensor with dtype torch.float in shape (batch_size, sequence_length, embedding_dim).
         """

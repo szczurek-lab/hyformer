@@ -6,9 +6,9 @@ import numpy as np
 class Metric(ABC):
     """Base class for all metrics."""
     
-    def __init__(self, name: str, task_type: str):
+    def __init__(self, name: str, prediction_task_type: str):
         self.name = name
-        self.task_type = task_type
+        self.prediction_task_type = prediction_task_type
         
     @abstractmethod
     def compute(self, y_true: Union[torch.Tensor, np.ndarray], 

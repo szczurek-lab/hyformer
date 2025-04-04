@@ -3,7 +3,7 @@ import numpy as np
 from rdkit import Chem
 from rdkit.Chem.QED import qed
 
-from hyformer.utils.properties.smiles.base import BaseTarget
+from hyformer.utils.targets.base import BaseTarget
 
 
 class QED(BaseTarget):

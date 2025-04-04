@@ -67,3 +67,8 @@ def read_strings_from_file(filename):
     with open(filename, 'r') as f:
         strings = f.read().splitlines()
     return strings
+
+
+def find_multiple(value, multiple_of):
+    """Find the nearest multiple of a given value."""
+    return int(np.ceil(value / multiple_of) * multiple_of)

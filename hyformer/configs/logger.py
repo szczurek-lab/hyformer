@@ -13,5 +13,5 @@ class LoggerConfig(BaseConfig):
     resume: bool  # Whether to resume a previous run
     watch: bool  # Whether to watch model parameters
     watch_freq: int  # Frequency of watching model parameters
-    display_name: str  # Display name for the run
-    config: Dict[str, Any]  # Additional configuration parameters for the logger
+    display_name: Optional[str] = None  # Display name for the run
+    config: Optional[Dict[str, Any]] = None  # Additional configuration parameters for the logger

@@ -8,7 +8,7 @@ Source:
 from typing import Iterable, List, Optional
 from rdkit import Chem
 
-from hyformer.utils.data import remove_duplicates
+from hyformer.utils.file_io import remove_duplicates
 
 # Suppress RDKit warnings
 from rdkit import RDLogger

@@ -25,6 +25,7 @@ To reproduce the experiments from the paper, use
 ```
 conda env create -f env-experiments.yml
 conda activate hyformer-experiments
+migrate_guacamol.sh
 ```
 
 
@@ -32,54 +33,26 @@ conda activate hyformer-experiments
 
 #### Load a dataset
 
-To load a custom dataset, prepare an `.npz` file an array containing the molecular representations and a separate array with their properties. Next, load
-the dataset with the use of a config file
+To load a custom dataset, prepare an `.npz` file that contains an array with the molecular representations and a separate array with their properties. Next, load the dataset using a config file
+```
+from hyformer.configs.dataset import DatasetConfig
+from hyformer.utils.datasets.auto import AutoDataset
+
+DATA_DIR = <root_dir/data>
+
+dataset_config = DatasetConfig.from_config_file(DATASET_CONFIG_PATH)
+train_dataset = AutoDataset.from_config(dataset_config, split="train", root=DATA_DIR)
+
+_idx = 0
+train_dataset[_idx]
 ```
 
 
-```
 
 
 
 
 
-#### Load a pre-trained model
-
-#### Get molecular embeddings
-
-#### Generate molecules
-
-#### Fine-tune
-
-
-Handling hyperparameters and paths is done through config files stored in `configs/`.
-
-
-#### Data and Datasets
-
-For data, Hyformer assumes an `.npz` file file a `sequence` and `properties` arrays for sequences strings and their properties. Data should be preprocessed. 
-```
-# Loads custom data and finetunes hyformer 
-
-
-trainer.train()
-```
-
-
-Show running experiment where you have your own data SMILES and properties optionally, maybe actual as a .npy file :) 
-Instead of GuacaMol. 
-
-### Train Hyformer on your own data
-
-First, you need to specify a config file. Data processed. Then simply run the script. 
-
-
-#### Vocabularies
-
-Vocabularies are stored in `data/vocabularies/` and can be built with
-```python
-python experiments/vocabulary/build.py --path_to_task_config <PATH_TO_TASK_CONFIG>
-```
 
 ### Datasets & Tokenizers
 
@@ -239,3 +212,8 @@ In order to train Hyformer to a new dataset, add a
 ----
 ## References
 
+
+## License 
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License v3.0
+as published by the Free Software Foundation.

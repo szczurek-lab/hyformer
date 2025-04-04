@@ -15,9 +15,9 @@ def get_test_metric(y_true, y_pred, metric):
             assert y_true.min() >= 0 and y_true.max() <= 1, "y_true should be binary"
             return roc_auc_score(y_true, y_pred)
         elif y_true.shape[1] > 1:
-            _num_tasks = y_true.shape[1]
+            _num_prediction_tasks = y_true.shape[1]
             _aucs = []
-            for i in range(_num_tasks):
+            for i in range(_num_prediction_tasks):
                 if np.sum(y_true[:, i] == 1) > 0 and np.sum(y_true[:, i] == 0) > 0:
                     _is_labeled = y_true[:, i] >= 0
                     _aucs.append(roc_auc_score(y_true[_is_labeled, i], y_pred[_is_labeled, i]))

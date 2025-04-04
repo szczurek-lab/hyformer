@@ -22,7 +22,7 @@ from hyformer.trainers.trainer import Trainer
 from hyformer.utils.experiments import set_seed, create_output_dir, set_to_dev_mode, log_args, dump_configs
 from hyformer.utils.ddp import init_ddp, end_ddp
 from torch.distributed import init_process_group, destroy_process_group
-from hyformer.utils.data import write_dict_to_file
+from hyformer.utils.file_io import write_dict_to_file
 
 console = logging.getLogger(__file__)
 logging.basicConfig(
@@ -71,7 +71,7 @@ def main(args):
     # Initialize
     test_dataset = AutoDataset.from_config(dataset_config, split='test', root=args.data_dir)
     tokenizer = AutoTokenizer.from_config(tokenizer_config)    
-    model = AutoModel.from_config(model_config, downstream_task=dataset_config.task_type, num_tasks=dataset_config.num_tasks)
+    model = AutoModel.from_config(model_config, downstream_task=dataset_config.prediction_task_type, num_prediction_tasks=dataset_config.num_prediction_tasks)
     logger = AutoLogger.from_config(logger_config) if logger_config else None
     if logger is not None:
         logger.store_configs(dataset_config, tokenizer_config, model_config, trainer_config, logger_config) # Store configs, within the logger object
@@ -87,14 +87,14 @@ def main(args):
         test_dataset=test_dataset,
         tokenizer=tokenizer,
         logger=logger,
-        test_metric=dataset_config.evaluation_metric
+        test_metric=dataset_config.test_metric
         )
 
     trainer._init_data_loaders()
     print(f"Loading model from {path_to_model_ckpt}")
     trainer.model.load_state_dict(torch.load(path_to_model_ckpt, map_location=device)['model'], strict=True)
 
-    test_metric = dataset_config.evaluation_metric
+    test_metric = dataset_config.test_metric
     objective_metric = trainer.test(metric=test_metric)
     print(f"Test {test_metric}: {objective_metric}")
     if args.destroy_ckpt and os.path.exists(path_to_model_ckpt):

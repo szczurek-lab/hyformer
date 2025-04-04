@@ -65,7 +65,7 @@ def main(args):
     train_dataset = AutoDataset.from_config(dataset_config, split='train', root=args.data_dir)
     val_dataset = AutoDataset.from_config(dataset_config, split='val', root=args.data_dir)
     tokenizer = AutoTokenizer.from_config(tokenizer_config)    
-    model = AutoModel.from_config(model_config, downstream_task=dataset_config.task_type, num_tasks=dataset_config.num_tasks)
+    model = AutoModel.from_config(model_config, downstream_task=dataset_config.prediction_task_type, num_prediction_tasks=dataset_config.num_prediction_tasks)
     
     logger = AutoLogger.from_config(logger_config) if logger_config else None
     if logger is not None:
@@ -90,7 +90,7 @@ def main(args):
         val_dataset=val_dataset,
         tokenizer=tokenizer,
         logger=logger,
-        test_metric=dataset_config.evaluation_metric,
+        test_metric=dataset_config.test_metric,
         eval_metric=args.eval_metric,
         patience=args.patience
         )

@@ -1,12 +1,8 @@
 import numpy as np
 
-from rdkit import Chem
-from rdkit.Chem.QED import qed
-from hyformer.utils.properties.smiles.molbert.featurizer import PhysChemFeaturizer
-
-from hyformer.utils.properties.smiles.base import BaseTarget
-
-NORMALIZE = True
+from hyformer.utils.targets.base import BaseTarget
+from hyformer.utils.targets.molbert.featurizer import PhysChemFeaturizer
+_NORMALIZE = True
 
 
 class PhysChem(BaseTarget):
@@ -17,9 +13,9 @@ class PhysChem(BaseTarget):
         self.descriptor_set = 'all'
         self.num_physchem = 200
         self.descriptor_list = PhysChemFeaturizer.get_descriptor_subset(self.descriptor_set, self.num_physchem)
-        self.physchem_featurizer = PhysChemFeaturizer(descriptors=self.descriptor_list, normalise=True)
+        self.physchem_featurizer = PhysChemFeaturizer(descriptors=self.descriptor_list, normalise=_NORMALIZE)
 
-    def _get_target(self, example: str) -> float:
+    def _calculate_target(self, example: str) -> float:
         try:
             physchem, valid = self.physchem_featurizer.transform_single(example)
             assert bool(valid), f'Cannot compute the physchem props for {example}'

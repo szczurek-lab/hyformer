@@ -7,7 +7,7 @@ from socket import gethostname
 
 from hyformer.utils.experiments import set_seed, create_output_dir, set_to_dev_mode, log_args, dump_configs
 from hyformer.utils.ddp import init_ddp, end_ddp
-from hyformer.utils.data import write_dict_to_file 
+from hyformer.utils.file_io import write_dict_to_file 
 
 
 console = logging.getLogger(__file__)

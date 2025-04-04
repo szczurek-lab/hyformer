@@ -21,9 +21,9 @@ class SequenceDataset(BaseDataset):
             target: Optional[np.ndarray] = None,
             data_transform: Optional[Union[Callable, List]] = None,
             target_transform: Optional[Union[Callable, List]] = None,
-            task_type: Optional[str] = None,
-            num_tasks: Optional[int] = None,
-            evaluation_metric: Optional[str] = None
+            prediction_task_type: Optional[str] = None,
+            num_prediction_tasks: Optional[int] = None,
+            test_metric: Optional[str] = None
     ) -> None:
         """Initialize a sequence dataset.
         
@@ -32,9 +32,9 @@ class SequenceDataset(BaseDataset):
             target: Target values (e.g., properties)
             data_transform: Transformation to apply to input data
             target_transform: Transformation to apply to target values
-            task_type: Type of task ('classification' or 'regression')
-            num_tasks: Number of prediction tasks
-            evaluation_metric: Metric used for evaluation
+            prediction_task_type: Type of task ('classification' or 'regression')
+            num_prediction_tasks: Number of prediction tasks
+            test_metric: Metric used for evaluation
         """
         super().__init__(
             data=data, target=target, 
@@ -42,9 +42,9 @@ class SequenceDataset(BaseDataset):
             target_transform=target_transform)
         
         # Store task-specific attributes
-        self.task_type = task_type
-        self.num_tasks = num_tasks
-        self.evaluation_metric = evaluation_metric
+        self.prediction_task_type = prediction_task_type
+        self.num_prediction_tasks = num_prediction_tasks
+        self.test_metric = test_metric
     
     @staticmethod
     def _get_filepath(config: DatasetConfig, root: str, split: str) -> str:
@@ -61,15 +61,15 @@ class SequenceDataset(BaseDataset):
         return os.path.join(root, filepath) if root else filepath
     
     @staticmethod
-    def _process_target(target: np.ndarray, data: np.ndarray, task_type: Optional[str] = None, 
-                        num_tasks: Optional[int] = None) -> np.ndarray:
+    def _process_target(target: np.ndarray, data: np.ndarray, prediction_task_type: Optional[str] = None, 
+                        num_prediction_tasks: Optional[int] = None) -> np.ndarray:
         """Process target data for consistency and type correctness.
         
         Args:
             target: Target array to process
             data: Input data array (for length validation)
-            task_type: Type of task ('classification' or 'regression')
-            num_tasks: Expected number of tasks
+            prediction_task_type: Type of task ('classification' or 'regression')
+            num_prediction_tasks: Expected number of tasks
             
         Returns:
             Processed target array
@@ -86,20 +86,20 @@ class SequenceDataset(BaseDataset):
             raise ValueError(f"Target has unexpected shape: {target.shape}")
         if len(data) != len(target):
             raise ValueError(f"Data and target lengths don't match: {len(data)} vs {len(target)}")
-        if num_tasks and target.shape[1] != num_tasks:
-            raise ValueError(f"Target has {target.shape[1]} tasks, expected {num_tasks}")
+        if num_prediction_tasks and target.shape[1] != num_prediction_tasks:
+            raise ValueError(f"Target has {target.shape[1]} tasks, expected {num_prediction_tasks}")
             
         # Convert target type based on task
-        if task_type == 'classification' and target.dtype != np.int64:
+        if prediction_task_type == 'classification' and target.dtype != np.int64:
             target = target.astype(np.int64)
-        elif task_type == 'regression' and target.dtype != np.float32:
+        elif prediction_task_type == 'regression' and target.dtype != np.float32:
             target = target.astype(np.float32)
             
         return target
     
     @staticmethod
     def _load(filepath: str, data_key: str = 'sequence', target_key: str = 'properties', 
-              task_type: Optional[str] = None, num_tasks: Optional[int] = None) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+              prediction_task_type: Optional[str] = None, num_prediction_tasks: Optional[int] = None) -> Tuple[np.ndarray, Optional[np.ndarray]]:
         """Load data from a file."""
         try:
             data_file = np.load(filepath, allow_pickle=_ALLOW_PICKLE)
@@ -116,7 +116,7 @@ class SequenceDataset(BaseDataset):
         
         # Process target if it exists
         if target is not None:
-            target = SequenceDataset._process_target(target, data, task_type, num_tasks)
+            target = SequenceDataset._process_target(target, data, prediction_task_type, num_prediction_tasks)
 
         return data, target
 
@@ -140,9 +140,9 @@ class SequenceDataset(BaseDataset):
             target=target,
             data_transform=data_transform,
             target_transform=target_transform,
-            task_type=self.task_type,
-            num_tasks=self.num_tasks,
-            evaluation_metric=self.evaluation_metric
+            prediction_task_type=self.prediction_task_type,
+            num_prediction_tasks=self.num_prediction_tasks,
+            test_metric=self.test_metric
         )
 
     @classmethod
@@ -156,8 +156,8 @@ class SequenceDataset(BaseDataset):
             filepath, 
             data_key=config.data_key,
             target_key=config.target_key,
-            task_type=config.task_type, 
-            num_tasks=config.num_tasks
+            prediction_task_type=config.prediction_task_type, 
+            num_prediction_tasks=config.num_prediction_tasks
         )
 
         # Set up transforms
@@ -174,7 +174,7 @@ class SequenceDataset(BaseDataset):
             target=target, 
             data_transform=data_transform, 
             target_transform=target_transform,
-            task_type=config.task_type,
-            num_tasks=config.num_tasks,
-            evaluation_metric=config.evaluation_metric
+            prediction_task_type=config.prediction_task_type,
+            num_prediction_tasks=config.num_prediction_tasks,
+            test_metric=config.test_metric
         )

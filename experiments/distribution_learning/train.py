@@ -24,8 +24,8 @@ from hyformer.utils.loggers.auto import AutoLogger
 
 from hyformer.trainers.trainer import Trainer
 
-
-from hyformer.utils.experiments import set_seed, log_args, dump_configs
+from hyformer.utils.experiments import log_args, dump_configs
+from hyformer.utils.reproducibility import set_seed
 
 console = logging.getLogger(__file__)
 logging.basicConfig(
@@ -42,6 +42,8 @@ def main(args):
 
     # Create output directory
     if args.out_dir is not None and not os.path.exists(args.out_dir) and int(os.environ.get('LOCAL_RANK', 0)) == 0:
+        if args.debug:
+            os.path.join(args.out_dir, "debug")
         os.makedirs(args.out_dir, exist_ok=False)
 
     # Load configurations
@@ -53,9 +55,11 @@ def main(args):
     
     # Set debug mode
     if args.debug:
+        model_config.num_transformer_layers = 2
         trainer_config.max_epochs = 2
         trainer_config.log_interval = 1
         trainer_config.batch_size = 2
+        trainer_config.warmup_iters = 10
     
     # Store configs within the output directory, for reproducibility
     if args.out_dir is not None:
@@ -70,8 +74,8 @@ def main(args):
     
     # Set debug mode
     if args.debug:
-        train_dataset.data, train_dataset.target = train_dataset.data[:100], train_dataset.target[:100] if train_dataset.target is not None else None
-        val_dataset.data, val_dataset.target = val_dataset.data[:100], val_dataset.target[:100] if val_dataset.target is not None else None
+        train_dataset.data, train_dataset.target = train_dataset.data[:1500], train_dataset.target[:1500] if train_dataset.target is not None else None
+        val_dataset.data, val_dataset.target = val_dataset.data[:1500], val_dataset.target[:1500] if val_dataset.target is not None else None
     
     # Store configs within the logger object, for reproducibility
     if logger is not None:
@@ -99,9 +103,9 @@ def main(args):
         worker_seed=args.experiment_seed
         )
 
-    if args.path_to_model_ckpt:
-        trainer.resume_from_checkpoint(args.path_to_model_ckpt, resume_training=args.resume_training)
-        console.info(f"Resuming pre-trained model from {args.path_to_model_ckpt}")
+    if args.model_ckpt_path:
+        trainer.resume_from_checkpoint(args.model_ckpt_path, resume_training=args.resume_training)
+        console.info(f"Resuming pre-trained model from {args.model_ckpt_path}")
     else:
         console.info("Training from scratch")
 
@@ -124,19 +128,20 @@ def main(args):
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--out-dir", type=str, required=True, help="Path to the output directory")
-    parser.add_argument("--data-dir", type=str, required=True, help="Path to the data directory")
-    parser.add_argument("--experiment-seed", type=int, default=0, help="Seed for the experiment")
-    parser.add_argument("--dataset-config-path", type=str, required=True, help="Path to the dataset config file")
-    parser.add_argument("--tokenizer-config-path", type=str, required=True, help="Path to the tokenizer config file")
-    parser.add_argument("--model-config-path", type=str, required=True, help="Path to the model config file")
-    parser.add_argument("--trainer-config-path", type=str, required=True, help="Path to the trainer config file")
-    parser.add_argument("--logger-config-path", type=str, nargs='?', help="Path to the logger config file")
-    parser.add_argument("--model-ckpt-path", type=str, nargs='?', help="Path to the model checkpoint file")
-    parser.add_argument("--resume-training", default=False, action=argparse.BooleanOptionalAction, help="Resume training from the checkpoint file")
+    parser.add_argument("--out_dir", type=str, required=True, help="Path to the output directory")
+    parser.add_argument("--data_dir", type=str, required=True, help="Path to the data directory")
+    parser.add_argument("--experiment_seed", type=int, default=0, help="Seed for the experiment")
+    parser.add_argument("--dataset_config_path", type=str, required=True, help="Path to the dataset config file")
+    parser.add_argument("--tokenizer_config_path", type=str, required=True, help="Path to the tokenizer config file")
+    parser.add_argument("--model_config_path", type=str, required=True, help="Path to the model config file")
+    parser.add_argument("--trainer_config_path", type=str, required=True, help="Path to the trainer config file")
+    parser.add_argument("--logger_config_path", type=str, nargs='?', help="Path to the logger config file")
+    parser.add_argument("--model_ckpt_path", type=str, nargs='?', help="Path to the model checkpoint file")
+    parser.add_argument("--resume_training", default=False, action=argparse.BooleanOptionalAction, help="Resume training from the checkpoint file")
     parser.add_argument("--debug", default=False, action=argparse.BooleanOptionalAction, help="Run in debug mode")
-    parser.add_argument("--task-specific-validation", type=str, nargs='?', help="Task with respect to which validation is performed")
+    parser.add_argument("--task_specific_validation", type=str, nargs='?', help="Task with respect to which validation is performed")
     parser.add_argument("--patience", type=int, nargs='?', help="Number of epochs to wait before early stopping")
+    parser.add_argument("--use_deterministic_algorithms", default=False, action=argparse.BooleanOptionalAction, help="Use deterministic algorithms")
     args = parser.parse_args()
     log_args(args)
     return args
@@ -147,6 +152,6 @@ if __name__ == "__main__":
     print("Torch version:", torch.__version__)
     print("CUDA version:", torch.version.cuda)
     args = parse_args()
-    set_seed(args.experiment_seed)
+    set_seed(args.experiment_seed, use_deterministic_algorithms=args.use_deterministic_algorithms)
     main(args)
     

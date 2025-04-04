@@ -11,9 +11,9 @@
       "std": 3.2775297233608893
     }
   },
-  "task_type": "regression",
-  "evaluation_metric": "rmse",
-  "num_tasks": 1,
+  "prediction_task_type": "regression",
+  "test_metric": "rmse",
+  "num_prediction_tasks": 1,
   "data_key": "sequence",
   "target_key": "properties"
 }

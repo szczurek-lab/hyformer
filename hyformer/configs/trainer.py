@@ -35,6 +35,7 @@ class TrainerConfig(BaseConfig):
     
     # Logging parameters
     log_interval: int  # Interval between logging (in iterations)
+    save_interval: int  # Interval between saving (in epochs)
     
     def __post_init__(self):
         """Initialize derived parameters and validate configuration."""

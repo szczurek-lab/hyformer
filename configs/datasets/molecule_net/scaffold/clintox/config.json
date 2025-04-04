@@ -5,9 +5,9 @@
   "test_data_path": "molecule_net/scaffold/clintox/test.npz",
   "data_transform": null,
   "target_transform": null,
-  "task_type": "classification",
-  "evaluation_metric": "roc_auc",
-  "num_tasks": 2,
+  "prediction_task_type": "classification",
+  "test_metric": "roc_auc",
+  "num_prediction_tasks": 2,
   "data_key": "sequence",
   "target_key": "properties"
 }

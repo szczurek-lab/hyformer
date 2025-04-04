@@ -11,9 +11,9 @@ class AutoLogger:
 
         display_name = display_name if display_name is not None else config.display_name
 
-        if config.logger_name == 'wandb':
+        if config.logger_type == 'wandb':
             return getattr(importlib.import_module(
                 "hyformer.utils.loggers.wandb"),
                 "WandbLogger").from_config(config, display_name)
         else:
-            raise ValueError(f"Logger {config.logger_name} not available.")
+            raise ValueError(f"Logger {config.logger_type} not available.")

@@ -23,7 +23,7 @@ class Hyformer(LLAMABackbone):
     def __init__(
         self, vocab_size: int, embedding_dim: int, hidden_embedding_dim: int, attention_dropout_p: float,
         num_transformer_layers: int, num_attention_heads: int, layer_norm_eps: float, num_prediction_tasks: int = None,
-        prediction_task_type: str = None, prediction_head_dropout_p: float = None, init_weights: bool = True 
+        prediction_prediction_task_type: str = None, prediction_head_dropout_p: float = None, init_weights: bool = True 
     ) -> None:
         """
         Parameters
@@ -44,7 +44,7 @@ class Hyformer(LLAMABackbone):
             The epsilon for the layer normalization.
         num_prediction_tasks : int, optional
             The number of prediction tasks, by default None.
-        prediction_task_type : str, optional
+        prediction_prediction_task_type : str, optional
             The type of prediction task, by default None.
         prediction_head_dropout_p : float, optional
             The dropout rate for the prediction head, by default None.
@@ -72,16 +72,16 @@ class Hyformer(LLAMABackbone):
             
         # Initialize prediction head using prediction specific init
         self.prediction_head = None
-        self.prediction_task_type = prediction_task_type
+        self.prediction_prediction_task_type = prediction_prediction_task_type
         self.num_prediction_tasks = num_prediction_tasks
-        if num_prediction_tasks is not None and prediction_task_type is not None:
-            self.init_prediction_head(num_tasks=num_prediction_tasks, task_type=prediction_task_type, dropout_p=prediction_head_dropout_p)
+        if num_prediction_tasks is not None and prediction_prediction_task_type is not None:
+            self.init_prediction_head(num_prediction_tasks=num_prediction_tasks, prediction_task_type=prediction_prediction_task_type, dropout_p=prediction_head_dropout_p)
 
-    def init_prediction_head(self, num_tasks: int, task_type: str, dropout_p: float = None):
+    def init_prediction_head(self, num_prediction_tasks: int, prediction_task_type: str, dropout_p: float = None):
         self.prediction_head = PredictionHead(
             embedding_dim=self.embedding_dim,
-            num_tasks=num_tasks,
-            activation_fn='tanh' if task_type == 'classification' else 'relu',
+            num_prediction_tasks=num_prediction_tasks,
+            activation_fn='tanh' if prediction_task_type == 'classification' else 'relu',
             dropout_p=dropout_p
         )
 
@@ -248,13 +248,13 @@ class Hyformer(LLAMABackbone):
                 )
         elif task == 'prediction':
             if target is not None:
-                if self.prediction_task_type == 'classification':
+                if self.prediction_prediction_task_type == 'classification':
                     return F.binary_cross_entropy_with_logits(
                         logits[target != nan_target_idx].view(-1, ), 
                         target[target != nan_target_idx].view(-1, ), 
                         reduction=loss_fn_reduction
                     )
-                elif self.prediction_task_type == 'regression':
+                elif self.prediction_prediction_task_type == 'regression':
                     return F.mse_loss(
                         logits.view(-1, ), 
                         target.view(-1, ), 
@@ -265,9 +265,9 @@ class Hyformer(LLAMABackbone):
     @inference
     def predict(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, **kwargs):
         _logits = self(input_ids=input_ids, attention_mask=attention_mask, task='prediction', **kwargs)['logits']
-        if self.prediction_task_type == 'classification':
+        if self.prediction_prediction_task_type == 'classification':
             return torch.sigmoid(_logits)
-        elif self.prediction_task_type == 'regression':
+        elif self.prediction_prediction_task_type == 'regression':
             return _logits
         else:
             raise ValueError('Variable `downstream_task` must be either `classification` or `regression`.')
@@ -441,7 +441,7 @@ class Hyformer(LLAMABackbone):
         return logits, past_key_values
 
     @classmethod
-    def from_config(cls, config: ModelConfig, num_prediction_tasks: int = None, prediction_task_type: str = None, prediction_head_dropout_p: float = None):
+    def from_config(cls, config: ModelConfig, num_prediction_tasks: int = None, prediction_prediction_task_type: str = None, prediction_head_dropout_p: float = None):
         return cls(
             vocab_size=config.vocab_size,
             embedding_dim=config.embedding_dim,
@@ -451,7 +451,7 @@ class Hyformer(LLAMABackbone):
             num_attention_heads=config.num_attention_heads,
             layer_norm_eps=config.layer_norm_eps,
             num_prediction_tasks=config.num_prediction_tasks if num_prediction_tasks is None else num_prediction_tasks,
-            prediction_task_type=config.prediction_task_type if prediction_task_type is None else prediction_task_type,
+            prediction_prediction_task_type=config.prediction_prediction_task_type if prediction_prediction_task_type is None else prediction_prediction_task_type,
             prediction_head_dropout_p=config.prediction_head_dropout_p if prediction_head_dropout_p is None else prediction_head_dropout_p
         )
 

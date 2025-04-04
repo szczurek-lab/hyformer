@@ -21,10 +21,13 @@ from hyformer.utils.collators.data_collator_task_tokens import DataCollatorWithT
 from hyformer.utils.metrics import calculate_metric
 from hyformer.utils.reproducibility import seed_worker
 
+import torch._dynamo
+torch._dynamo.config.cache_size_limit = 64
+
 console = logging.getLogger(__name__)
 CHECKPOINT_FILENAME = 'checkpoint.pt'  # Single checkpoint file for both best model and training state
 CHECKPOINT_FILENAME_EPOCH = 'checkpoint_epoch_{epoch}.pt'
-PAD_TO_MULTIPLE_OF = 8  # Pad sequences to multiple of 8 for better GPU utilization
+PAD_TO_MULTIPLE_OF = 64  # Pad sequences to multiple of 8 for better GPU utilization
 DEFAULT_WORKER_SEED = 42  # Default seed for data loading workers
 MAX_SEQ_LEN = 512
 SUPPORTED_TASKS = ['lm', 'prediction', 'mlm']
@@ -65,6 +68,7 @@ class Trainer:
         self._not_improved_for_eval_epochs = 0
         self._learning_rate = None
         self._iterations_in_epoch = 0
+        self._lr_decay_iters = None
 
         # Distributed training setup
         self._is_distributed_run = dist.is_initialized()
@@ -83,7 +87,7 @@ class Trainer:
         if self.config.enable_ddp and dist.is_initialized():
             self.model = DDP(model, device_ids=[device], find_unused_parameters=False)
         if self.config.compile:
-            self.model = torch.compile(self.model)
+            self.model = torch.compile(self.model, mode="reduce-overhead")
         
         # Mixed precision training
         self.ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[self.config.dtype]
@@ -231,17 +235,18 @@ class Trainer:
         """
         # Calculate current iteration based on completed epochs and current batch
         current_iter = self._epoch * len(self.train_loader) + self._iterations_in_epoch
+        assert self._lr_decay_iters is not None, "lr_decay_iters must be set before calling _get_lr"
         
         # Linear warmup
         if current_iter < self.config.warmup_iters:
             return self.config.learning_rate * current_iter / self.config.warmup_iters
             
         # Cosine decay
-        if current_iter > self.config.lr_decay_iters:
+        if current_iter > self._lr_decay_iters:
             return self.config.min_lr
             
         # Cosine decay from learning_rate to min_lr
-        decay_ratio = (current_iter - self.config.warmup_iters) / (self.config.lr_decay_iters - self.config.warmup_iters)
+        decay_ratio = (current_iter - self.config.warmup_iters) / (self._lr_decay_iters - self.config.warmup_iters)
         coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))
         return self.config.min_lr + coeff * (self.config.learning_rate - self.config.min_lr)
 
@@ -367,7 +372,7 @@ class Trainer:
 
         # Initialize data loaders
         self.train_loader = self.create_loader(train_dataset, tasks=self.config.tasks, shuffle=True)
-        
+        self._lr_decay_iters = self.config.max_epochs * len(self.train_loader) // self.config.gradient_accumulation_steps
         # Create task-specific validation loaders
         self.val_loaders = {}
         if val_dataset is not None:

@@ -1,4 +1,4 @@
-name: hyformer-experiments
+name: hyformer_experiments
 channels:
   - pytorch
   - nvidia
@@ -51,7 +51,7 @@ dependencies:
   - jupyterlab=4.0.11
 
   # Additional experimental dependencies
-  - fcd-torch=1.2
+  - FCD=1.2
   
   # Install packages via pip
   - pip:

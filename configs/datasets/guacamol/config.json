@@ -3,11 +3,11 @@
   "train_data_path": "guacamol/train.npz",
   "val_data_path": "guacamol/val.npz",  
   "test_data_path": "guacamol/test.npz",
-  "data_key": "sequence",
-  "target_key": "properties",
-  "task_type": null,
-  "evaluation_metric": null,
-  "num_tasks": null,
+  "data_key": "smiles",
+  "target_key": null,
+  "prediction_task_type": null,
+  "test_metric": null,
+  "num_prediction_tasks": null,
   "data_transform": null,
   "target_transform": null
 }

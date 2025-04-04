@@ -1,6 +1,8 @@
 {
     "cSpell.words": [
-        "hyformer"
+        "guacamol",
+        "hyformer",
+        "wandb"
     ],
     "python.analysis.typeCheckingMode": "off",
     "python.analysis.autoImportCompletions": true

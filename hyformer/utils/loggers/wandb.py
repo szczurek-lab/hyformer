@@ -18,7 +18,7 @@ class WandbLogger:
 
     def __init__(
             self,
-            enable_logging,
+            enable,
             user,
             project,
             resume,
@@ -27,7 +27,7 @@ class WandbLogger:
             display_name: Optional[str] = None,
             config: Optional[List[BaseConfig]] = None
     ):
-        self.enable_logging = enable_logging
+        self.enable = enable
         self.user = user
         self.project = project
         self.resume = resume
@@ -70,7 +70,7 @@ class WandbLogger:
                 json.dump(self.config, fp, indent=4)
 
     def init_run(self):
-        if self.enable_logging:
+        if self.enable:
             self.run = wandb.init(
                 entity=self.user, project=self.project, resume=self.resume, name=self.display_name,
                 config=self.config, id=self.run_id, reinit=True,
@@ -78,15 +78,15 @@ class WandbLogger:
                 )
 
     def log(self, log: dict):
-        if self.enable_logging:
+        if self.enable:
             self.run.log(log)
 
     def finish(self):
-        if self.enable_logging:
+        if self.enable:
             self.run.finish()
 
     def log_molecule_data(self, data: List[str]) -> None:
-        if self.enable_logging:
+        if self.enable:
             data = list(set(data))  # remove duplicates
             out = []
             for smiles in data:
@@ -113,6 +113,6 @@ class WandbLogger:
     def from_config(cls, config: LoggerConfig, display_name: str = None):
         display_name = display_name if display_name is not None else config.display_name
         return cls(
-            enable_logging=config.enable_logging, user=config.user, project=config.project, resume=config.resume,
+            enable=config.enable, user=config.user, project=config.project, resume=config.resume,
             display_name=display_name, watch=config.watch, watch_freq=config.watch_freq
         )
