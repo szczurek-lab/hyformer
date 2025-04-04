@@ -4,9 +4,9 @@
   "val_data_path": "guacamol/val.npz",  
   "test_data_path": "guacamol/test.npz",
   "data_key": "sequence",
-  "target_key": "target",
-  "task_type": "generation",
-  "evaluation_metric": "perplexity",
+  "target_key": "properties",
+  "task_type": null,
+  "evaluation_metric": null,
   "num_tasks": null,
   "data_transform": null,
   "target_transform": null

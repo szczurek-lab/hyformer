@@ -1,0 +1,62 @@
+name: hyformer-experiments
+channels:
+  - pytorch
+  - nvidia
+  - huggingface
+  - conda-forge
+  - defaults
+dependencies:
+  # Include all dependencies from base environment
+  - python=3.10
+  - cuda-toolkit=11.8
+  - cudnn=8.9
+  
+  # PyTorch with CUDA
+  - pytorch=2.2.0
+  - pytorch-cuda=11.8
+  - torchvision=0.17.0
+  - torchaudio=2.2.0
+  
+  # Cheminformatics
+  - rdkit=2023.09.5
+  
+  # Transformers and ML
+  - transformers=4.37.2
+  - tokenizers=0.15.1
+  - accelerate=0.27.2
+  - datasets=2.17.0
+  
+  # Scientific and Data Analysis
+  - numpy=1.24.3
+  - pandas=2.1.4
+  - scipy=1.11.4
+  - scikit-learn
+  
+  # Visualization
+  - matplotlib=3.8.2
+  - seaborn=0.13.1
+  
+  # Progress bars and utilities
+  - tqdm=4.66.1
+  - jupyter=1.0.0
+  - ipywidgets=8.1.1
+  
+  # Development tools
+  - pip=24.0
+  - pytest=7.4.4
+  - pytest-cov=4.1.0
+  - black=24.1.1
+  - flake8=7.0.0
+  - isort=5.13.2
+  - jupyterlab=4.0.11
+
+  # Additional experimental dependencies
+  - fcd-torch=1.2
+  
+  # Install packages via pip
+  - pip:
+    - einops>=0.7
+    - -e .
+    - wandb
+    - guacamol
+    - sentencepiece

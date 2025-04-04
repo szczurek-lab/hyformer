@@ -1,5 +1,5 @@
 {
     "tokenizer_type": "ESMTokenizer",
-    "path_to_vocabulary": "facebook/esm2_t33_650M_UR50D"
+    "vocabulary_path": "facebook/esm2_t33_650M_UR50D"
   }
   

@@ -1,5 +1,7 @@
 {
     "cSpell.words": [
         "hyformer"
-    ]
+    ],
+    "python.analysis.typeCheckingMode": "off",
+    "python.analysis.autoImportCompletions": true
 }

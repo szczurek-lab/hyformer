@@ -6,6 +6,7 @@ from hyformer.configs.dataset import DatasetConfig
 from hyformer.utils.datasets.base import BaseDataset
 from hyformer.utils.transforms.auto import AutoTransform, AutoTargetTransform
 
+_ALLOW_PICKLE = False
 
 class SequenceDataset(BaseDataset):
     """Dataset for sequence data.
@@ -35,9 +36,10 @@ class SequenceDataset(BaseDataset):
             num_tasks: Number of prediction tasks
             evaluation_metric: Metric used for evaluation
         """
-        super().__init__(data=data, target=target, 
-                         data_transform=data_transform, 
-                         target_transform=target_transform)
+        super().__init__(
+            data=data, target=target, 
+            data_transform=data_transform, 
+            target_transform=target_transform)
         
         # Store task-specific attributes
         self.task_type = task_type
@@ -100,7 +102,7 @@ class SequenceDataset(BaseDataset):
               task_type: Optional[str] = None, num_tasks: Optional[int] = None) -> Tuple[np.ndarray, Optional[np.ndarray]]:
         """Load data from a file."""
         try:
-            data_file = np.load(filepath, allow_pickle=True)
+            data_file = np.load(filepath, allow_pickle=_ALLOW_PICKLE)
         except Exception as e:
             raise ValueError(f"Failed to load data from {filepath}: {str(e)}")
             

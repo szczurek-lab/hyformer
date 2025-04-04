@@ -2,20 +2,14 @@
 
 The official implementation of [Hyformer](https://arxiv.org/abs/2310.02066), a [joint model](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/LasserreBishopMinka06.pdf) that simultaneously generates new molecules and predicts their properties.
 
-For using Hyformer, refer to [Getting Started](#getting-started) section. For reproducing experiments TBA. 
-
 
 ## Getting Started
 
 ### Installation
 To create an environment that satisfies the necessary requirements run
 ```
- conda env create -f hyformer.yml
-```
-Next, install Hyformer from the project directory with 
-```
-conda activate hybrid-transformer
-pip install -e .
+ conda env create -f env.yml
+ conda activate hyformer
 ```
 
 Optionally, for a faster build use [micromamba](https://mamba.readthedocs.io/en/latest/user_guide/micromamba.html) or
@@ -26,12 +20,37 @@ conda install -n base conda-libmamba-solver
 conda config --set solver libmamba
 ```
 
-In order to reproduce all experiments, refer to TBA. 
+### Installation (reproducing experiments)
+To reproduce the experiments from the paper, use
+```
+conda env create -f env-experiments.yml
+conda activate hyformer-experiments
+```
 
 
-### Basic Usage
+## Basic Usage
 
-#### Config files
+#### Load a dataset
+
+To load a custom dataset, prepare an `.npz` file an array containing the molecular representations and a separate array with their properties. Next, load
+the dataset with the use of a config file
+```
+
+
+```
+
+
+
+
+
+#### Load a pre-trained model
+
+#### Get molecular embeddings
+
+#### Generate molecules
+
+#### Fine-tune
+
 
 Handling hyperparameters and paths is done through config files stored in `configs/`.
 

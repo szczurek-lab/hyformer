@@ -18,7 +18,7 @@ class BaseConfig:
         # Check for unknown parameters
         unknown_params = set(config_dict.keys()) - {f.name for f in cls.__dataclass_fields__.values()}
         if unknown_params:
-            raise ValueError(f"Unknown parameters: {unknown_params}. All parameters must be explicitly defined.")
+            raise ValueError(f"Parameters not specified in the config file: {unknown_params}.")
         
         # Create instance with parameters
         return cls(**config_dict)

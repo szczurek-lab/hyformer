@@ -22,7 +22,7 @@ def load_base_configs() -> Dict[str, BaseConfig]:
     model_config = ModelConfig(
         model_name="Hyformer",
         embedding_dim=512,
-        num_heads=8,
+        num_attention_heads=8,
         num_layers=6,
         max_seq_len=1024,
         vocab_size=1000,
@@ -37,7 +37,7 @@ def load_base_configs() -> Dict[str, BaseConfig]:
     )
     
     tokenizer_config = TokenizerConfig(
-        path_to_vocabulary="path/to/vocab.json",
+        vocabulary_path="path/to/vocab.json",
         max_molecule_length=512,
         tokenizer="SmilesTokenizer",
     )

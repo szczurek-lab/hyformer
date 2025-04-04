@@ -1,15 +1,21 @@
 #!/usr/bin/python3
 
 from setuptools import setup, find_packages
-
+from hyformer import __version__
 
 setup(
-    name='Hyformer',
-    version='1.0.0',
-    author='Adam Izdebski',
+    name="hyformer",
+    version=__version__,
     packages=find_packages(),
-    test_suite='nose.collector',
-    tests_require=['nose'],
+    # Dependencies are managed through environment.yml
+    # This allows for better conda/pip integration and CUDA support
     install_requires=[],
-    zip_safe=False
+    author="Adam Izdebski",
+    author_email="adam.izdebski1@gmail.com",
+    description="An official implementation of Hyformer.",
+    long_description=open("README.md").read(),
+    long_description_content_type="text/markdown",
+    # Python version is managed through environment.yml (currently 3.10)
+    # Keeping this for compatibility with pip installs outside of conda
+    python_requires=">=3.10",
 )

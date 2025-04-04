@@ -2,7 +2,7 @@ from typing import Optional, Dict, Any
 from dataclasses import dataclass, field
 
 from hyformer.configs.base import BaseConfig
-from hyformer.utils.runtime import find_multiple
+from hyformer.utils.experiments import find_multiple
 
 EMBEDDING_DIM_HIDDEN_FACTOR = 4
 EMBEDDING_DIM_MULTIPLE_OF = 256
@@ -10,30 +10,44 @@ EMBEDDING_DIM_MULTIPLE_OF = 256
 
 @dataclass
 class ModelConfig(BaseConfig):
-    """Configuration for model architecture and parameters. """
-    # Required parameters
-    model_type: str  # Type/name of the model architecture (e.g., "Hyformer")
-    embedding_dim: int  # Dimension of token embeddings
-    num_attention_heads: int  # Number of attention heads
-    num_layers: int  # Number of transformer layers
-    vocab_size: int  # Size of the vocabulary
-    max_sequence_length: int  # Maximum sequence length
-    
-    # Optional parameters with defaults
-    local_attention_heads: Optional[int] = None  # Number of local attention heads
-    attention_head_size: Optional[int] = None  # Dimension of each attention head
-    hidden_embedding_dim: Optional[int] = None  # Hidden dimension in feed-forward layers
-    use_bias: bool = True  # Whether to use bias in linear layers
-    attention_dropout: float = 0.0  # Dropout rate for attention
-    hidden_dropout: float = 0.0  # Dropout rate for feed-forward layers
-    classifier_dropout: float = 0.0  # Dropout rate for prediction head
-    layer_norm_eps: float = 1e-5  # Epsilon for layer normalization
-    
-    # Predictor/Pooler parameters
-    predictor_hidden_dim: Optional[int] = None  # Hidden dimension for predictor/pooler
-    predictor_dropout: float = 0.0  # Dropout rate for predictor/pooler
-    predictor_num_heads: Optional[int] = None  # Number of heads in predictor
-    
+    """Configuration for the Hyformer model.
+
+    Parameters
+    ----------
+    vocab_size : int
+        The size of the vocabulary.
+    embedding_dim : int
+        The dimension of the embedding.
+    hidden_embedding_dim : int
+        The dimension of the hidden embedding.
+    attention_dropout_p : float
+        The dropout rate for the attention.
+    num_transformer_layers : int
+        The number of transformer layers.
+    num_attention_heads : int
+        The number of attention heads.
+    layer_norm_eps : float
+        The epsilon for the layer normalization.
+    num_prediction_tasks : int, optional
+        The number of prediction tasks, by default None.
+    prediction_task_type : str, optional
+        The type of prediction task, by default None.
+    prediction_head_dropout_p : float, optional
+        The dropout rate for the prediction head, by default None.
+    """
+
+    model_type: str
+    vocab_size: int
+    embedding_dim: int
+    num_transformer_layers: int
+    num_attention_heads: int
+    layer_norm_eps: float = 1e-5
+    attention_dropout_p: float = 0.0
+    hidden_embedding_dim: Optional[int] = None
+    num_prediction_tasks: Optional[int] = None
+    prediction_task_type: Optional[str] = None
+    prediction_head_dropout_p: Optional[float] = None
+
     def __post_init__(self):
         """Initialize derived parameters based on provided values."""
         if self.model_type not in ["Moler", "UniMol", "RegressionTransformer", "MolGPT"]:
@@ -47,13 +61,4 @@ class ModelConfig(BaseConfig):
         # Calculate derived parameters if not provided
         if self.hidden_embedding_dim is None:
             self.hidden_embedding_dim = find_multiple(self.embedding_dim * EMBEDDING_DIM_HIDDEN_FACTOR, EMBEDDING_DIM_MULTIPLE_OF)
-        
-        if self.predictor_hidden_dim is None:
-            self.predictor_hidden_dim = self.embedding_dim
-        
-        if self.local_attention_heads is None:
-            self.local_attention_heads = self.num_attention_heads
-        
-        if self.attention_head_size is None:
-            self.attention_head_size = self.embedding_dim // self.num_attention_heads
             

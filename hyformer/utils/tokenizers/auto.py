@@ -32,4 +32,5 @@ class AutoTokenizer:
                 "hyformer.utils.tokenizers.hf"),
                 "HFTokenizer").from_config(config)
         else:
-            raise ValueError(f"Tokenizer {config.tokenizer_type} not available. Available options: 'SMILESTokenizer', 'HFTokenizer'")
+            raise ValueError(f"Tokenizer {config.tokenizer_type} not available. "
+                             f"Available options: 'SMILESTokenizer', 'HFTokenizer'")

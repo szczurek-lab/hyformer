@@ -1,0 +1,7 @@
+{
+  "model_type": "Hyformer",
+  "embedding_dim": 512,
+  "num_attention_heads": 8,
+  "num_layers": 6,
+  "vocab_size": 596
+}

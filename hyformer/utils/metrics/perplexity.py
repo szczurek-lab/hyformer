@@ -1,7 +1,6 @@
 import torch
-
+from typing import Optional, Union
 from torch.nn import functional as F
-from typing import Optional, Optional, Union
 
 from hyformer.utils.metrics.base import BaseMetric
 

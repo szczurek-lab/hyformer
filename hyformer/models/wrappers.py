@@ -1,8 +1,7 @@
 import torch
 import numpy as np
 
-from guacamol.assess_distribution_learning import DistributionMatchingGenerator
-from hyformer.models.base import SmilesEncoder
+from hyformer.models.encoder import SmilesEncoder
 from hyformer.utils.tokenizers.auto import SmilesTokenizer
 from tqdm import tqdm
 from typing import List
@@ -10,7 +9,7 @@ from typing import List
 from hyformer.models.utils import ModelOutput
 
 
-class DefaultSmilesGeneratorWrapper(DistributionMatchingGenerator):
+class DefaultGeneratorWrapper:
     def __init__(self, model, tokenizer, batch_size, temperature, top_k, device):
         self._model = model
         self._tokenizer: SmilesTokenizer = tokenizer
@@ -37,15 +36,35 @@ class DefaultSmilesGeneratorWrapper(DistributionMatchingGenerator):
         return generated[:number_samples]
 
 
-class HyformerSmilesGeneratorWrapper(DefaultSmilesGeneratorWrapper):
+class HyformerGeneratorWrapper(DefaultGeneratorWrapper):
     @torch.no_grad()
     def generate(self, number_samples: int) -> List[str]:
         generated = []
         self._model.eval()
         model = self._model.to(self._device)
+
+        # Create initial input for generation (task token + BOS token)
+        prefix_input_ids = torch.tensor(
+            [[self._tokenizer.get_task_token_id('lm'), self._tokenizer.bos_token_id]] * self._batch_size,
+            dtype=torch.long,
+            device=self._device
+        )
+
         for _ in tqdm(range(0, number_samples, self._batch_size), "Generating samples"):
-            samples: list[str] = model.generate(self._tokenizer, self._batch_size, self._temperature, self._top_k, self._device)
-            generated.extend(self._tokenizer.decode(samples))
+            # Generate sequences
+            outputs = model.generate(
+                prefix_input_ids=prefix_input_ids,
+                num_tokens_to_generate=self._tokenizer.max_length - 2,  # -2 for task and BOS tokens
+                temperature=self._temperature,
+                top_k=self._top_k,
+                eos_token_id=self._tokenizer.eos_token_id,
+                pad_token_id=self._tokenizer.pad_token_id
+            )
+            
+            # Decode and add to generated list
+            for sequence in outputs:
+                generated.append(self._tokenizer.decode(sequence))
+
         return generated[:number_samples]
     
     
