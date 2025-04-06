@@ -28,10 +28,10 @@ def main(args):
     
     logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
-    model_config = ModelConfig.from_config_file(args.path_to_model_config)
+    model_config = ModelConfig.from_config_path(args.path_to_model_config)
     model = AutoModel.from_config(model_config)
 
-    tokenizer_config = TokenizerConfig.from_config_file(args.path_to_tokenizer_config)
+    tokenizer_config = TokenizerConfig.from_config_path(args.path_to_tokenizer_config)
     tokenizer = AutoTokenizer.from_config(tokenizer_config)
     
     model.load_pretrained(args.path_to_model_ckpt)

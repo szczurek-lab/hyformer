@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from typing import Optional, Tuple
 
 from hyformer.models.layers.rotary import RotaryEmbedding
-
+from hyformer.models.layers.cache import KVCache
 
 class Attention(nn.Module):
     """Multi-head attention layer with rotary positional embeddings.
@@ -38,8 +38,8 @@ class Attention(nn.Module):
         self.v_proj = nn.Linear(self.embedding_dim, self.embedding_dim, bias=False)        
         self.out = nn.Linear(self.embedding_dim, self.embedding_dim, bias=False)
         
-        self.relative_embedding = RotaryEmbedding(self.head_dim)
-
+        self.relative_embedding = RotaryEmbedding(self.head_dim) 
+    
     def forward(
         self,
         x: torch.Tensor,
@@ -75,10 +75,12 @@ class Attention(nn.Module):
         k = k.transpose(1, 2)
         v = v.transpose(1, 2)
         
-        offset = past_key_value[0].size(2) if past_key_value is not None else 0  # Compute RoPE offset
+        _kv_seq_length = k.size(2)
+        _q_seq_length = q.size(2)
+        _offset = _kv_seq_length - _q_seq_length
         
-        q = self.relative_embedding.rotate_queries_or_keys(q, offset=offset)
-        k = self.relative_embedding.rotate_queries_or_keys(k, offset=offset)
+        q = self.relative_embedding.rotate_queries_or_keys(q, offset=_offset)
+        k = self.relative_embedding.rotate_queries_or_keys(k, offset=_offset)
         
         if past_key_value is not None:
             past_k, past_v = past_key_value

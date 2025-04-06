@@ -60,11 +60,11 @@ def main(args, hparams=None):
     path_to_model_ckpt = os.path.join(args.out_dir, 'ckpt.pt')
 
     # Load configs
-    dataset_config = DatasetConfig.from_config_file(args.path_to_dataset_config)
-    tokenizer_config = TokenizerConfig.from_config_file(args.path_to_tokenizer_config)
-    model_config = ModelConfig.from_config_file(args.path_to_model_config)
-    trainer_config = TrainerConfig.from_config_file(args.path_to_trainer_config)
-    logger_config = LoggerConfig.from_config_file(args.path_to_logger_config) if args.path_to_logger_config else None
+    dataset_config = DatasetConfig.from_config_path(args.path_to_dataset_config)
+    tokenizer_config = TokenizerConfig.from_config_path(args.path_to_tokenizer_config)
+    model_config = ModelConfig.from_config_path(args.path_to_model_config)
+    trainer_config = TrainerConfig.from_config_path(args.path_to_trainer_config)
+    logger_config = LoggerConfig.from_config_path(args.path_to_logger_config) if args.path_to_logger_config else None
 
     if args.adjust_dataset_seed:
         for key, value in dataset_config.__dict__.items():

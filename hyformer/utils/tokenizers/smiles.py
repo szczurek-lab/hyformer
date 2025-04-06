@@ -103,7 +103,7 @@ class SMILESTokenizer(BaseTokenizer):
         
         # Pre-compute task token IDs
         self._task_token_ids = {
-            task: self.get_task_token_id(task)
+            task: self.task_token_id(task)
             for task in self.task_tokens
         }
     
@@ -177,7 +177,7 @@ class SMILESTokenizer(BaseTokenizer):
         assert task in self.task_tokens, f"Task '{task}' not found in task_tokens. Available tasks: {list(self.task_tokens.keys())}"
         return self.task_tokens[task]
     
-    def get_task_token_id(self, task: str) -> int:
+    def task_token_id(self, task: str) -> int:
         """
         Get a task token ID by name.
         
@@ -275,36 +275,37 @@ class SMILESTokenizer(BaseTokenizer):
     
     def decode(
         self, 
-        token_ids: Union[List[int], Any],
+        token_ids: torch.Tensor,
         skip_special_tokens: bool = True
-    ) -> str:
+    ) -> Union[str, List[str]]:
         """
-        Convert token IDs back to a SMILES string.
+        Convert token IDs back to a SMILES string or list of strings.
         
         Args:
-            token_ids: List or tensor of token IDs
+            token_ids: token IDs
             skip_special_tokens: Whether to remove special tokens
             
         Returns:
-            Decoded SMILES string
+            Decoded SMILES string or list of SMILES strings for batched input
         """
-        # Convert tensor to list if needed
-        if hasattr(token_ids, 'tolist'):
-            token_ids = token_ids.tolist()
         
-        # Handle nested lists (batched input)
-        if isinstance(token_ids, list) and token_ids and isinstance(token_ids[0], list):
-            token_ids = token_ids[0]  # Take first sequence from batch
+        decoded_samples = []
         
-        # Convert IDs to tokens
-        tokens = [self.ids_to_tokens.get(id, self.special_tokens["unk_token"]) for id in token_ids]
+        if len(token_ids.shape) == 1:
+            token_ids = token_ids.unsqueeze(0)
         
-        # Remove special tokens if requested
-        if skip_special_tokens:
-            tokens = [token for token in tokens if token not in self.all_special_tokens]
+        for sample_idx in range(token_ids.shape[0]):
+            sample_ids = token_ids[sample_idx].tolist() if hasattr(token_ids[sample_idx], 'tolist') else token_ids[sample_idx]
+            tokens = [self.ids_to_tokens.get(id, self.special_tokens["unk_token"]) for id in sample_ids]
+            if skip_special_tokens:
+                tokens = [token for token in tokens if token not in self.all_special_tokens]
+            decoded_samples.append("".join(tokens))
         
-        # Join tokens without spaces (SMILES format)
-        return "".join(tokens)
+        # If there's only one sample, return a string instead of a list
+        if len(decoded_samples) == 1:
+            return decoded_samples[0]
+        
+        return decoded_samples
     
     @classmethod
     def from_config(cls, config, **kwargs) -> 'SMILESTokenizer':

@@ -82,15 +82,15 @@ def objective(trial, hparams_grid, train_dataset, val_dataset, test_dataset, tok
 def find_best_hparams(args):
 
     # Load data
-    dataset_config = DatasetConfig.from_config_file(args.path_to_dataset_config)
-    tokenizer_config = TokenizerConfig.from_config_file(args.path_to_tokenizer_config)
+    dataset_config = DatasetConfig.from_config_path(args.path_to_dataset_config)
+    tokenizer_config = TokenizerConfig.from_config_path(args.path_to_tokenizer_config)
     train_dataset = AutoDataset.from_config(dataset_config, split='train', root=args.data_dir)
     val_dataset = AutoDataset.from_config(dataset_config, split='val', root=args.data_dir)
     test_dataset = AutoDataset.from_config(dataset_config, split='test', root=args.data_dir)
     tokenizer = AutoTokenizer.from_config(tokenizer_config)
 
-    model_config = ModelConfig.from_config_file(args.path_to_model_config)
-    trainer_config = TrainerConfig.from_config_file(args.path_to_trainer_config)
+    model_config = ModelConfig.from_config_path(args.path_to_model_config)
+    trainer_config = TrainerConfig.from_config_path(args.path_to_trainer_config)
     
     trainer_config.max_epochs = min(trainer_config.max_epochs, args.optuna_max_epochs)  # set max_epochs
     print(f"Max epochs set to {trainer_config.max_epochs}")

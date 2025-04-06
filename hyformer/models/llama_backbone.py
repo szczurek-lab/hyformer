@@ -64,6 +64,9 @@ class LLAMABackbone(TrainableModel):
         if init_weights:
             self.initialize_parameters()
 
+    def _initialize_kv_cache(self):
+        return [None] * self.num_transformer_layers
+        
     def forward(
             self,
             input_ids: torch.Tensor,
@@ -81,7 +84,9 @@ class LLAMABackbone(TrainableModel):
         if cls_context is not None:
             x[:, 0] += cls_context
 
-        past_key_values = [] if use_cache else None
+        # initialize past_key_values
+        if use_cache:
+            past_key_values = self._initialize_kv_cache() if past_key_values is None else past_key_values
         
         # apply the transformer layers
         for idx, layer in enumerate(self.layers):
@@ -93,8 +98,10 @@ class LLAMABackbone(TrainableModel):
                 past_key_value=past_kv,
                 use_cache=use_cache
             )
+
+            # Update the cache with the present key-value pairs
             if use_cache:
-                past_key_values.append(present_kv)
+                past_key_values[idx] = present_kv
 
         # apply the layer normalization
         x = self.layer_norm(x)
@@ -112,7 +119,7 @@ class LLAMABackbone(TrainableModel):
                 x = x[:, -1]
             
         # return the output
-        return ModelOutput(embeddings=x, attention_mask=attention_mask, past_key_values=past_key_values)
+        return ModelOutput(embeddings=x, attention_mask=attention_mask, past_key_values=past_key_values if use_cache else None)
 
     def load_pretrained(self, filename = None, state_dict = None, device='cpu'):
         assert filename is not None or state_dict is not None, "Either filename or state_dict must be provided"

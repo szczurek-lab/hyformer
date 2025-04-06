@@ -53,7 +53,7 @@ def main():
     print(f"BOS token: {custom_tokenizer.bos_token}")
     print(f"EOS token: {custom_tokenizer.eos_token}")
     print(f"Property task token: {custom_tokenizer.get_task_token('property')}")
-    print(f"Property task token ID: {custom_tokenizer.get_task_token_id('property')}")
+    print(f"Property task token ID: {custom_tokenizer.task_token_id('property')}")
     print(f"LM task token: {custom_tokenizer.get_task_token('lm')}")
     print(f"MLM task token: {custom_tokenizer.get_task_token('mlm')}")
     

@@ -18,6 +18,6 @@
   "decay_lr": true,
   "warmup_iters": 2500,
   "min_lr": 1e-6,
-  "log_interval": 250,
-  "save_interval": 1
+  "log_interval": 100,
+  "save_interval": 10
 }

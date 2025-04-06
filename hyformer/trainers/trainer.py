@@ -480,14 +480,7 @@ class Trainer:
             resume_training: Whether to resume training state (optimizer, epoch, etc.)
         """
         checkpoint = torch.load(filepath, map_location=self.device)
-        state_dict = checkpoint['model']
-        
-        # Handle compiled model artifacts
-        if not any(key.startswith("_orig_mod") for key in self.model.state_dict().keys()):
-            unwanted_prefix = '_orig_mod.'
-            for k, _ in list(state_dict.items()):
-                if k.startswith(unwanted_prefix):
-                    state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)    
+        state_dict = checkpoint['model']    
         
         # Load model state
         try:

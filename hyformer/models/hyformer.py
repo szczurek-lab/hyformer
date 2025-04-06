@@ -85,16 +85,26 @@ class Hyformer(LLAMABackbone):
             dropout_p=dropout_p
         )
 
-    def load_pretrained(self, filename = None, state_dict = None, device='cpu', discard_prediction_head: bool = False):
-        assert filename is not None or state_dict is not None, "Either filename or state_dict must be provided"
-        assert filename is None or state_dict is None, "Only one of filename or state_dict must be provided"
-        if filename is not None:
-            state_dict = torch.load(filename, map_location=device, weights_only=True)['model']
+    def load_pretrained(self, filepath: str = None, state_dict: dict = None, device: str = 'cpu', discard_prediction_head: bool = False):
+        if filepath is not None:
+            assert state_dict is None, "Only one of filepath or state_dict must be provided"
+            state_dict = torch.load(filepath, map_location=device, weights_only=True)['model']
+        elif state_dict is not None:
+            assert filepath is None, "Only one of filepath or state_dict must be provided"
+        else:
+            raise ValueError("Either filepath or state_dict must be provided")
 
         if discard_prediction_head:
             for k in list(state_dict.keys()):
                 if 'prediction_head' in k:
                     state_dict.pop(k)
+        
+        # Handle compiled model artifacts
+        if not any(key.startswith("_orig_mod") for key in self.state_dict().keys()):
+            unwanted_prefix = '_orig_mod.'
+            for k, _ in list(state_dict.items()):
+                if k.startswith(unwanted_prefix):
+                    state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
         
         super().load_state_dict(state_dict=state_dict)
     
@@ -262,7 +272,7 @@ class Hyformer(LLAMABackbone):
                     )
         return None
     
-    @inference
+    @torch.inference_mode()
     def predict(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, **kwargs):
         _logits = self(input_ids=input_ids, attention_mask=attention_mask, task='prediction', **kwargs)['logits']
         if self.prediction_prediction_task_type == 'classification':
@@ -272,7 +282,7 @@ class Hyformer(LLAMABackbone):
         else:
             raise ValueError('Variable `downstream_task` must be either `classification` or `regression`.')
     
-    @inference
+    @torch.inference_mode()
     def generate(
         self,
         prefix_input_ids,
@@ -282,7 +292,8 @@ class Hyformer(LLAMABackbone):
         temperature=1.0,
         top_k=25,
         top_p=None,
-        use_cache=True
+        use_cache=False,
+        device=None
     ):
         """Generate sequence ids by sampling from the model.
 
@@ -362,6 +373,7 @@ class Hyformer(LLAMABackbone):
 
         return output_ids[:, :generated_len]
 
+    @torch.inference_mode()
     def _generate_single_token(self, prefix_input_ids, temperature, top_k, top_p, use_cache, past_key_values):
         """
         Generate a single token for each sequence in the batch, with optional KV caching.
@@ -420,23 +432,22 @@ class Hyformer(LLAMABackbone):
         past_key_values = outputs['past_key_values'] if use_cache else None
 
         # Scale logits by temperature
-        logits = logits[:, -1, :] / temperature
+        logits = logits / temperature
 
+        # Apply top-p (nucleus) filtering
+        if top_p is not None and top_p < 1.0:
+            sorted_logits, sorted_indices = torch.sort(logits, descending=True, dim=-1)
+            cumulative_probs = torch.cumsum(F.softmax(sorted_logits, dim=-1), dim=-1)
+            sorted_indices_to_remove = cumulative_probs > top_p
+            sorted_indices_to_remove[..., 0] = 0
+            for idx in range(logits.size(0)):
+                indices_to_remove = sorted_indices[idx, sorted_indices_to_remove[idx]]
+                logits[idx, indices_to_remove] = -float('Inf')
+        
         # Apply top-k filtering
         if top_k is not None:
             v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
             logits[logits < v[:, [-1]]] = -float('Inf')
-
-        # Apply top-p (nucleus) filtering
-        if top_p is not None and top_p < 1.0:
-            sorted_logits, sorted_indices = torch.sort(logits, descending=True)
-            cumulative_probs = torch.cumsum(F.softmax(sorted_logits, dim=-1), dim=-1)
-            sorted_indices_to_remove = cumulative_probs > top_p
-            if sorted_indices_to_remove[..., 1:].size(-1) > 0:
-                sorted_indices_to_remove[..., 1:] = sorted_indices_to_remove[..., :-1].clone()
-            sorted_indices_to_remove[..., 0] = 0
-            indices_to_remove = sorted_indices[sorted_indices_to_remove]
-            logits.scatter_(dim=-1, index=indices_to_remove, value=-float('Inf'))
 
         return logits, past_key_values
 
@@ -455,10 +466,10 @@ class Hyformer(LLAMABackbone):
             prediction_head_dropout_p=config.prediction_head_dropout_p if prediction_head_dropout_p is None else prediction_head_dropout_p
         )
 
-    # def to_generator(self, tokenizer, batch_size, temperature, top_k, top_p = None, device = None) -> 'HyformerGeneratorWrapper':
-    #     from hyformer.models.wrappers import HyformerGeneratorWrapper
-    #     return HyformerGeneratorWrapper(self, tokenizer, batch_size, temperature, top_k, top_p, device)
+    def to_generator(self, **kwargs) -> 'HyformerGeneratorWrapper':
+        from hyformer.models.wrappers import HyformerGeneratorWrapper
+        return HyformerGeneratorWrapper(self, **kwargs)
 
-    # def to_smiles_encoder(self, tokenizer, batch_size, device) -> EncoderWrapper:
+    # def to_encoder(self, tokenizer, batch_size, device) -> EncoderWrapper:
     #     from hyformer.models.wrappers import HyformerSmilesEncoderWrapper
     #     return HyformerSmilesEncoderWrapper(self, tokenizer, batch_size, device)
