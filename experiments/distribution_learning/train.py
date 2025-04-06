@@ -61,6 +61,11 @@ def main(args):
         trainer_config.batch_size = 2
         trainer_config.warmup_iters = 10
     
+    # Set learning rate
+    if args.learning_rate is not None:
+        trainer_config.learning_rate = args.learning_rate
+        console.info(f"Learning rate set to: {args.learning_rate}")
+    
     # Store configs within the output directory, for reproducibility
     if args.out_dir is not None:
         dump_configs(args.out_dir, dataset_config, tokenizer_config, model_config, trainer_config, logger_config) 
@@ -142,6 +147,7 @@ def parse_args():
     parser.add_argument("--task_specific_validation", type=str, nargs='?', help="Task with respect to which validation is performed")
     parser.add_argument("--patience", type=int, nargs='?', help="Number of epochs to wait before early stopping")
     parser.add_argument("--use_deterministic_algorithms", default=False, action=argparse.BooleanOptionalAction, help="Use deterministic algorithms")
+    parser.add_argument("--learning_rate", type=float, nargs='?', help="Learning rate")
     args = parser.parse_args()
     log_args(args)
     return args

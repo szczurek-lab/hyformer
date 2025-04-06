@@ -75,12 +75,8 @@ class Attention(nn.Module):
         k = k.transpose(1, 2)
         v = v.transpose(1, 2)
         
-        _kv_seq_length = k.size(2)
-        _q_seq_length = q.size(2)
-        _offset = _kv_seq_length - _q_seq_length
-        
-        q = self.relative_embedding.rotate_queries_or_keys(q, offset=_offset)
-        k = self.relative_embedding.rotate_queries_or_keys(k, offset=_offset)
+        q = self.relative_embedding.rotate_queries_or_keys(q, offset=0)
+        k = self.relative_embedding.rotate_queries_or_keys(k, offset=0)
         
         if past_key_value is not None:
             past_k, past_v = past_key_value

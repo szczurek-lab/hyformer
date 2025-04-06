@@ -15,7 +15,8 @@ class DefaultGeneratorWrapper:
         temperature: float, top_k: int,
         top_p: float,
         max_sequence_length: int,
-        device: Any, compile: bool = False
+        device: Any,
+        compile: bool = False
         ) -> None:
         self._model = torch.compile(model) if compile else model
         self._tokenizer = tokenizer
@@ -28,21 +29,7 @@ class DefaultGeneratorWrapper:
 
     @torch.no_grad()
     def generate(self, number_samples: int) -> List[str]:
-        samples = []
-        self._model.eval()
-        model = self._model.to(self._device)
-        for _ in tqdm(range(0, number_samples, self._batch_size), "Generating samples"):
-            samples: list[str] = model.generate(self._tokenizer.cls_token_id,
-                                        self._tokenizer.sep_token_id,
-                                        self._tokenizer.pad_token_id,
-                                        self._tokenizer.max_molecule_length,
-                                        self._batch_size,
-                                        self._temperature,
-                                        self._top_k,
-                                        self._top_p,
-                                        self._device)
-            samples.extend(self._tokenizer.decode(samples))
-        return samples[:number_samples]
+        pass
 
 
 class HyformerGeneratorWrapper(DefaultGeneratorWrapper):
@@ -68,17 +55,14 @@ class HyformerGeneratorWrapper(DefaultGeneratorWrapper):
         for _ in tqdm(range(0, number_samples, self._batch_size), "Generating samples"):
             outputs = model.generate(
                 prefix_input_ids=prefix_input_ids,
-                num_tokens_to_generate=self._max_sequence_length - len(prefix_input_ids[0]),  # -2 for task and BOS tokens
+                num_tokens_to_generate=self._max_sequence_length - len(prefix_input_ids[0]), 
                 eos_token_id=self._tokenizer.eos_token_id,
                 pad_token_id=self._tokenizer.pad_token_id,
                 temperature=self._temperature,
                 top_k=self._top_k,
                 top_p=self._top_p,
-                use_cache=True
+                use_cache=False
             )
-            
-            # Decode and add to samples list
-            # for sequence in outputs:
             samples.extend(self._tokenizer.decode(outputs))
         
         self._model.train(_was_training)

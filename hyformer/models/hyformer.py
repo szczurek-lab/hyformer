@@ -290,7 +290,7 @@ class Hyformer(LLAMABackbone):
         eos_token_id,
         pad_token_id,
         temperature=1.0,
-        top_k=25,
+        top_k=None,
         top_p=None,
         use_cache=False,
         device=None

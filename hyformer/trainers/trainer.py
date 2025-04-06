@@ -239,7 +239,7 @@ class Trainer:
         
         # Linear warmup
         if current_iter < self.config.warmup_iters:
-            return self.config.learning_rate * current_iter / self.config.warmup_iters
+            return self.config.learning_rate * (current_iter + 1) / (self.config.warmup_iters + 1)
             
         # Cosine decay
         if current_iter > self._lr_decay_iters:
@@ -247,6 +247,7 @@ class Trainer:
             
         # Cosine decay from learning_rate to min_lr
         decay_ratio = (current_iter - self.config.warmup_iters) / (self._lr_decay_iters - self.config.warmup_iters)
+        assert 0 <= decay_ratio <= 1
         coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))
         return self.config.min_lr + coeff * (self.config.learning_rate - self.config.min_lr)
 
@@ -262,7 +263,7 @@ class Trainer:
         for param_group in self.optimizer.param_groups:
             param_group['lr'] = self._learning_rate
             # Weight decay remains constant throughout training
-            param_group['weight_decay'] = self.config.weight_decay
+            # param_group['weight_decay'] = self.config.weight_decay
 
     @torch.inference_mode()
     def evaluate(self, task_specific_validation: Optional[str] = None):
@@ -310,7 +311,7 @@ class Trainer:
             # Log task-specific losses
             for task, loss in task_losses.items():
                 if task_counts[task] > 0:
-                    console.info(f"  - {task} loss: {loss:.4f} (from {task_counts[task]} batches)")
+                    console.info(f"  - {task} loss: {loss:.4f} (from {task_counts[task]} val batches)")
             
             if self.logger:
                 log_dict = {
@@ -331,6 +332,7 @@ class Trainer:
                 self._best_val_loss = _val_loss
                 self._best_epoch = self._epoch
                 self._save_ckpt()
+                console.info(f"New best validation loss: {self._best_val_loss:.4f} at epoch {self._best_epoch}")
                 self._not_improved_for_eval_epochs = 0
             else:
                 self._not_improved_for_eval_epochs += 1
@@ -392,16 +394,15 @@ class Trainer:
         start_event = torch.cuda.Event(enable_timing=True)
         end_event = torch.cuda.Event(enable_timing=True)
         
+        # Training loop
         while self._epoch < self.config.max_epochs:
-            self._iterations_in_epoch = 0  # Reset batch counter at start of epoch
-            self._set_lr()
-            
-            # Training loop
             epoch_loss = 0.
             processed_batch_count = 0
-            start_time = time.time()
 
-            for batch_idx, batch in enumerate(self.train_loader):
+            for _iterations_in_epoch, batch in enumerate(self.train_loader):
+                self._iterations_in_epoch = _iterations_in_epoch
+                self._set_lr()
+                
                 if self._master_process:
                     start_event.record()
                 
@@ -430,15 +431,14 @@ class Trainer:
                     
                 epoch_loss += loss.item() * self.config.gradient_accumulation_steps
                 processed_batch_count += 1
-                self._iterations_in_epoch += 1  # Update iteration counter
 
                 # Logging
-                if batch_idx % self.config.log_interval == 0 and self._master_process:
+                if (_iterations_in_epoch % self.config.log_interval == 0 or _iterations_in_epoch == len(self.train_loader) - 1) and self._master_process:
                     end_event.record()
                     torch.cuda.synchronize()
                     tokens_per_second = batch['input_ids'].numel() / (start_event.elapsed_time(end_event) / 1000.0)
                     avg_loss = epoch_loss / processed_batch_count
-                    console.info(f"Epoch {self._epoch}, Step {batch_idx}: loss {avg_loss:.4f}, lr {self._learning_rate:.6f}, tokens/s {tokens_per_second:.2f}")
+                    console.info(f"Epoch {self._epoch}, Step {_iterations_in_epoch}: train loss {avg_loss:.4f}, lr {self._learning_rate:.6f}, tokens/s {tokens_per_second:.2f}")
 
             # Save checkpoint
             if self._epoch % self.config.save_interval == 0 and self._master_process:
