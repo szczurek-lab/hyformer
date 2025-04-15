@@ -137,7 +137,6 @@ class Hyformer(LLAMABackbone):
             task: str,
             attention_mask: Optional[torch.Tensor] = None,
             next_token_only: Optional[bool] = False,
-            past_key_values: Optional[torch.Tensor] = None,
             use_cache: Optional[bool] = False,
             input_labels: Optional[torch.Tensor] = None,
             target: Optional[torch.Tensor] = None,
@@ -153,7 +152,6 @@ class Hyformer(LLAMABackbone):
             task: Task type ('lm', 'mlm', or 'prediction')
             attention_mask: Attention mask for the input
             next_token_only: Whether to return only the next token
-            past_key_values: Past key values for caching
             use_cache: Whether to use caching
             input_labels: Labels for language modeling tasks
             target: Target values for prediction tasks
@@ -177,7 +175,6 @@ class Hyformer(LLAMABackbone):
             attention_mask=_attention_mask,
             is_causal=_is_causal,
             next_token_only=next_token_only,
-            past_key_values=past_key_values,
             use_cache=use_cache
             )
 
@@ -211,8 +208,7 @@ class Hyformer(LLAMABackbone):
             logits=logits,
             attention_mask=attention_mask,
             task=task,
-            loss=loss,
-            past_key_values=outputs['past_key_values']
+            loss=loss
         )
 
     def _calculate_loss(
@@ -328,6 +324,7 @@ class Hyformer(LLAMABackbone):
         device = prefix_input_ids.device
         prefix_len = prefix_input_ids.shape[1]
         
+        self.init_cache(batch_size, prefix_len + num_tokens_to_generate)
         # Pre-allocate output tensor
         output_ids = torch.full(
             (batch_size, prefix_len + num_tokens_to_generate),
@@ -338,20 +335,19 @@ class Hyformer(LLAMABackbone):
         output_ids[:, :prefix_len] = prefix_input_ids
 
         # Initialize KV cache and EOS tracking
-        past_key_values = None
         eos_flags = torch.zeros(batch_size, dtype=torch.bool, device=device)
         generated_len = prefix_len + num_tokens_to_generate
 
         # Generate tokens
         for pos_idx in range(prefix_len, prefix_len + num_tokens_to_generate):
             # Generate logits for all sequences
-            next_token, past_key_values = self._generate_single_token(
-                prefix_input_ids=output_ids[:, :pos_idx],
+            prefix_input_ids = output_ids[:, [pos_idx]] if use_cache and pos_idx > prefix_len else output_ids[:, :pos_idx]
+            next_token = self._generate_single_token(
+                prefix_input_ids=prefix_input_ids,
                 temperature=temperature,
                 top_k=top_k,
                 top_p=top_p,
-                use_cache=use_cache,
-                past_key_values=past_key_values
+                use_cache=use_cache
             )
 
             # For sequences that hit EOS, force next token to be PAD
@@ -370,11 +366,11 @@ class Hyformer(LLAMABackbone):
         for sequence_idx, has_eos in enumerate(eos_flags):
             if not has_eos:
                 output_ids[sequence_idx, generated_len - 1] = eos_token_id
-
+        self.clear_cache()
         return output_ids[:, :generated_len]
 
     @torch.inference_mode()
-    def _generate_single_token(self, prefix_input_ids, temperature, top_k, top_p, use_cache, past_key_values):
+    def _generate_single_token(self, prefix_input_ids, temperature, top_k, top_p, use_cache):
         """
         Generate a single token for each sequence in the batch, with optional KV caching.
         Args:
@@ -383,28 +379,25 @@ class Hyformer(LLAMABackbone):
             top_k: Number of highest probability tokens to keep for top-k filtering
             top_p: Cumulative probability for nucleus sampling
             use_cache: Whether to use KV caching
-            past_key_values: Cached key/value states from previous forward passes
         Returns:
             next_token: Generated token ids for each sequence in batch
-            past_key_values: Updated KV cache if use_cache=True, else None
         """
         # Get logits using the same logic as generate_single_token_logits
-        logits, past_key_values = self._generate_single_token_logits(
+        logits = self._generate_single_token_logits(
             prefix_input_ids=prefix_input_ids,
             temperature=temperature,
             top_k=top_k,
             top_p=top_p,
-            use_cache=use_cache,
-            past_key_values=past_key_values
+            use_cache=use_cache
         )
 
         # Convert logits to probabilities and sample
         probs = F.softmax(logits, dim=-1)
         next_token = torch.multinomial(probs, num_samples=1).squeeze(-1)
 
-        return next_token, past_key_values
+        return next_token
 
-    def _generate_single_token_logits(self, prefix_input_ids, temperature, top_k, top_p, use_cache, past_key_values):
+    def _generate_single_token_logits(self, prefix_input_ids, temperature, top_k, top_p, use_cache):
         """
         Generate logits for a single token for each sequence in the batch, with optional KV caching.
         Args:
@@ -413,10 +406,8 @@ class Hyformer(LLAMABackbone):
             top_k: Number of highest probability tokens to keep for top-k filtering
             top_p: Cumulative probability for nucleus sampling
             use_cache: Whether to use KV caching
-            past_key_values: Cached key/value states from previous forward passes
         Returns:
             logits: Output logits for next token prediction
-            past_key_values: Updated KV cache if use_cache=True, else None
         """
 
         # Forward pass to get logits
@@ -425,11 +416,9 @@ class Hyformer(LLAMABackbone):
             attention_mask=None,
             next_token_only=True,
             task='lm',
-            past_key_values=past_key_values if use_cache else None,
             use_cache=use_cache
         )
         logits = outputs['logits']
-        past_key_values = outputs['past_key_values'] if use_cache else None
 
         # Scale logits by temperature
         logits = logits / temperature
@@ -449,7 +438,7 @@ class Hyformer(LLAMABackbone):
             v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
             logits[logits < v[:, [-1]]] = -float('Inf')
 
-        return logits, past_key_values
+        return logits
 
     @classmethod
     def from_config(cls, config: ModelConfig, num_prediction_tasks: int = None, prediction_prediction_task_type: str = None, prediction_head_dropout_p: float = None):
@@ -465,7 +454,7 @@ class Hyformer(LLAMABackbone):
             prediction_prediction_task_type=config.prediction_prediction_task_type if prediction_prediction_task_type is None else prediction_prediction_task_type,
             prediction_head_dropout_p=config.prediction_head_dropout_p if prediction_head_dropout_p is None else prediction_head_dropout_p
         )
-
+    
     def to_generator(self, **kwargs) -> 'HyformerGeneratorWrapper':
         from hyformer.models.wrappers import HyformerGeneratorWrapper
         return HyformerGeneratorWrapper(self, **kwargs)

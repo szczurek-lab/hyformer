@@ -1,0 +1,4 @@
+{
+    "tokenizer_type": "SMILESTokenizer",
+    "vocabulary_path": "data/vocabulary/guacamol.txt"
+  }  

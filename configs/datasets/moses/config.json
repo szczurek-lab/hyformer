@@ -1,0 +1,13 @@
+{
+  "dataset_type": "sequence",
+  "train_data_path": "moses/train.npz",
+  "val_data_path": "moses/val.npz",  
+  "test_data_path": "moses/test.npz",
+  "data_key": "smiles",
+  "target_key": "target",
+  "prediction_task_type": null,
+  "test_metric": null,
+  "num_prediction_tasks": null,
+  "data_transform": null,
+  "target_transform": null
+}

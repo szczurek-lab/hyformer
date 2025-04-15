@@ -16,7 +16,8 @@ class DefaultGeneratorWrapper:
         top_p: float,
         max_sequence_length: int,
         device: Any,
-        compile: bool = False
+        compile: bool = False,
+        use_cache: bool = False
         ) -> None:
         self._model = torch.compile(model) if compile else model
         self._tokenizer = tokenizer
@@ -26,7 +27,8 @@ class DefaultGeneratorWrapper:
         self._top_k = top_k
         self._top_p = top_p
         self._max_sequence_length = max_sequence_length
-
+        self._use_cache = use_cache
+        
     @torch.no_grad()
     def generate(self, number_samples: int) -> List[str]:
         pass
@@ -35,13 +37,17 @@ class DefaultGeneratorWrapper:
 class HyformerGeneratorWrapper(DefaultGeneratorWrapper):
     
     @torch.inference_mode()
-    def generate(self, number_samples: int) -> List[str]:
+    def generate(self, number_samples: int, temperature: float = None, top_k: int = None, top_p: float = None) -> List[str]:
         
         # set model to evaluation mode
         _was_training = self._model.training
         self._model.eval()
         model = self._model.to(self._device)
-
+        
+        temperature = temperature if temperature is not None else self._temperature
+        top_k = top_k if top_k is not None else self._top_k
+        top_p = top_p if top_p is not None else self._top_p
+        
         # initialize samples
         samples = []
         
@@ -58,10 +64,10 @@ class HyformerGeneratorWrapper(DefaultGeneratorWrapper):
                 num_tokens_to_generate=self._max_sequence_length - len(prefix_input_ids[0]), 
                 eos_token_id=self._tokenizer.eos_token_id,
                 pad_token_id=self._tokenizer.pad_token_id,
-                temperature=self._temperature,
-                top_k=self._top_k,
-                top_p=self._top_p,
-                use_cache=False
+                temperature=temperature,
+                top_k=top_k,
+                top_p=top_p,
+                use_cache=self._use_cache
             )
             samples.extend(self._tokenizer.decode(outputs))
         

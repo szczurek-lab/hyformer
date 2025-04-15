@@ -8,6 +8,13 @@
   "prediction_task_type": null,
   "test_metric": null,
   "num_prediction_tasks": null,
-  "data_transform": null,
+  "data_transform": [
+    {
+      "name": "smiles_enumerator",
+      "params": {
+        "enumeration_probability": 0.0
+      }
+    }
+  ],
   "target_transform": null
 }

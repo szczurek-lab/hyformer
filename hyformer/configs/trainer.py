@@ -30,16 +30,21 @@ class TrainerConfig(BaseConfig):
     
     # Scheduler parameters
     decay_lr: bool  # Whether to decay learning rate
-    warmup_iters: int  # Number of warmup iterations
-    min_lr: float  # Minimum learning rate
     
     # Logging parameters
     log_interval: int  # Interval between logging (in iterations)
     save_interval: int  # Interval between saving (in epochs)
     
+    # Optional parameters
+    min_lr: Optional[float] = None  # Minimum learning rate
+    warmup_iters: Optional[int] = None  # Number of warmup iterations
+    lr_decay_iters: Optional[int] = None  # Number of iterations to decay learning rate
+    
     def __post_init__(self):
         """Initialize derived parameters and validate configuration."""
         self._normalize_task_probabilities()
+        if self.min_lr is None:
+            self.min_lr = self.learning_rate * 0.01
 
     def _normalize_task_probabilities(self):
         """Normalize task probabilities to sum to 1."""

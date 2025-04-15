@@ -11,7 +11,6 @@ class TrainableModel(nn.Module, ABC):
         task: str,
         attention_mask: Optional[torch.Tensor] = None,
         next_token_only: Optional[bool] = False,
-        past_key_values: Optional[torch.Tensor] = None,
         use_cache: Optional[bool] = False,
         input_labels: Optional[torch.Tensor] = None,
         target: Optional[torch.Tensor] = None,
@@ -26,7 +25,6 @@ class TrainableModel(nn.Module, ABC):
             task: Task type ('lm', 'mlm', or 'prediction')
             attention_mask: Attention mask for the input
             next_token_only: Whether to return only the next token
-            past_key_values: Past key values for caching
             use_cache: Whether to use caching
             input_labels: Labels for language modeling tasks
             target: Target values for prediction tasks

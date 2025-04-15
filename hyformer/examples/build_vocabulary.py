@@ -75,13 +75,13 @@ def main():
     args = parser.parse_args()
     
     # Load dataset config
-    dataset_config = DatasetConfig.from_config_path(args.path_to_dataset_config)
+    dataset_config = DatasetConfig.from_config_filepath(args.path_to_dataset_config)
     
     # Load tokenizer config if provided
     tokenizer_config = None
     tokenizer = None
     if args.path_to_tokenizer_config:
-        tokenizer_config = TokenizerConfig.from_config_path(args.path_to_tokenizer_config)
+        tokenizer_config = TokenizerConfig.from_config_filepath(args.path_to_tokenizer_config)
         
         # Initialize the tokenizer to validate the config
         try:

@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 _GLOBAL_SEED = 42
 
 
-def set_seed(seed: int, use_deterministic_algorithms: bool = True) -> None:
+def set_seed(seed: int, use_deterministic_algorithms: bool = False) -> None:
     """
     Set random seeds for reproducibility across all random number generators.
     

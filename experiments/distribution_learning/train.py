@@ -47,11 +47,11 @@ def main(args):
         os.makedirs(args.out_dir, exist_ok=False)
 
     # Load configurations
-    dataset_config = DatasetConfig.from_config_path(args.dataset_config_path)
-    tokenizer_config = TokenizerConfig.from_config_path(args.tokenizer_config_path)
-    model_config = ModelConfig.from_config_path(args.model_config_path)
-    trainer_config = TrainerConfig.from_config_path(args.trainer_config_path)
-    logger_config = LoggerConfig.from_config_path(args.logger_config_path) if args.logger_config_path else None
+    dataset_config = DatasetConfig.from_config_filepath(args.dataset_config_path)
+    tokenizer_config = TokenizerConfig.from_config_filepath(args.tokenizer_config_path)
+    model_config = ModelConfig.from_config_filepath(args.model_config_path)
+    trainer_config = TrainerConfig.from_config_filepath(args.trainer_config_path)
+    logger_config = LoggerConfig.from_config_filepath(args.logger_config_path) if args.logger_config_path else None
     
     # Set debug mode
     if args.debug:
@@ -68,7 +68,7 @@ def main(args):
     
     # Store configs within the output directory, for reproducibility
     if args.out_dir is not None:
-        dump_configs(args.out_dir, dataset_config, tokenizer_config, model_config, trainer_config, logger_config) 
+        map(lambda config_file: config_file.save(os.path.join(args.out_dir, f'{config_file.__class__.__name__}.json')), [dataset_config, tokenizer_config, model_config, trainer_config])
 
     # Initialize
     train_dataset = AutoDataset.from_config(dataset_config, split='train', root=args.data_dir)

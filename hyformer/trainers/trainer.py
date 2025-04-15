@@ -68,7 +68,6 @@ class Trainer:
         self._not_improved_for_eval_epochs = 0
         self._learning_rate = None
         self._iterations_in_epoch = 0
-        self._lr_decay_iters = None
 
         # Distributed training setup
         self._is_distributed_run = dist.is_initialized()
@@ -180,6 +179,7 @@ class Trainer:
         dataset: Optional[BaseDataset],
         tasks: Dict[str, float],
         shuffle: bool = True,
+        num_workers: int = None,
     ) -> Optional[torch.utils.data.DataLoader]:
         """Create a data loader with optimized settings.
         
@@ -203,7 +203,7 @@ class Trainer:
         # Create components
         collator = self._create_collator(tasks)
         sampler = self._create_sampler(dataset)
-        num_workers = self._get_num_workers()
+        num_workers = num_workers if num_workers is not None else self._get_num_workers()
         
         # Create a generator for reproducibility
         g = torch.Generator()
@@ -235,18 +235,19 @@ class Trainer:
         """
         # Calculate current iteration based on completed epochs and current batch
         current_iter = self._epoch * len(self.train_loader) + self._iterations_in_epoch
-        assert self._lr_decay_iters is not None, "lr_decay_iters must be set before calling _get_lr"
+        assert self.config.lr_decay_iters is not None, "lr_decay_iters must be set before calling _get_lr"
+        assert self.config.warmup_iters is not None, "warmup_iters must be set before calling _get_lr"
         
         # Linear warmup
         if current_iter < self.config.warmup_iters:
             return self.config.learning_rate * (current_iter + 1) / (self.config.warmup_iters + 1)
             
         # Cosine decay
-        if current_iter > self._lr_decay_iters:
+        if current_iter > self.config.lr_decay_iters:
             return self.config.min_lr
             
         # Cosine decay from learning_rate to min_lr
-        decay_ratio = (current_iter - self.config.warmup_iters) / (self._lr_decay_iters - self.config.warmup_iters)
+        decay_ratio = (current_iter - self.config.warmup_iters) / (self.config.lr_decay_iters - self.config.warmup_iters)
         assert 0 <= decay_ratio <= 1
         coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))
         return self.config.min_lr + coeff * (self.config.learning_rate - self.config.min_lr)
@@ -291,8 +292,9 @@ class Trainer:
                 batch = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
                 
                 # Get model outputs including loss
-                outputs = self.model(**batch)
-                loss = outputs['loss']
+                with self.ctx:
+                    outputs = self.model(**batch)
+                    loss = outputs['loss']
                 
                 if loss is not None:
                     task_loss += loss.item()
@@ -369,12 +371,15 @@ class Trainer:
         if self._epoch >= self.config.max_epochs:
             return
 
-        # Set up evaluation parameters
         self.patience = patience
-
-        # Initialize data loaders
         self.train_loader = self.create_loader(train_dataset, tasks=self.config.tasks, shuffle=True)
-        self._lr_decay_iters = self.config.max_epochs * len(self.train_loader) // self.config.gradient_accumulation_steps
+        
+        if self.config.lr_decay_iters is None:
+            self.config.lr_decay_iters = self.config.max_epochs * len(self.train_loader) // self.config.gradient_accumulation_steps
+        
+        if self.config.warmup_iters is None:
+            self.config.warmup_iters = self.config.lr_decay_iters * 0.05
+        
         # Create task-specific validation loaders
         self.val_loaders = {}
         if val_dataset is not None:
@@ -402,6 +407,7 @@ class Trainer:
             for _iterations_in_epoch, batch in enumerate(self.train_loader):
                 self._iterations_in_epoch = _iterations_in_epoch
                 self._set_lr()
+                self.optimizer.zero_grad(set_to_none=True)
                 
                 if self._master_process:
                     start_event.record()
@@ -409,42 +415,40 @@ class Trainer:
                 # Move batch to device
                 batch = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
                 
-                # Gradient accumulation
-                for micro_step in range(self.config.gradient_accumulation_steps):
-                    if self._is_distributed_run:
-                        self.model.require_backward_grad_sync = (micro_step == self.config.gradient_accumulation_steps - 1)
+                if self._is_distributed_run and hasattr(self.model, "require_backward_grad_sync"):
+                    self.model.require_backward_grad_sync = (_iterations_in_epoch + 1) % self.config.gradient_accumulation_steps == 0
                     
-                    with self.ctx:
-                        outputs = self.model(**batch)
-                        loss = outputs['loss'] / self.config.gradient_accumulation_steps
-                    
-                    self.scaler.scale(loss).backward()
-
-                # Optimizer step
-                if self.config.grad_clip != 0.0:
-                    self.scaler.unscale_(self.optimizer)
+                with self.ctx:
+                    outputs = self.model(**batch)
+                    loss = outputs['loss'] / self.config.gradient_accumulation_steps
+            
+                self.scaler.scale(loss).backward()
+                
+                if (_iterations_in_epoch + 1) % self.config.gradient_accumulation_steps == 0:
+                                   
+                    if self.config.grad_clip != 0.0:
+                        self.scaler.unscale_(self.optimizer)
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.config.grad_clip)
                 
-                self.scaler.step(self.optimizer)
-                self.scaler.update()
-                self.optimizer.zero_grad(set_to_none=True)
-                    
+                    self.scaler.step(self.optimizer)
+                    self.scaler.update()
+                        
                 epoch_loss += loss.item() * self.config.gradient_accumulation_steps
                 processed_batch_count += 1
 
                 # Logging
-                if (_iterations_in_epoch % self.config.log_interval == 0 or _iterations_in_epoch == len(self.train_loader) - 1) and self._master_process:
+                if _iterations_in_epoch % self.config.log_interval == 0 and self._master_process:
                     end_event.record()
                     torch.cuda.synchronize()
                     tokens_per_second = batch['input_ids'].numel() / (start_event.elapsed_time(end_event) / 1000.0)
                     avg_loss = epoch_loss / processed_batch_count
                     console.info(f"Epoch {self._epoch}, Step {_iterations_in_epoch}: train loss {avg_loss:.4f}, lr {self._learning_rate:.6f}, tokens/s {tokens_per_second:.2f}")
-
-            # Save checkpoint
-            if self._epoch % self.config.save_interval == 0 and self._master_process:
-                self._save_ckpt()
+                        
+            # Save checkpoint every save_interval epochs
+            if self._epoch % self.config.save_interval == 0 and self._epoch > 0 and self._master_process:
+                self._save_ckpt(epoch=self._epoch)
             
-            # Epoch evaluation
+            # Epoch evaluation and early stopping
             if val_dataset is None:
                 if self._master_process:
                     self._save_ckpt()

@@ -50,7 +50,7 @@ def main():
     
     _initial_vocabulary_size = len(vocabulary)
     
-    dataset_config = DatasetConfig.from_config_path(args.path_to_dataset_config)
+    dataset_config = DatasetConfig.from_config_filepath(args.path_to_dataset_config)
     _available_cpus = multiprocessing.cpu_count()
     _num_processes = min(args.num_processes, _available_cpus)
     print(f"Using {_num_processes} process{'es' if _num_processes > 1 else ''} out of {_available_cpus} available CPUs")

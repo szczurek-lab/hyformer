@@ -39,7 +39,14 @@ class Attention(nn.Module):
         self.out = nn.Linear(self.embedding_dim, self.embedding_dim, bias=False)
         
         self.relative_embedding = RotaryEmbedding(self.head_dim) 
+        self.cache = None
     
+    def init_cache(self, batch_size, max_seq_length):
+        self.cache = KVCache(batch_size=batch_size, max_seq_length=max_seq_length, num_heads=self.num_attention_heads, head_dim=self.head_dim, dtype=self.q_proj.weight.dtype, device=self.q_proj.weight.device)
+    
+    def clear_cache(self):
+        self.cache.clear()
+        
     def forward(
         self,
         x: torch.Tensor,
@@ -75,16 +82,14 @@ class Attention(nn.Module):
         k = k.transpose(1, 2)
         v = v.transpose(1, 2)
         
-        q = self.relative_embedding.rotate_queries_or_keys(q, offset=0)
-        k = self.relative_embedding.rotate_queries_or_keys(k, offset=0)
-        
-        if past_key_value is not None:
-            past_k, past_v = past_key_value
-            k = torch.cat([past_k, k], dim=2)  # concat along seq_len
-            v = torch.cat([past_v, v], dim=2)
-
-        present_key_value = (k, v) if use_cache else None
-        
+        if use_cache: 
+            k, v = self.cache.update(k_val=k, v_val=v)  # store unrotated keys
+            q, k = self.relative_embedding.rotate_queries_with_cached_keys(q, k)
+            
+        else:
+            q = self.relative_embedding.rotate_queries_or_keys(q)
+            k = self.relative_embedding.rotate_queries_or_keys(k)
+       
         # Expand to (batch_size, num_attention_heads, seq_len, seq_len)
         attention_mask = None if is_causal else attention_mask.unsqueeze(1).unsqueeze(1).expand(batch_size, self.num_attention_heads, seq_len, seq_len)
         
@@ -97,5 +102,5 @@ class Attention(nn.Module):
         # (batch, seq_len, embedding_dim) → (batch, seq_len, embedding_dim)
         y = self.out(y)
         
-        return y, present_key_value
+        return y
     

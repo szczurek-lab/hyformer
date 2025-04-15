@@ -40,7 +40,7 @@ from hyformer.utils.datasets.auto import AutoDataset
 
 DATA_DIR = <root_dir/data>
 
-dataset_config = DatasetConfig.from_config_path(DATASET_CONFIG_PATH)
+dataset_config = DatasetConfig.from_config_filepath(DATASET_CONFIG_PATH)
 train_dataset = AutoDataset.from_config(dataset_config, split="train", root=DATA_DIR)
 
 _idx = 0
@@ -66,7 +66,7 @@ from hyformer.utils.tokenizers.auto import AutoTokenizer
 
 PATH_TO_TASK_CONFIG = './configs/tasks/guacamol/unsupervised/config.json'
 
-task_config = TaskConfig.from_config_path(PATH_TO_TASK_CONFIG)
+task_config = TaskConfig.from_config_filepath(PATH_TO_TASK_CONFIG)
 
 dataset = AutoDataset.from_config(task_config, split='test')
 tokenizer = AutoTokenizer.from_config(task_config)
@@ -95,7 +95,7 @@ from hyformer.models.auto import AutoModel
 PATH_TO_MODEL_CONFIG = './configs/models/hyformer/'
 PATH_TO_PRETRAINED_MODEL = './results/pretrain/hyformer/'
 
-model_config = ModelConfig.from_config_path(PATH_TO_MODEL_CONFIG)
+model_config = ModelConfig.from_config_filepath(PATH_TO_MODEL_CONFIG)
 model = AutoModel.from_config(model_config)
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -136,7 +136,7 @@ from hyformer.trainers.trainer import Trainer
 
 PATH_TO_TRAINER_CONFIG = './configs/trainers/fine-tune/'
 
-trainer_config = TrainerConfig.from_config_path(PATH_TO_TRAINER_CONFIG)
+trainer_config = TrainerConfig.from_config_filepath(PATH_TO_TRAINER_CONFIG)
 trainer = Trainer(config=trainer_config, model=model, train_dataset=dataset, tokenizer=tokenizer, seed=42)
 trainer.train()
 ```

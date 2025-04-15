@@ -1,5 +1,8 @@
 {
-    "tokenizer_type": "ESMTokenizer",
-    "vocabulary_path": "facebook/esm2_t33_650M_UR50D"
-  }
-  
+    "tokenizer_type": "HFTokenizer",
+    "vocabulary_path": "facebook/esm2_t33_650M_UR50D",
+    "max_length": 128,
+    "kwargs": {
+        "use_fast": true
+    }
+} 

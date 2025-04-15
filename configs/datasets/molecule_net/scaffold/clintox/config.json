@@ -8,6 +8,6 @@
   "prediction_task_type": "classification",
   "test_metric": "roc_auc",
   "num_prediction_tasks": 2,
-  "data_key": "sequence",
-  "target_key": "properties"
+  "data_key": "smiles",
+  "target_key": "target"
 }

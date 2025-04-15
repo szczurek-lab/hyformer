@@ -42,11 +42,11 @@ def main(args, hparams=None, disable_logging=False, max_iters=None):
         disable_logging = True
     
     # Load configs
-    dataset_config = DatasetConfig.from_config_path(args.path_to_dataset_config)
-    tokenizer_config = TokenizerConfig.from_config_path(args.path_to_tokenizer_config)
-    model_config = ModelConfig.from_config_path(args.path_to_model_config)
-    trainer_config = TrainerConfig.from_config_path(args.path_to_trainer_config)
-    logger_config = LoggerConfig.from_config_path(args.path_to_logger_config) if args.path_to_logger_config else None
+    dataset_config = DatasetConfig.from_config_filepath(args.path_to_dataset_config)
+    tokenizer_config = TokenizerConfig.from_config_filepath(args.path_to_tokenizer_config)
+    model_config = ModelConfig.from_config_filepath(args.path_to_model_config)
+    trainer_config = TrainerConfig.from_config_filepath(args.path_to_trainer_config)
+    logger_config = LoggerConfig.from_config_filepath(args.path_to_logger_config) if args.path_to_logger_config else None
 
     # Adjust filepats for varying dataset seeds
     for key, value in dataset_config.__dict__.items():

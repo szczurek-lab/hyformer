@@ -14,6 +14,6 @@
   "prediction_task_type": "regression",
   "test_metric": "rmse",
   "num_prediction_tasks": 1,
-  "data_key": "sequence",
-  "target_key": "properties"
+  "data_key": "smiles",
+  "target_key": "target"
 }

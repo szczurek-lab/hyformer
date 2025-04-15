@@ -1,0 +1,18 @@
+{
+    "dataset_type": "sequence",
+    "train_data_path": "data/train.csv",
+    "val_data_path": "data/val.npz",
+    "test_data_path": "data/test.npz",
+    "data_key": "smiles",
+    "target_key": "activity",
+    "prediction_task_type": "classification",
+    "num_prediction_tasks": 1,
+    "test_metric": "accuracy",
+    "storage_options": {
+        "allow_pickle": false,  /* Used for NPZ files */
+        "delimiter": ",",       /* Used for CSV files */
+        "encoding": "utf-8",    /* Used for CSV files */
+        "skipinitialspace": true, /* Used for CSV files */
+        "dtype": {"activity": "int"} /* Used for CSV files */
+    }
+} 

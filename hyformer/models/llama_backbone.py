@@ -74,7 +74,6 @@ class LLAMABackbone(TrainableModel):
             attention_mask: Optional[torch.Tensor] = None,
             cls_context: Optional[torch.Tensor] = None,
             next_token_only: bool = False,
-            past_key_values: Optional[list[tuple[torch.Tensor, torch.Tensor]]] = None,
             use_cache: bool = False
     ):
 
@@ -83,25 +82,15 @@ class LLAMABackbone(TrainableModel):
         # add the context vector if present to cls token
         if cls_context is not None:
             x[:, 0] += cls_context
-
-        # initialize past_key_values
-        if use_cache:
-            past_key_values = self._initialize_kv_cache() if past_key_values is None else past_key_values
         
         # apply the transformer layers
         for idx, layer in enumerate(self.layers):
-            past_kv = past_key_values[idx] if past_key_values is not None else None
-            x, present_kv = layer(
+            x = layer(
                 x,
                 is_causal=is_causal,
                 attention_mask=attention_mask,
-                past_key_value=past_kv,
                 use_cache=use_cache
             )
-
-            # Update the cache with the present key-value pairs
-            if use_cache:
-                past_key_values[idx] = present_kv
 
         # apply the layer normalization
         x = self.layer_norm(x)
@@ -119,7 +108,7 @@ class LLAMABackbone(TrainableModel):
                 x = x[:, -1]
             
         # return the output
-        return ModelOutput(embeddings=x, attention_mask=attention_mask, past_key_values=past_key_values if use_cache else None)
+        return ModelOutput(embeddings=x, attention_mask=attention_mask)
 
     def load_pretrained(self, filename = None, state_dict = None, device='cpu'):
         assert filename is not None or state_dict is not None, "Either filename or state_dict must be provided"
@@ -207,7 +196,15 @@ class LLAMABackbone(TrainableModel):
         self.vocab_size = new_vocab_size
 
         print(f"Resized token embeddings from {old_vocab_size} to {new_vocab_size}...")
-        
+    
+    def init_cache(self, batch_size: int, max_seq_length: int):
+        for layer in self.layers:
+            layer.attention_layer.init_cache(batch_size, max_seq_length)
+    
+    def clear_cache(self):
+        for layer in self.layers:
+            layer.attention_layer.clear_cache()
+    
     @classmethod
     def from_config(cls, config: ModelConfig):
         return cls(

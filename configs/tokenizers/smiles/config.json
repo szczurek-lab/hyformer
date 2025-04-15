@@ -1,4 +1,0 @@
-{
-    "tokenizer_type": "SMILESTokenizer",
-    "vocabulary_path": "data/vocabulary/smiles.txt"
-  }  

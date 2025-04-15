@@ -32,7 +32,7 @@ class ModelInput(dict):
 
 class ModelOutput(dict):
     
-    def __init__(self, embeddings: torch.Tensor, logits: Optional[torch.Tensor] = None, attention_mask: Optional[torch.Tensor] = None, task: str = None, loss: Optional[torch.Tensor] = None, past_key_values: Optional[torch.Tensor] = None):
+    def __init__(self, embeddings: torch.Tensor, logits: Optional[torch.Tensor] = None, attention_mask: Optional[torch.Tensor] = None, task: str = None, loss: Optional[torch.Tensor] = None):
         """Initialize the ModelOutput object.
 
         Parameters
@@ -47,10 +47,8 @@ class ModelOutput(dict):
             Task of type str.
         loss : Optional[torch.Tensor], optional
             Loss of type torch.Tensor with dtype torch.float in shape (batch_size, num_prediction_tasks).
-        past_key_values : Optional[torch.Tensor], optional
-            Past key values of type torch.Tensor with dtype torch.float in shape (batch_size, sequence_length, embedding_dim).
         """
-        super().__init__(embeddings=embeddings, logits=logits, attention_mask=attention_mask, task=task, loss=loss, past_key_values=past_key_values)
+        super().__init__(embeddings=embeddings, logits=logits, attention_mask=attention_mask, task=task, loss=loss)
         self.masked_logits = None
         self.masked_embeddings = None
     
@@ -70,9 +68,9 @@ class ModelOutput(dict):
     #     else:
     #         assert False
     
-    # @property
-    # def masked_logits(self):
-    #     if self['logits'] is not None:
-    #         return self['logits'][self['attention_mask'] == 1]
-    #     else:
-    #         assert False
+    @property
+    def logits_masked(self):
+        if self['logits'] is not None:
+            return self['logits'].where(self['attention_mask'].unsqueeze(-1).repeat(1, 1, self['logits'].shape[-1]) == 0, -torch.inf)
+        else:
+            assert False

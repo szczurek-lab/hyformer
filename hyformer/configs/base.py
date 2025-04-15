@@ -28,7 +28,7 @@ class BaseConfig:
         return {k: v for k, v in asdict(self).items() if not k.startswith('_')}
 
     @classmethod
-    def from_config_path(cls, config_filepath: str):
+    def from_config_filepath(cls, config_filepath: str):
         """Create a configuration class from a JSON file."""
         if not os.path.exists(config_filepath):
             raise FileNotFoundError(f"Configuration file {config_filepath} not found.")

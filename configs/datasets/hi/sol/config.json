@@ -1,13 +1,13 @@
 {
   "dataset_type": "sequence",
-  "train_data_path": "hi/sol/train_seed_0.npz",
-  "val_data_path": "hi/sol/val_seed_0.npz",  
-  "test_data_path": "hi/sol/test_seed_0.npz",
+  "train_data_path": "hi/sol/train_1.npz",
+  "val_data_path": "hi/sol/val_1.npz",  
+  "test_data_path": "hi/sol/test_1.npz",
   "data_transform": null,
   "target_transform": null,
   "prediction_task_type": "classification",
   "test_metric": "prc_auc",
   "num_prediction_tasks": 1,
-  "data_key": "sequence",
-  "target_key": "properties"
+  "data_key": "smiles",
+  "target_key": "target"
 }
