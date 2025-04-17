@@ -39,12 +39,12 @@ class AutoTokenizer:
         if config.tokenizer_type == 'SMILESTokenizer':
             from hyformer.utils.tokenizers.smiles import SMILESTokenizer
             return SMILESTokenizer.from_config(config)
-        elif config.tokenizer_type == "HFTokenizer":
-            from hyformer.utils.tokenizers.hf import HFTokenizer
-            return HFTokenizer.from_config(config)
+        elif config.tokenizer_type == "AATokenizer":
+            from hyformer.utils.tokenizers.amino_acid import AATokenizer
+            return AATokenizer.from_config(config)
         else:
             raise ValueError(f"Tokenizer type '{config.tokenizer_type}' is not supported. "
-                             f"Supported types: 'SMILESTokenizer', 'HFTokenizer'")
+                             f"Supported types: 'SMILESTokenizer', 'AATokenizer'")
     
     @classmethod
     def get_supported_tokenizer_types(cls) -> Dict[str, str]:

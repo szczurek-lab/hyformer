@@ -163,8 +163,8 @@ test*.ipynb
 
 # Data
 data/*
-!data/vocabularies/
-
+!data/vocabulary/
+!data/vocabulary/**
 # Results
 results/
 wandb/
