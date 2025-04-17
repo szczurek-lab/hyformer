@@ -11,13 +11,12 @@ from tqdm import tqdm
 from torch.utils.data import Dataset, DataLoader
 from torch.nn import functional as F
 
-from hyformer.models.encoder import BaseModel, SmilesEncoder
-
 
 logger = logging.getLogger(__name__)
 
 
-class MolGPT(BaseModel, SmilesEncoder):
+class MolGPT:
+    
     def __init__(self) -> None:
         super().__init__()
         self._config = None
@@ -29,7 +28,7 @@ class MolGPT(BaseModel, SmilesEncoder):
         self._top_k = None
         self._device = None
     
-    def to_smiles_encoder(self, tokenizer=None, batch_size=64, device='cuda:0') -> SmilesEncoder:
+    def to_smiles_encoder(self, tokenizer=None, batch_size=64, device='cuda:0'):
         self._tokenizer = tokenizer
         self._batch_size = batch_size
         self._device = device
@@ -51,7 +50,7 @@ class MolGPT(BaseModel, SmilesEncoder):
             embeddings[i*self._batch_size:(i+1)*self._batch_size] = self._model(x)['embeddings'].mean(1).cpu().numpy()
         return embeddings
 
-    def load_pretrained(self, filename, *args, **kwargs):
+    def load_pretrained(self, filepath, *args, **kwargs):
         self._vocab_size = 94  # model default Guacamol vocab size
         self._max_length = 100  # model default Guacamol max length
         self._scaffold = False  # model default Guacamol scaffold
@@ -61,7 +60,7 @@ class MolGPT(BaseModel, SmilesEncoder):
             self._vocab_size, self._max_length, num_props=0, n_layer=8, n_head=8, n_embd=256,
             scaffold=self._scaffold, scaffold_maxlen=self._scaffold_max_len, lstm=False, lstm_layers=False)
         self._model = GPT(self._config)
-        _ckpt = torch.load(filename, map_location='cpu')
+        _ckpt = torch.load(filepath, map_location='cpu')
         self._model.load_state_dict(self._filter_checkpoint(_ckpt))
         del _ckpt
     
@@ -78,6 +77,38 @@ class MolGPT(BaseModel, SmilesEncoder):
                 print(f"Removed key: {key} from checkpoint; not found in model or size mismatch.")
         return filtered_checkpoint
 
+    @torch.no_grad()
+    def sample(self, x, steps, temperature=1.0, sample=False, top_k=None, prop = None, scaffold = None):
+        """
+        take a conditioning sequence of indices in x (of shape (b,t)) and predict the next token in
+        the sequence, feeding the predictions back into the model each time. Clearly the sampling
+        has quadratic complexity unlike an RNN that is only linear, and has a finite context window
+        of block_size, unlike an RNN that has an infinite context window.
+        """
+        block_size = self._model.get_block_size()   
+        self._model.eval()
+
+        for k in range(steps):
+            x_cond = x if x.size(1) <= block_size else x[:, -block_size:] # crop context if needed
+            logits, _, _ = self._model(x_cond, prop = prop, scaffold = scaffold)   # for liggpt
+            # logits, _, _ = model(x_cond)   # for char_rnn
+            # pluck the logits at the final step and scale by temperature
+            logits = logits[:, -1, :] / temperature
+            # optionally crop probabilities to only the top k options
+            if top_k is not None:
+                logits = self.top_k_logits(logits, top_k)
+            # apply softmax to convert to probabilities
+            probs = F.softmax(logits, dim=-1)
+            # sample from the distribution or take the most likely
+            if sample:
+                ix = torch.multinomial(probs, num_samples=1)
+            else:
+                _, ix = torch.topk(probs, k=1, dim=-1)
+            # append to the sequence and continue
+            x = torch.cat((x, ix), dim=1)
+
+        return x
+    
     @classmethod
     def from_config(cls, config):
         return cls()
@@ -143,6 +174,12 @@ class CausalSelfAttention(nn.Module):
         # output projection
         y = self.resid_drop(self.proj(y))
         return y, attn_save
+
+    def top_k_logits(logits, k):
+        v, ix = torch.topk(logits, k)
+        out = logits.clone()
+        out[out < v[:, [-1]]] = -float('Inf')
+        return out
 
 
 class Block(nn.Module):

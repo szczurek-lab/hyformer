@@ -8,8 +8,6 @@ from hyformer.utils.datasets.auto import AutoDataset
 
 
 BENCHMARKS = [
-    'unimol',
-    'guacamol',
     'hi/drd2',
     'hi/hiv',
     'hi/kdr',
@@ -26,7 +24,9 @@ BENCHMARKS = [
     'molecule_net/scaffold/lipo',
     'molecule_net/scaffold/sider',
     'molecule_net/scaffold/tox21',
-    'molecule_net/scaffold/toxcast'
+    'molecule_net/scaffold/toxcast',
+    'guacamol',
+    'unimol',
 ]
 
 SMILES_REGEX_PATTERN = r"""(\[[^\]]+\]|Br?|Cl?|N|O|S|P|F|I|b|c|n|o|s|p|\(|\)|\.|=|#|-|\+|\\|\/|:|~|@|\?|>>?|\*|\$|%[0-9]{2}|[0-9])"""
@@ -41,33 +41,31 @@ class RegexTokenizer:
         return list(set(self.regex.findall(text)))
 
 
+def save_tokens(tokens, output_filepath):
+    with open(output_filepath, 'w') as f:
+        for token in tokens:
+            f.write(token + '\n')
+    print(f"Vocabulary saved to {output_filepath}")
+
+
 def main(data_dir, output_filepath):
     
     tokens = []
     tokenizer = RegexTokenizer()
-    
-    config_filepath = 'configs/datasets/{benchmark}/config.json'
 
     for benchmark in BENCHMARKS:
         
-        config_filepath = config_filepath.format(benchmark=benchmark)
+        config_filepath = f'configs/datasets/{benchmark}/config.json'
         dataset_config = DatasetConfig.from_config_filepath(config_filepath)
+        print(f"Dataset config: {dataset_config}")
         
         for split in ['train', 'val', 'test']:
-            try:
-                dataset = AutoDataset.from_config(dataset_config, split=split, root=data_dir)
-                for idx in tqdm(range(len(dataset)), desc=f"Extracting tokens from {benchmark} {split} split"):
-                    tokens.extend(tokenizer.get_tokens(dataset[idx]['data']))
-                tokens = list(set(tokens))  
-            except Exception as e:
-                print(f"Error loading dataset for {benchmark} {split} split: {e}")
-                continue
-
-    tokens.sort()
-    
-    with open(output_filepath, 'w') as f:
-        for token in tokens:
-            f.write(token + '\n')
+            dataset = AutoDataset.from_config(dataset_config, split=split, root=data_dir)
+            for idx in tqdm(range(len(dataset)), desc=f"Extracting tokens from {benchmark} {split} split"):
+                tokens.extend(tokenizer.get_tokens(dataset[idx]['data']))
+            tokens = list(set(tokens))  
+      
+    save_tokens(tokens.sort(), output_filepath)
 
     return None
 

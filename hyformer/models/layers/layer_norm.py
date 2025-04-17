@@ -15,6 +15,7 @@ class RMSNorm(nn.Module):
 
     def __init__(self, embedding_dim: int, eps: float = 1e-6) -> None:
         super().__init__()
+        assert eps is not None and eps > 0, "Epsilon must be greater than 0"
         self.eps = eps
         self.weight = nn.Parameter(torch.ones(embedding_dim))
 
@@ -22,5 +23,7 @@ class RMSNorm(nn.Module):
         return x * torch.rsqrt(torch.mean(x.pow(2), dim=-1, keepdim=True) + self.eps)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        output = self._norm(x.float()).type_as(x)
+        _input_dtype = x.dtype
+        output = self._norm(x.to(torch.float32)).to(_input_dtype)
         return output * self.weight
+    

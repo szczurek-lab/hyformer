@@ -30,23 +30,23 @@ class ModelConfig(BaseConfig):
         The epsilon for the layer normalization.
     num_prediction_tasks : int, optional
         The number of prediction tasks, by default None.
-    prediction_prediction_task_type : str, optional
+    prediction_task_type : str, optional
         The type of prediction task, by default None.
     prediction_head_dropout_p : float, optional
         The dropout rate for the prediction head, by default None.
     """
 
     model_type: str
-    vocab_size: int
-    embedding_dim: int
-    num_transformer_layers: int
-    num_attention_heads: int
-    layer_norm_eps: float = 1e-5
-    attention_dropout_p: float = 0.0
+    vocab_size: Optional[int] = None
+    embedding_dim: Optional[int] = None
+    num_transformer_layers: Optional[int] = None
+    num_attention_heads: Optional[int] = None
+    layer_norm_eps: Optional[float] = 1e-6
+    attention_dropout_p: Optional[float] = 0.0
     hidden_embedding_dim: Optional[int] = None
     num_prediction_tasks: Optional[int] = None
-    prediction_prediction_task_type: Optional[str] = None
-    prediction_head_dropout_p: Optional[float] = None
+    prediction_task_type: Optional[str] = None
+    prediction_head_dropout_p: Optional[float] = 0.0
 
     def __post_init__(self):
         """Initialize derived parameters based on provided values."""
@@ -55,6 +55,8 @@ class ModelConfig(BaseConfig):
         
     def _post_init(self):
         """Initialize derived parameters based on provided values."""
+        
+        
         # Validate embedding dimension is compatible with number of heads
         assert self.embedding_dim % self.num_attention_heads == 0, f"Embedding dimension {self.embedding_dim} must be 0 modulo number of attention heads {self.num_attention_heads}."
         

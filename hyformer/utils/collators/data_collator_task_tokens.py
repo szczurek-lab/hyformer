@@ -3,6 +3,7 @@ from typing import Dict, List, Union, Optional, Any, Tuple
 from torch.distributions.categorical import Categorical
 from hyformer.models.utils import ModelInput
 from dataclasses import dataclass
+import numpy as np
 
 # Constants for token types
 from hyformer.utils.tokenizers.base import BaseTokenizer
@@ -109,7 +110,7 @@ class DataCollatorWithTaskTokens:
             )
         
         elif task == 'prediction':
-            target = torch.tensor([example['target'] for example in batch])
+            target = torch.from_numpy(np.stack([example['target'] for example in batch]))
      
         else:
             raise ValueError(f"Task {task} not supported")

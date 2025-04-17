@@ -77,6 +77,9 @@ def main(args):
     model = AutoModel.from_config(model_config)
     logger = AutoLogger.from_config(logger_config) if logger_config else None
     
+    # Check for tokenizer and model vocabulary size mismatch
+    assert len(tokenizer) == model.vocab_size, f"Tokenizer vocab size {len(tokenizer)} does not match model vocab size {model.vocab_size}"
+    
     # Set debug mode
     if args.debug:
         train_dataset.data, train_dataset.target = train_dataset.data[:1500], train_dataset.target[:1500] if train_dataset.target is not None else None

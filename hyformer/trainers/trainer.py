@@ -1,5 +1,4 @@
 import os
-import time
 import math
 import torch
 import logging
@@ -25,9 +24,9 @@ import torch._dynamo
 torch._dynamo.config.cache_size_limit = 64
 
 console = logging.getLogger(__name__)
-CHECKPOINT_FILENAME = 'checkpoint.pt'  # Single checkpoint file for both best model and training state
-CHECKPOINT_FILENAME_EPOCH = 'checkpoint_epoch_{epoch}.pt'
-PAD_TO_MULTIPLE_OF = 64  # Pad sequences to multiple of 8 for better GPU utilization
+CHECKPOINT_FILENAME = 'ckpt.pt'  # Single checkpoint file for both best model and training state
+CHECKPOINT_FILENAME_EPOCH = 'ckpt_epoch={epoch}.pt'
+PAD_TO_MULTIPLE_OF = 64  # Pad sequences to multiple of x for better GPU utilization
 DEFAULT_WORKER_SEED = 42  # Default seed for data loading workers
 MAX_SEQ_LEN = 512
 SUPPORTED_TASKS = ['lm', 'prediction', 'mlm']
@@ -172,7 +171,9 @@ class Trainer:
         Returns:
             Number of workers to use for data loading
         """
-        return max(int(os.environ.get("SLURM_CPUS_PER_TASK", self.config.num_workers)), self.config.num_workers)
+        _num_workers = int(os.environ.get("SLURM_CPUS_PER_TASK", self.config.num_workers))
+        console.info(f"Using {_num_workers} workers for data loading")
+        return _num_workers
 
     def create_loader(
         self,
@@ -360,6 +361,24 @@ class Trainer:
         _filename = CHECKPOINT_FILENAME if epoch is None else CHECKPOINT_FILENAME_EPOCH.format(epoch=epoch)
         torch.save(checkpoint, os.path.join(self.out_dir, _filename))
 
+    @staticmethod
+    def _get_grad_norm(model: torch.nn.Module) -> float:
+        """Get the gradient norm of the model parameters.
+        
+        Args:
+            model: The model to get the gradient norm of
+            
+        Returns:
+            The gradient norm of the model parameters
+        """
+        norm_type = 2
+        total_norm = 0.0
+        for p in model.parameters():
+            if p.grad is not None:
+                param_norm = p.grad.data.norm(norm_type)
+                total_norm += param_norm.item() ** norm_type
+        return total_norm ** (1. / norm_type)
+        
     def train(
             self,
             train_dataset: BaseDataset,
@@ -425,7 +444,6 @@ class Trainer:
                 self.scaler.scale(loss).backward()
                 
                 if (_iterations_in_epoch + 1) % self.config.gradient_accumulation_steps == 0:
-                                   
                     if self.config.grad_clip != 0.0:
                         self.scaler.unscale_(self.optimizer)
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.config.grad_clip)
@@ -441,8 +459,14 @@ class Trainer:
                     end_event.record()
                     torch.cuda.synchronize()
                     tokens_per_second = batch['input_ids'].numel() / (start_event.elapsed_time(end_event) / 1000.0)
+                    grad_norm = self._get_grad_norm(self.model)
                     avg_loss = epoch_loss / processed_batch_count
-                    console.info(f"Epoch {self._epoch}, Step {_iterations_in_epoch}: train loss {avg_loss:.4f}, lr {self._learning_rate:.6f}, tokens/s {tokens_per_second:.2f}")
+                    console.info(
+                        f"Epoch {self._epoch}, Step {_iterations_in_epoch}: train loss {avg_loss:.4f}, "
+                        f"lr {self._learning_rate:.6f}, "
+                        f"grad_norm {grad_norm:.6f}, "
+                        f"scaler_scale {self.scaler.get_scale():.1f}, "
+                        f"tokens/s {tokens_per_second:.2f}")
                         
             # Save checkpoint every save_interval epochs
             if self._epoch % self.config.save_interval == 0 and self._epoch > 0 and self._master_process:

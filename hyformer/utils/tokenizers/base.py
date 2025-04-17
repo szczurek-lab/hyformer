@@ -387,6 +387,17 @@ class BaseTokenizer(ABC):
         
         return result
     
+    @property
+    def all_special_ids(self) -> List[int]:
+        """Get all special token IDs.
+        
+        Returns
+        -------
+        list of int
+            List of all special token IDs
+        """
+        return self.convert_tokens_to_ids(list(self.special_tokens.values()))
+    
     def __call__(
         self, 
         inputs: Union[str, List[str]],

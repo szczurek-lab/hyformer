@@ -16,6 +16,10 @@ class AutoModel:
             return getattr(importlib.import_module(
                 "hyformer.models.hyformer"),
                 "Hyformer").from_config(config, **kwargs)
+        elif config.model_type == 'MolGPT':
+            return getattr(importlib.import_module(
+                "hyformer.models.baselines.molgpt"),
+                "MolGPT").from_config(config, **kwargs)
         
         else:
             raise ValueError(f"Model {config.model_type} not supported.")

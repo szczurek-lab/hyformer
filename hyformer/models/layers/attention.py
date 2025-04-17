@@ -91,7 +91,9 @@ class Attention(nn.Module):
             k = self.relative_embedding.rotate_queries_or_keys(k)
        
         # Expand to (batch_size, num_attention_heads, seq_len, seq_len)
-        attention_mask = None if is_causal else attention_mask.unsqueeze(1).unsqueeze(1).expand(batch_size, self.num_attention_heads, seq_len, seq_len)
+        attention_mask = None if is_causal else attention_mask.unsqueeze(1).unsqueeze(1).expand(
+            batch_size, self.num_attention_heads, seq_len, seq_len
+        ).to(torch.bool)
         
         # (batch, num_attention_heads, seq_len, head_dim) → (batch, num_attention_heads, seq_len, head_dim)
         y = F.scaled_dot_product_attention(q, k, v, attn_mask=attention_mask, is_causal=is_causal, dropout_p=self.dropout if self.training else 0.)

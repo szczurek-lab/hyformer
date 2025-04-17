@@ -7,9 +7,9 @@
     {
       "lm": 1
     },
-  "compile": true,
+  "compile": false,
   "enable_ddp": false, 
-  "dtype": "float16",
+  "dtype": "float32",
   "num_workers": 16,
   "beta1": 0.9,
   "beta2": 0.95,

@@ -2,7 +2,7 @@
   "dataset_type": "sequence",
   "train_data_path": "unimol/train.npz",
   "val_data_path": "unimol/val.npz",  
-  "test_data_path": "unimol/test.npz",
+  "test_data_path": "unimol/val.npz",
   "data_key": "smiles",
   "target_key": "target",
   "prediction_task_type": null,
