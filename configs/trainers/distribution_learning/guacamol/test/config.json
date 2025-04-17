@@ -5,9 +5,11 @@
   "max_epochs": 40,
   "tasks": 
     {
-      "lm": 1
+      "lm": 8,
+      "mlm": 1,
+      "prediction": 1
     },
-  "compile": true,
+  "compile": false,
   "enable_ddp": false, 
   "dtype": "float32",
   "num_workers": 16,

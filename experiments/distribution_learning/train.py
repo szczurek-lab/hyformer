@@ -74,7 +74,9 @@ def main(args):
     train_dataset = AutoDataset.from_config(dataset_config, split='train', root=args.data_dir)
     val_dataset = AutoDataset.from_config(dataset_config, split='val', root=args.data_dir)
     tokenizer = AutoTokenizer.from_config(tokenizer_config)
-    model = AutoModel.from_config(model_config)
+    model = AutoModel.from_config(
+        model_config, prediction_task_type=dataset_config.prediction_task_type, num_prediction_tasks=dataset_config.num_prediction_tasks
+        )
     logger = AutoLogger.from_config(logger_config) if logger_config else None
     
     # Check for tokenizer and model vocabulary size mismatch

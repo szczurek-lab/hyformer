@@ -5,7 +5,9 @@
   "max_epochs": 40,
   "tasks": 
     {
-      "lm": 1
+      "lm": 8,
+      "mlm": 1,
+      "prediction": 1
     },
   "compile": true,
   "enable_ddp": false, 
