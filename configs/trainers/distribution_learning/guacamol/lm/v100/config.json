@@ -1,5 +1,5 @@
 {
-  "batch_size": 1024,
+  "batch_size": 512,
   "learning_rate": 4e-4,
   "weight_decay": 1e-1,
   "max_epochs": 40,
@@ -13,9 +13,10 @@
   "num_workers": 16,
   "beta1": 0.9,
   "beta2": 0.95,
-  "gradient_accumulation_steps": 1,
+  "gradient_accumulation_steps": 2,
   "grad_clip": 1.0,
   "decay_lr": true,
   "log_interval": 100,
-  "save_interval": 10
+  "save_interval": 10,
+  "min_lr": 1e-6
 }

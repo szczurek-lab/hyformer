@@ -36,6 +36,8 @@ logging.basicConfig(
 )
 # logging.captureWarnings(False)
 
+torch.set_float32_matmul_precision('high')
+
 
 @record
 def main(args):    
@@ -57,9 +59,8 @@ def main(args):
     if args.debug:
         model_config.num_transformer_layers = 2
         trainer_config.max_epochs = 2
-        trainer_config.log_interval = 1
-        trainer_config.batch_size = 2
-        trainer_config.warmup_iters = 10
+        trainer_config.log_interval = 2
+        trainer_config.warmup_iters = 200
     
     # Set learning rate
     if args.learning_rate is not None:

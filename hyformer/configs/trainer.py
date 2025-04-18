@@ -44,7 +44,7 @@ class TrainerConfig(BaseConfig):
         """Initialize derived parameters and validate configuration."""
         self._normalize_task_probabilities()
         if self.min_lr is None:
-            self.min_lr = self.learning_rate * 0.01
+            self.min_lr = self.learning_rate * 0.001
 
     def _normalize_task_probabilities(self):
         """Normalize task probabilities to sum to 1."""
