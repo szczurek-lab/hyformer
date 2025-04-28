@@ -5,9 +5,9 @@
   "test_data_path": "unimol/val.npz",
   "data_key": "smiles",
   "target_key": "target",
-  "prediction_task_type": null,
+  "prediction_task_type": "regression",
   "test_metric": null,
-  "num_prediction_tasks": null,
+  "num_prediction_tasks": 200,
   "data_transform": null,
   "target_transform": null
 }

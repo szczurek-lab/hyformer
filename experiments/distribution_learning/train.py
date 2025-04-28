@@ -55,6 +55,13 @@ def main(args):
     trainer_config = TrainerConfig.from_config_filepath(args.trainer_config_path)
     logger_config = LoggerConfig.from_config_filepath(args.logger_config_path) if args.logger_config_path else None
     
+    # Collect configs that need to be updated and saved
+    configs = [dataset_config, tokenizer_config, model_config, trainer_config]
+        
+    # Update all configs with command line arguments
+    for config_file in configs:
+        config_file.update(args)
+    
     # Set debug mode
     if args.debug:
         model_config.num_transformer_layers = 2
@@ -62,14 +69,10 @@ def main(args):
         trainer_config.log_interval = 2
         trainer_config.warmup_iters = 200
     
-    # Set learning rate
-    if args.learning_rate is not None:
-        trainer_config.learning_rate = args.learning_rate
-        console.info(f"Learning rate set to: {args.learning_rate}")
-    
     # Store configs within the output directory, for reproducibility
     if args.out_dir is not None:
-        map(lambda config_file: config_file.save(os.path.join(args.out_dir, f'{config_file.__class__.__name__}.json')), [dataset_config, tokenizer_config, model_config, trainer_config])
+        for config_file in configs:
+            config_file.save(os.path.join(args.out_dir, f'{config_file.__class__.__name__}.json'))
 
     # Initialize
     train_dataset = AutoDataset.from_config(dataset_config, split='train', root=args.data_dir)
@@ -154,6 +157,8 @@ def parse_args():
     parser.add_argument("--patience", type=int, nargs='?', help="Number of epochs to wait before early stopping")
     parser.add_argument("--use_deterministic_algorithms", default=False, action=argparse.BooleanOptionalAction, help="Use deterministic algorithms")
     parser.add_argument("--learning_rate", type=float, nargs='?', help="Learning rate")
+    parser.add_argument("--batch_size", type=int, nargs='?', help="Batch size")
+    parser.add_argument("--max_epochs", type=int, nargs='?', help="Maximum number of epochs")
     args = parser.parse_args()
     log_args(args)
     return args

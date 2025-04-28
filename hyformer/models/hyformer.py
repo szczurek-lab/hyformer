@@ -1,18 +1,15 @@
-from types import NoneType
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 from typing import Optional
 
-from hyformer.models.encoder import EncoderWrapper
 from hyformer.models.llama_backbone import LLAMABackbone
 from hyformer.models.utils import ModelOutput
 
 from hyformer.utils.tokenizers.base import IGNORE_TOKEN_IDX
 from hyformer.models.layers.prediction import PredictionHead
 from hyformer.configs.model import ModelConfig
-from hyformer.utils.decorators import inference
 
 NAN_TARGET_IDX = -1
 
@@ -106,7 +103,17 @@ class Hyformer(LLAMABackbone):
                 if k.startswith(unwanted_prefix):
                     state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
         
-        super().load_state_dict(state_dict=state_dict)
+        try:
+            super().load_state_dict(state_dict=state_dict)
+        except RuntimeError as e:
+            if "prediction_head" in str(e) and self.prediction_head is None:
+                # If error is related to prediction_head and we don't have one, remove those keys
+                for k in list(state_dict.keys()):
+                    if 'prediction_head' in k:
+                        state_dict.pop(k)
+                super().load_state_dict(state_dict=state_dict)
+            else:
+                raise
     
     def resize_token_embeddings(self, new_vocab_size: int):
         
@@ -188,7 +195,7 @@ class Hyformer(LLAMABackbone):
             logits = self.mlm_head(outputs['embeddings'])
         elif task == 'prediction':
             _cls_token_idx = 0
-            logits = self.prediction_head(outputs['embeddings'][:, _cls_token_idx])
+            logits = self.prediction_head(outputs['embeddings'][:, _cls_token_idx]) if self.prediction_head is not None else None
         else:
             raise ValueError(f'Variable `task` must be either `lm`, `mlm`, or `prediction` and {task} was given.')
 
@@ -460,6 +467,6 @@ class Hyformer(LLAMABackbone):
         from hyformer.models.wrappers import HyformerGeneratorWrapper
         return HyformerGeneratorWrapper(self, **kwargs)
 
-    # def to_encoder(self, tokenizer, batch_size, device) -> EncoderWrapper:
-    #     from hyformer.models.wrappers import HyformerSmilesEncoderWrapper
-    #     return HyformerSmilesEncoderWrapper(self, tokenizer, batch_size, device)
+    def to_encoder(self, tokenizer, batch_size, device) -> 'HyformerEncoderWrapper':
+        from hyformer.models.wrappers import HyformerEncoderWrapper
+        return HyformerEncoderWrapper(self, tokenizer, batch_size, device)

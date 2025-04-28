@@ -1,13 +1,11 @@
 {
-  "batch_size": 1024,
-  "learning_rate": 4e-4,
+  "batch_size": 512,
+  "learning_rate": 6e-4,
   "weight_decay": 1e-1,
-  "max_epochs": 40,
+  "max_epochs": 100,
   "tasks": 
     {
-      "lm": 8,
-      "mlm": 1,
-      "prediction": 1
+      "mlm": 1
     },
   "compile": true,
   "enable_ddp": false, 
@@ -18,7 +16,7 @@
   "gradient_accumulation_steps": 1,
   "grad_clip": 1.0,
   "decay_lr": true,
-  "log_interval": 100,
-  "save_interval": 10,
+  "log_interval": 2000,
+  "save_interval": 20,
   "min_lr": 1e-6
 }

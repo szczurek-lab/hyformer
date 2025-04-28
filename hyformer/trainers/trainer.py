@@ -65,8 +65,8 @@ class Trainer:
         self._best_val_loss = float('inf')
         self._best_epoch = 0
         self._not_improved_for_eval_epochs = 0
-        self._learning_rate = None
         self._iterations_in_epoch = 0
+        self._current_lr = None
 
         # Distributed training setup
         self._is_distributed_run = dist.is_initialized()
@@ -181,6 +181,7 @@ class Trainer:
         tasks: Dict[str, float],
         shuffle: bool = True,
         num_workers: int = None,
+        batch_size: int = None,
     ) -> Optional[torch.utils.data.DataLoader]:
         """Create a data loader with optimized settings.
         
@@ -212,7 +213,7 @@ class Trainer:
         
         return torch.utils.data.DataLoader(
             dataset,
-            batch_size=self.config.batch_size,
+            batch_size=batch_size if batch_size is not None else self.config.batch_size,
             shuffle=shuffle if sampler is None else False,
             collate_fn=collator,
             sampler=sampler,
@@ -236,22 +237,20 @@ class Trainer:
         """
         # Calculate current iteration based on completed epochs and current batch
         current_iter = self._epoch * len(self.train_loader) + self._iterations_in_epoch
-        assert self.config.lr_decay_iters is not None, "lr_decay_iters must be set before calling _get_lr"
-        assert self.config.warmup_iters is not None, "warmup_iters must be set before calling _get_lr"
         
         # Linear warmup
-        if current_iter < self.config.warmup_iters:
-            return self.config.learning_rate * (current_iter + 1) / (self.config.warmup_iters + 1)
+        if current_iter < self._warmup_iters:
+            return self._learning_rate * (current_iter + 1) / (self._warmup_iters + 1)
             
         # Cosine decay
-        if current_iter > self.config.lr_decay_iters:
-            return self.config.min_lr
+        if current_iter > self._lr_decay_iters:
+            return self._min_lr
             
         # Cosine decay from learning_rate to min_lr
-        decay_ratio = (current_iter - self.config.warmup_iters) / (self.config.lr_decay_iters - self.config.warmup_iters)
+        decay_ratio = (current_iter - self._warmup_iters) / (self._lr_decay_iters - self._warmup_iters)
         assert 0 <= decay_ratio <= 1
         coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))
-        return self.config.min_lr + coeff * (self.config.learning_rate - self.config.min_lr)
+        return self._min_lr + coeff * (self._learning_rate - self._min_lr)
 
     def _set_lr(self):
         """Update learning rate.
@@ -261,11 +260,10 @@ class Trainer:
         for transformer training, where weight decay is typically kept
         constant throughout training.
         """
-        self._learning_rate = self._get_lr() if self.config.decay_lr else self.config.learning_rate
+        current_lr = self._get_lr() if self.config.decay_lr else self._learning_rate
         for param_group in self.optimizer.param_groups:
-            param_group['lr'] = self._learning_rate
-            # Weight decay remains constant throughout training
-            # param_group['weight_decay'] = self.config.weight_decay
+            param_group['lr'] = current_lr
+        self._current_lr = current_lr  # Store current lr for logging
 
     @torch.inference_mode()
     def evaluate(self, task_specific_validation: Optional[str] = None):
@@ -320,7 +318,7 @@ class Trainer:
                 log_dict = {
                     'val/loss': val_loss,
                     'epoch': self._epoch,
-                    'lr': self._learning_rate
+                    'lr': self._current_lr
                 }
                 
                 # Add task-specific losses to log
@@ -393,11 +391,20 @@ class Trainer:
         self.patience = patience
         self.train_loader = self.create_loader(train_dataset, tasks=self.config.tasks, shuffle=True)
         
-        if self.config.lr_decay_iters is None:
-            self.config.lr_decay_iters = self.config.max_epochs * len(self.train_loader) // self.config.gradient_accumulation_steps
+        # Set local variables for learning rate scheduling
+        self._learning_rate = self.config.learning_rate
+        self._min_lr = self.config.min_lr if self.config.min_lr is not None else self._learning_rate * 0.001
+        self._lr_decay_iters = self.config.lr_decay_iters if self.config.lr_decay_iters is not None else self.config.max_epochs * len(self.train_loader) // self.config.gradient_accumulation_steps
+        self._warmup_iters = self.config.warmup_iters if self.config.warmup_iters is not None else min(len(self.train_loader), 0.02 * self.config.max_epochs * len(self.train_loader))
         
-        if self.config.warmup_iters is None:
-            self.config.warmup_iters = self.config.lr_decay_iters * 0.05
+        # Log learning rate scheduling parameters
+        if self._master_process:
+            if self.config.warmup_iters is None:
+                console.info(f"Using warmup for one epoch: {self._warmup_iters} steps")
+            if self.config.lr_decay_iters is None:
+                console.info(f"Using lr_decay_iters: {self._lr_decay_iters} steps")
+            if self.config.min_lr is None:
+                console.info(f"Using min_lr: {self._min_lr}")
         
         # Create task-specific validation loaders
         self.val_loaders = {}
@@ -462,7 +469,7 @@ class Trainer:
                     avg_loss = epoch_loss / processed_batch_count
                     console.info(
                         f"Epoch {self._epoch}, Step {_iterations_in_epoch}: train loss {avg_loss:.4f}, "
-                        f"lr {self._learning_rate:.6f}, "
+                        f"lr {self._current_lr:.6f}, "
                         f"grad_norm {grad_norm:.6f}, "
                         f"scaler_scale {self.scaler.get_scale():.1f}, "
                         f"tokens/s {tokens_per_second:.2f}")

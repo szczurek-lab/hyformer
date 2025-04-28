@@ -38,7 +38,7 @@ def main(args):
     model = AutoModel.from_config(model_config)
     
     # Load model checkpoint
-    model.load_pretrained(filepath=args.model_ckpt_path)
+    model.load_pretrained(filepath=args.model_ckpt_path, discard_prediction_head=True)
     model = model.to_generator(
         tokenizer=tokenizer,
         batch_size=args.batch_size,

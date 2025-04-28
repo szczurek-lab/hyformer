@@ -110,7 +110,10 @@ class DataCollatorWithTaskTokens:
             )
         
         elif task == 'prediction':
-            target = torch.from_numpy(np.stack([example['target'] for example in batch]))
+            if all(example['target'] is None for example in batch):  # if all targets are None, set target to None for getting cls token encodings
+                target = None
+            else:
+                target = torch.from_numpy(np.stack([example['target'] for example in batch]))
      
         else:
             raise ValueError(f"Task {task} not supported")

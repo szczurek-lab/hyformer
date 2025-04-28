@@ -469,7 +469,7 @@ class BaseTokenizer(ABC):
             "attention_mask": attention_mask
         }
     
-    def decode(
+    def _decode_single_sequence(
         self, 
         token_ids: Union[torch.Tensor, List[int]],
         skip_special_tokens: bool = True
@@ -503,6 +503,33 @@ class BaseTokenizer(ABC):
         
         return self._join_tokens(tokens)
     
+    def decode(
+        self,
+        token_ids: Union[torch.Tensor, List[int]],
+        skip_special_tokens: bool = True
+    ) -> str:
+        """Convert token IDs back to a string.
+        
+        Parameters
+        ----------
+        token_ids : torch.Tensor or list of int
+            Token IDs to decode
+        skip_special_tokens : bool, default=True
+            Whether to remove special tokens from the output
+            
+        Returns
+        -------
+        str
+            Decoded string
+        """
+        if isinstance(token_ids, torch.Tensor):
+            if token_ids.dim() > 1:
+                return [self._decode_single_sequence(ids, skip_special_tokens=skip_special_tokens) for ids in token_ids]
+            else:
+                return self._decode_single_sequence(token_ids, skip_special_tokens=skip_special_tokens)
+        else:
+            return self._decode_single_sequence(token_ids, skip_special_tokens=skip_special_tokens)
+            
     def _join_tokens(self, tokens: List[str]) -> str:
         """Join tokens into a string.
         

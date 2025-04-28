@@ -1,7 +1,10 @@
 import os
 import json
+import logging
 from typing import Dict, Any
 from dataclasses import dataclass, asdict
+
+logger = logging.getLogger(__file__)
 
 @dataclass
 class BaseConfig:
@@ -43,13 +46,14 @@ class BaseConfig:
         with open(filename, 'w') as f:
             json.dump(config_dict, f, indent=4)
             
-    def update(self, **kwargs):
+    def update(self, args=None, **kwargs):
         """Update configuration parameters and return self for chaining.
         
         This method will only update parameters that are defined in the dataclass.
         Any parameters not defined in the dataclass will be silently ignored.
         
         Args:
+            args: Optional arguments object with attributes to update the configuration with.
             **kwargs: Keyword arguments to update the configuration with.
             
         Returns:
@@ -58,9 +62,20 @@ class BaseConfig:
         # Get the fields defined in the dataclass
         defined_fields = {f.name for f in self.__class__.__dataclass_fields__.values()}
         
-        # Only update parameters that are defined in the dataclass
+        # Process kwargs
         for k, v in kwargs.items():
-            if k in defined_fields:
+            if k in defined_fields and v is not None:
+                old_value = getattr(self, k)
                 setattr(self, k, v)
+                logger.info(f"Updated config {self.__class__.__name__}.{k}: {old_value} to {v}")
+        
+        # Process args object if provided
+        if args is not None:
+            for field in defined_fields:
+                if hasattr(args, field) and getattr(args, field) is not None:
+                    old_value = getattr(self, field)
+                    new_value = getattr(args, field)
+                    setattr(self, field, new_value)
+                    logger.info(f"Updated config {self.__class__.__name__}.{field}: {old_value} to {new_value}")
         
         return self
