@@ -394,17 +394,16 @@ class Trainer:
         # Set local variables for learning rate scheduling
         self._learning_rate = self.config.learning_rate
         self._min_lr = self.config.min_lr if self.config.min_lr is not None else self._learning_rate * 0.001
-        self._lr_decay_iters = self.config.lr_decay_iters if self.config.lr_decay_iters is not None else self.config.max_epochs * len(self.train_loader) // self.config.gradient_accumulation_steps
-        self._warmup_iters = self.config.warmup_iters if self.config.warmup_iters is not None else min(len(self.train_loader), 0.02 * self.config.max_epochs * len(self.train_loader))
+        self._lr_decay_iters = self.config.max_epochs * len(self.train_loader) // self.config.gradient_accumulation_steps
+        self._warmup_iters = self.config.warmup_iters if self.config.warmup_iters is not None else len(self.train_loader)
         
         # Log learning rate scheduling parameters
         if self._master_process:
-            if self.config.warmup_iters is None:
-                console.info(f"Using warmup for one epoch: {self._warmup_iters} steps")
-            if self.config.lr_decay_iters is None:
-                console.info(f"Using lr_decay_iters: {self._lr_decay_iters} steps")
-            if self.config.min_lr is None:
-                console.info(f"Using min_lr: {self._min_lr}")
+            console.info(f"Max epochs: {self.config.max_epochs}")
+            console.info(f"Number of iterations in a single epoch: {len(self.train_loader)}")
+            console.info(f"Max number of iterations: {self._lr_decay_iters}")
+            console.info(f"Warmup iterations: {self._warmup_iters}")
+            console.info(f"Min learning rate: {self._min_lr}")
         
         # Create task-specific validation loaders
         self.val_loaders = {}
@@ -506,7 +505,7 @@ class Trainer:
         if self.logger and self._master_process:
             self.logger.finish()
 
-    def resume_from_checkpoint(self, filepath: str, resume_training: bool = False):
+    def resume_from_checkpoint(self, filepath: str, resume_training: bool = False, discard_prediction_head: bool = False):
         """Resume training from a checkpoint file.
         
         Args:
@@ -515,16 +514,7 @@ class Trainer:
         """
         checkpoint = torch.load(filepath, map_location=self.device)
         state_dict = checkpoint['model']    
-        
-        # Load model state
-        try:
-            self.model.load_state_dict(state_dict, strict=True)
-        except RuntimeError:
-            missing_keys, unexpected_keys = self.model.load_state_dict(state_dict, strict=False)
-            if self._master_process:
-                console.warning("Model state_dict loaded with strict=False.")
-                console.warning(f"Missing keys: {missing_keys}")
-                console.warning(f"Unexpected keys: {unexpected_keys}")
+        self.model.load_pretrained(state_dict=state_dict, discard_prediction_head=discard_prediction_head)
 
         if resume_training:
             try:
@@ -540,7 +530,8 @@ class Trainer:
                     console.warning(f"Failed to resume training state: {e}")
                     console.warning("Initializing training state from scratch.")
 
-    def test_model_outputs(self, test_dataset: BaseDataset, metric: str) -> float:
+    @torch.inference_mode()
+    def test(self, test_dataset: BaseDataset, metric: str) -> float:
         """Evaluate model on test set using metrics based on model outputs (logits).
         
         Args:
@@ -550,45 +541,26 @@ class Trainer:
         Returns:
             Float value of the requested metric
         """
-        assert metric in ['perplexity', 'rmse', 'roc_auc', 'prc_auc'], \
+        assert metric in ['rmse', 'roc_auc', 'prc_auc'], \
             f"Metric {metric} not supported for model output evaluation."
         
-        # Determine task type based on metric
-        task = 'lm' if metric == 'perplexity' else 'prediction'
-        
-        # Create test data loader for the appropriate task
-        test_loader = self.create_loader(test_dataset, shuffle=False, tasks={task: 1.0})
-        if test_loader is None:
-            raise ValueError("Test dataset is required for testing.")
+        test_loader = self.create_loader(test_dataset, shuffle=False, tasks={'prediction': 1.0})
 
         y_true = None
         y_pred = None
 
         for _, batch in enumerate(test_loader):
+            
+            # Get targets
+            _targets = batch['target']
+            
+            # Get predictions
             batch = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
+            _logits = self.model(**batch)['logits'].cpu()
             
-            # Collect ground truth
-            current_targets = batch['targets'] if 'targets' in batch else batch.get('labels')
-            if y_true is None:
-                y_true = current_targets
-            else:
-                y_true = torch.cat((y_true, current_targets))
-                
-            # Get model outputs
-            outputs = self.model(**batch)
-            current_logits = outputs['logits']
+            y_true = torch.cat((y_true, _targets)) if y_true is not None else _targets
+            y_pred = torch.cat((y_pred, _logits)) if y_pred is not None else _logits
             
-            if y_pred is None:
-                y_pred = current_logits 
-            else:
-                y_pred = torch.cat((y_pred, current_logits))
-            
-            # Apply masking for language modeling tasks
-            if task == 'lm' and 'attention_mask' in batch:
-                attention_mask = batch['attention_mask']
-                mask = attention_mask.unsqueeze(-1).expand_as(y_pred)
-                y_pred[~mask] = -torch.inf
-
         # Apply inverse transform for regression metrics if needed
         if metric == 'rmse' and hasattr(test_dataset, 'target_transform') and test_dataset.target_transform is not None:    
             y_true = test_dataset.target_transform.inverse_transform(y_true)
@@ -602,62 +574,3 @@ class Trainer:
         
         return test_metric
     
-    def test_generated_samples(self, metric: str, num_samples: int = 1000, temperature: float = 1.0, top_k: int = 25) -> float:
-        """Evaluate quality of generated samples using metrics like validity, uniqueness, etc.
-        
-        Args:
-            metric: Metric to use for testing (validity, uniqueness, novelty, etc.)
-            num_samples: Number of samples to generate
-            temperature: Sampling temperature
-            top_k: Top-k sampling parameter
-            
-        Returns:
-            Float value of the requested metric
-        """
-        assert metric in ['validity', 'uniqueness', 'novelty', 'kl_divergence', 'fcd'], \
-            f"Metric {metric} not supported for generated sample evaluation."
-        
-        # Generate samples
-        original_model = self.model.module if dist.is_initialized() else self.model
-        
-        # Generate samples in batches to avoid memory issues
-        all_samples = []
-        batch_size = min(self.config.batch_size, 32)  # Smaller batch size for generation
-        num_batches = (num_samples + batch_size - 1) // batch_size  # Ceiling division
-        
-        for _ in range(num_batches):
-            curr_batch_size = min(batch_size, num_samples - len(all_samples))
-            if curr_batch_size <= 0:
-                break
-                
-            samples = original_model.generate(
-                tokenizer=self.tokenizer,
-                batch_size=curr_batch_size,
-                temperature=temperature,
-                top_k=top_k,
-                device=self.device
-            )
-            
-            # Decode samples if they're token IDs
-            if isinstance(samples[0], int) or (isinstance(samples, torch.Tensor) and samples.dtype == torch.long):
-                samples = self.tokenizer.batch_decode(samples)
-                
-            all_samples.extend(samples)
-        
-        # Calculate metrics on generated samples
-        test_metric = calculate_metric(all_samples, None, metric)
-        assert isinstance(test_metric, float), f"Test metric {metric} is not a float."
-        
-        if self.logger is not None and self._master_process:
-            self.logger.log({f"test/{metric}": test_metric})
-            
-            # Log a few example generations
-            if len(all_samples) > 0 and isinstance(all_samples[0], str):
-                sample_examples = all_samples[:5]
-                for i, sample in enumerate(sample_examples):
-                    self.logger.log({f"test/sample_{i}": sample})
-        
-        if self._master_process:
-            console.info(f"Test {metric}: {test_metric:.4f}")
-        
-        return test_metric

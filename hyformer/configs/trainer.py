@@ -38,7 +38,6 @@ class TrainerConfig(BaseConfig):
     # Optional parameters
     min_lr: Optional[float] = None  # Minimum learning rate
     warmup_iters: Optional[int] = None  # Number of warmup iterations
-    lr_decay_iters: Optional[int] = None  # Number of iterations to decay learning rate
     
     def __post_init__(self):
         """Initialize derived parameters and validate configuration."""

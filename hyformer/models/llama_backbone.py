@@ -1,6 +1,5 @@
 import inspect
 import torch
-from abc import ABC, abstractmethod
 
 import torch.nn as nn
 
@@ -8,7 +7,7 @@ from typing import Optional
 
 from hyformer.models.layers.layer_norm import RMSNorm
 from hyformer.models.layers.transformer_layer import TransformerLayer
-from hyformer.models.utils import ModelOutput
+from hyformer.models.utils import ModelOutput, clean_checkpoint_for_compiled_model
 from hyformer.configs.model import ModelConfig
 from hyformer.models.trainable import TrainableModel
 
@@ -110,19 +109,8 @@ class LLAMABackbone(TrainableModel):
         # return the output
         return ModelOutput(embeddings=x, attention_mask=attention_mask)
 
-    def load_pretrained(self, filename = None, state_dict = None, device='cpu'):
-        assert filename is not None or state_dict is not None, "Either filename or state_dict must be provided"
-        assert filename is None or state_dict is None, "Only one of filename or state_dict must be provided"
-        if filename is not None:
-            state_dict = torch.load(filename, map_location=device, weights_only=True)['model']
-
-        # remove the unwanted prefix
-        unwanted_prefix = '_orig_mod.'  # compiled module prefix
-        for k, _ in list(state_dict.items()):
-            if k.startswith(unwanted_prefix):
-                state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
-                
-        # load the state dict
+    def load_pretrained(self, state_dict: dict):
+        state_dict = clean_checkpoint_for_compiled_model(state_dict, self)
         try:
             self.load_state_dict(state_dict, strict=True)
         except RuntimeError:

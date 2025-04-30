@@ -1,6 +1,39 @@
 import torch
 
-from typing import Any, Optional
+from typing import Any, Optional, Dict
+
+
+def clean_checkpoint_for_compiled_model(state_dict: Dict[str, torch.Tensor], model: torch.nn.Module) -> Dict[str, torch.Tensor]:
+    """Clean a state dict to handle compiled model artifacts.
+    
+    This function handles the mismatch between compiled and uncompiled model states
+    by adjusting the parameter names in the state dict.
+    
+    Args:
+        state_dict: The state dict to clean
+        model: The model to load the state dict into
+        
+    Returns:
+        The cleaned state dict
+    """
+    # Check if current model is compiled
+    is_current_model_compiled = any(key.startswith("_orig_mod") for key in model.state_dict().keys())
+    
+    # Check if loaded state dict is from a compiled model
+    is_loaded_state_compiled = any(key.startswith("_orig_mod") for key in state_dict.keys())
+    
+    # If there's a mismatch between compiled states, we need to adjust the keys
+    if is_current_model_compiled != is_loaded_state_compiled:
+        unwanted_prefix = '_orig_mod.'
+        for k, _ in list(state_dict.items()):
+            if is_loaded_state_compiled and k.startswith(unwanted_prefix):
+                # Remove prefix if loading compiled weights into uncompiled model
+                state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
+            elif is_current_model_compiled and not k.startswith(unwanted_prefix):
+                # Add prefix if loading uncompiled weights into compiled model
+                state_dict[f"{unwanted_prefix}{k}"] = state_dict.pop(k)
+    
+    return state_dict
 
 
 class ModelInput(dict):

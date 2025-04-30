@@ -82,38 +82,14 @@ class Hyformer(LLAMABackbone):
             dropout_p=dropout_p
         )
 
-    def load_pretrained(self, filepath: str = None, state_dict: dict = None, device: str = 'cpu', discard_prediction_head: bool = False):
-        if filepath is not None:
-            assert state_dict is None, "Only one of filepath or state_dict must be provided"
-            state_dict = torch.load(filepath, map_location=device, weights_only=True)['model']
-        elif state_dict is not None:
-            assert filepath is None, "Only one of filepath or state_dict must be provided"
-        else:
-            raise ValueError("Either filepath or state_dict must be provided")
-
+    def load_pretrained(self, state_dict: dict, discard_prediction_head: bool = False):
         if discard_prediction_head:
-            for k in list(state_dict.keys()):
-                if 'prediction_head' in k:
+            removed_keys = [k for k in list(state_dict.keys()) if 'prediction_head' in k]
+            if removed_keys:
+                print(f"Warning: Removing prediction head keys as model has no prediction head: {removed_keys}")
+                for k in removed_keys:
                     state_dict.pop(k)
-        
-        # Handle compiled model artifacts
-        if not any(key.startswith("_orig_mod") for key in self.state_dict().keys()):
-            unwanted_prefix = '_orig_mod.'
-            for k, _ in list(state_dict.items()):
-                if k.startswith(unwanted_prefix):
-                    state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
-        
-        try:
-            super().load_state_dict(state_dict=state_dict)
-        except RuntimeError as e:
-            if "prediction_head" in str(e) and self.prediction_head is None:
-                # If error is related to prediction_head and we don't have one, remove those keys
-                for k in list(state_dict.keys()):
-                    if 'prediction_head' in k:
-                        state_dict.pop(k)
-                super().load_state_dict(state_dict=state_dict)
-            else:
-                raise
+        super().load_pretrained(state_dict=state_dict)
     
     def resize_token_embeddings(self, new_vocab_size: int):
         
@@ -263,11 +239,24 @@ class Hyformer(LLAMABackbone):
         elif task == 'prediction':
             if target is not None:
                 if self.prediction_task_type == 'classification':
-                    return F.binary_cross_entropy_with_logits(
-                        logits[target != nan_target_idx].view(-1, ), 
-                        target[target != nan_target_idx].view(-1, ), 
-                        reduction=loss_fn_reduction
-                    )
+                    valid_mask = target != nan_target_idx
+                    valid_logits = logits[valid_mask]
+                    valid_targets = target[valid_mask]
+                    
+                    if valid_logits.shape[-1] == 1:  # Binary classification
+                        valid_logits = valid_logits.view(-1)
+                        valid_targets = valid_targets.view(-1).float()  # Ensure float for BCE
+                        return F.binary_cross_entropy_with_logits(
+                            valid_logits,
+                            valid_targets,
+                            reduction=loss_fn_reduction
+                        )
+                    else:  # Multiclass classification
+                        return F.cross_entropy(
+                            valid_logits,
+                            valid_targets,
+                            reduction=loss_fn_reduction
+                        )
                 elif self.prediction_task_type == 'regression':
                     return F.mse_loss(
                         logits.view(-1, ), 
