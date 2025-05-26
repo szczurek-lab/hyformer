@@ -23,6 +23,8 @@ from experiments.conditional_sampling.utils import get_logp, get_qed, get_sa
 
 def main(args):
     
+    os.makedirs(args.out_dir, exist_ok=True)
+
     # Set device
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     print(f"Using device: {device}")

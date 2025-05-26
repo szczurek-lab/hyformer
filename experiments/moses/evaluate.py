@@ -45,7 +45,16 @@ def main(args):
         test_scaffold_stats = None
 
     generated_samples = pd.read_csv(args.path_to_generated_samples)['smiles'].tolist()
-    metrics = moses.get_all_metrics(generated_samples, train=train, test=test, test_scaffolds=test_scaffolds, ptest=test_stats, ptest_scaffolds=test_scaffold_stats)
+    metrics = moses.get_all_metrics(
+        generated_samples,
+        train=train,
+        test=test,
+        test_scaffolds=test_scaffolds,
+        ptest=test_stats,
+        ptest_scaffolds=test_scaffold_stats,
+        batch_size=256,
+        device="cuda:0",
+    )
     print(metrics)
     write_dict_to_file(metrics, f"{args.out_dir}/moses_metrics.json")
     

@@ -56,7 +56,7 @@ class HFTokenizer(BaseTokenizer):
     def __len__(self):
         return len(self.tokenizer)
 
-    def _tokenize(self, data: Union[str, List[str]]):
+    def _tokenize(self, data: Union[str, List[str]], **kwargs):
         return self.tokenizer(
             data,
             return_tensors="pt",

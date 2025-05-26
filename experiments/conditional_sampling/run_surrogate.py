@@ -214,6 +214,7 @@ if __name__ == "__main__":
     parser.add_argument("--pooler_dropout", type=float, default=None, help="Dropout for the model")
     parser.add_argument("--patience", type=int, default=None, help="Patience for the model")
     parser.add_argument("--freeze_weights", default=False, action=argparse.BooleanOptionalAction)
+    parser.add_argument("--no_joint", default=False, action=argparse.BooleanOptionalAction)
     parser.add_argument("--path_to_generative_trainer_config", type=str, default=None)
     parser.add_argument("--path_to_logger_config", type=str, nargs='?')
     parser.add_argument("--seed", type=int, default=0, help="Seed for Optuna study")

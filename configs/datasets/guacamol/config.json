@@ -1,8 +1,0 @@
-{
-  "dataset_name": "sequence_dataset",
-  "path_to_train_data": "guacamol/train.npz",
-  "path_to_val_data": "guacamol/val.npz",  
-  "path_to_test_data": "guacamol/test.npz",
-  "transform": null,
-  "target_transform": null
-}

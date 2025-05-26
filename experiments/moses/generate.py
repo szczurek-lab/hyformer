@@ -62,7 +62,7 @@ def main(args):
         {
             "smiles": generated_samples,
         }).to_csv(
-            os.path.join(args.out_dir, f"unconditionally_generated_samples.csv"),
+            os.path.join(args.out_dir, f"unconditionally_generated_samples_temperature={args.temperature}_topk={args.top_k}.csv"),
             index=False
         )
 

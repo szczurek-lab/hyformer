@@ -1,219 +1,110 @@
-# Jointformer
+# Hyformer
 
-The official implementation of [Jointformer](https://arxiv.org/abs/2310.02066), a [joint model](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/LasserreBishopMinka06.pdf) that simultaneously generates new molecules and predicts their properties.
+This repository is the official implementation of [Hyformer](https://arxiv.org/abs/2504.16559). 
 
-For using Jointformer, refer to [Getting Started](#getting-started) section. For reproducing experiments TBA. 
+Hyformer is a [joint](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/LasserreBishopMinka06.pdf) transformer-based model that unifies a generative decoder with a predictive encoder. Depending on the task, Hyformer uses either a causal or a bidirectional mask, outputting token probabilities or predicted property values.
+
+![alt text](hyformer.png)
+
+<img src="hyformer.png" width="520" height="250"/>
+
+> For an optimized implementation, see [Hyformer 2.0](https://github.com/szczurek-lab/hyformer/tree/jointformer-2.0). 
 
 
-## Getting Started
+## Requirements
 
-### Installation
 To create an environment that satisfies the necessary requirements run
 ```
- conda env create -f jointformer.yml
+ conda env create -f hyformer-experiments.yml
 ```
-Next, install Jointformer from the project directory with 
+Next, install Hyformer from the project directory with 
 ```
-conda activate hybrid-transformer
+conda activate hyformer-experiments
 pip install -e .
 ```
 
-Optionally, for a faster build use [micromamba](https://mamba.readthedocs.io/en/latest/user_guide/micromamba.html) or
-enable [conda-libmamba-solver](https://www.anaconda.com/blog/conda-is-fast-now) with 
+Optionally, for a faster build use [micromamba](https://mamba.readthedocs.io/en/latest/user_guide/micromamba.html) or enable [conda-libmamba-solver](https://www.anaconda.com/blog/conda-is-fast-now) with 
 ``` 
 conda update -n base conda
 conda install -n base conda-libmamba-solver
 conda config --set solver libmamba
 ```
 
-In order to reproduce all experiments, refer to TBA. 
+## Pre-trained Models
 
+You can download pretrained models from:
 
-### Basic Usage
+> Model download is not available, yet.
 
-#### Config files
+- [Hyformer-8M](https://drive.google.com/mymodel.pth) trained on GuacaMol dataset [1].
+- [Hyformer-50M](https://drive.google.com/mymodel.pth) trained on 19M molecules from combined: ZINC, ChEMBL and various purchusable molecular datasets [2]. 
 
-Handling hyperparameters and paths is done through config files stored in `configs/`.
+### Pre-training from scratch
 
+To pre-train Hyformer, run this command:
 
-#### Data and Datasets
-
-For data, Jointformer assumes an `.npz` file file a `sequence` and `properties` arrays for sequences strings and their properties. Data should be preprocessed. 
-```
-# Loads custom data and finetunes jointformer 
-
-
-trainer.train()
+```train
+python train.py --input-data <path_to_data> --alpha 10 --beta 20
 ```
 
-
-Show running experiment where you have your own data SMILES and properties optionally, maybe actual as a .npy file :) 
-Instead of GuacaMol. 
-
-### Train Jointformer on your own data
-
-First, you need to specify a config file. Data processed. Then simply run the script. 
-
-
-#### Vocabularies
-
-Vocabularies are stored in `data/vocabularies/` and can be built with
-```python
-python experiments/vocabulary/build.py --path_to_task_config <PATH_TO_TASK_CONFIG>
-```
-
-### Datasets & Tokenizers
-
-Each task specifies a dataset and tokenizer configuration. As an example, one can download and
-load the test split of the unsupervised GuacaMol dataset together with a SMILES tokenizer with
-
-```python
-from jointformer.configs.task import TaskConfig
-from jointformer.utils.datasets.auto import AutoDataset
-from jointformer.utils.tokenizers.auto import AutoTokenizer
-
-PATH_TO_TASK_CONFIG = './configs/tasks/guacamol/unsupervised/config.json'
-
-task_config = TaskConfig.from_config_file(PATH_TO_TASK_CONFIG)
-
-dataset = AutoDataset.from_config(task_config, split='test')
-tokenizer = AutoTokenizer.from_config(task_config)
-
-smiles = next(iter(dataset))
-inputs = tokenizer(smiles)
-```
-
-The tokenizer not only tokenizes the input, but returns all the necessary inputs
-for the forward pass of the model i.e. attention masks etc.
-
-
-### Models
-
-Pre-trained models can be downloaded from [here](https://drive.google.com/drive/folders/1t18MULGmZphpjEdPV2FYUYwshEo8W5Dw?usp=sharing)
-and initialized with the `AutoModel` class using a model config file. As an example, the following code
-loads a pre-trained model and generates a batch of SMILES strings. 
-
-```python
-from jointformer.configs.model import ModelConfig
-from jointformer.models.auto import AutoModel
-
-PATH_TO_MODEL_CONFIG = './configs/models/jointformer/'
-PATH_TO_PRETRAINED_MODEL = './results/pretrain/jointformer/'
-
-model_config = ModelConfig.from_config_file(PATH_TO_MODEL_CONFIG)
-model = AutoModel.from_config(model_config)
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
-model.load_pretrained(PATH_TO_PRETRAINED_MODEL)
-model.eval()
-model.to(device)
-model = torch.compile(model)
-
-with torch.no_grad():
-    samples = model.generate(
-        bos_token_id = '[CLS]',
-        eos_token_id = '[SEP]',
-        pad_token_id = '[PAD]',
-        input_length = 128,
-        batch_size = 8,
-        temperature=1.0,
-        top_k=None,
-        device=device
-    )
-```
-
-Additionally, one can evaluate the perplexity of selected molecule using the dataset and tokenizer
-from the example
-
-```python
-with torch.no_grad:
-    perplexity = model.get_perplexity(**inputs)
-```
-
-### Trainers (under construction)
-
-Trainers are used to handle models. A recommended way to initialize the model is with a trainer, initialized using the `AutoTrainer` class and an
-appropriate config file. 
-
-```python
-from jointformer.configs.trainer import TrainerConfig
-from jointformer.trainers.trainer import Trainer
-
-PATH_TO_TRAINER_CONFIG = './configs/trainers/fine-tune/'
-
-trainer_config = TrainerConfig.from_config_file(PATH_TO_TRAINER_CONFIG)
-trainer = Trainer(config=trainer_config, model=model, train_dataset=dataset, tokenizer=tokenizer)
-trainer.train()
-```
-
-
-----
 ## Experiments
 
-In order to reproduce the experiments, an environment with additional dependencies is required.
-To install the necessary dependencies, including [GuacaMol](https://github.com/BenevolentAI/guacamol)
- and [MoleculeNet](https://moleculenet.org/) benchmarks, run
-```
-conda env create --file jointformer-experiments.yml
-```
+Experiments are executable through scripts in `experiments/`.
 
-For installing [MOSES](https://github.com/molecularsets/moses/tree/master), additionally run
-```
-git clone https://github.com/molecularsets/moses.git
-cd moses
-python setup.py install
-```
-and in case Git LFS is not enabled, manually substitute all data files in `moses/data/` and `moses/moses/dataset/data` directories.
+### GuacaMol distribution learning benchmark
 
-
-### Train
-
-To train a model, run 
-```
-bash experiments/joint_learning/train.sh
+To evaluate the unconditional predictive performance of Hyformer, on GuacaMol benchmark, run 
+```train
+python train.py --input-data <path_to_data> --alpha 10 --beta 20
 ```
 
-### Generate
+### Conditional sampling
 
-To train a model, run 
+For the conditional sampling experiment, first jointly fine-tune the model
+```train
+python train.py --input-data <path_to_data> --alpha 10 --beta 20
 ```
-bash experiments/joint_learning/train.sh
-```
-
-### Evaluate
-
-To train a model, run 
-```
-bash experiments/joint_learning/train.sh
+and generate
+```train
+python train.py --input-data <path_to_data> --alpha 10 --beta 20
 ```
 
-----
-## Training Jointformer on new data
+### Hit Ideantification (Hi) task from Lo-Hi benchmark
 
-To train Jointformer on new data modify the `configs/datasets/sequence/config.json` config by specifying the relative paths to the train/val/test splits of the data.
-The data should consist of a data file containing sequences and a property file containing property values of sequences. 
+For the Hi task, fine-tune and evaluate the model across 3 independent runs using
+```train
+python train.py --input-data <path_to_data> --alpha 10 --beta 20
+```
 
-----
-## Extending Jointformer to new datasets and tokenizers
 
-In order to train Jointformer to a new dataset, add a 
+### Representation Learning
 
-### Repository Structure
+To evaluate Hyformer's representations, run:
+
+```eval
+python eval.py --model-file mymodel.pth --benchmark imagenet
+```
+
+
+## Repository Structure
 
 ```
 .
 ├── configs/              # configuration files
-├── experiments/          # scripts and examples
-└── jointformer/          # source code
-    ├── configs/            # configurations
+├── experiments/          # scripts
+└── jointformer/          
+    ├── configs/            
     ├── models/             # models
-    ├── trainers/           # trainers
+    ├── trainers/           # trainer
     └── utils/           
         ├── datasets/       # datasets
         ├── tokenizers/     # tokenizers
         └── ...             # utilities
 
 ```
-----
+
+
 ## References
 
+[1] Brown, Nathan, et al. "GuacaMol: benchmarking models for de novo molecular design." Journal of chemical information and modeling, 2019.
+[2] Zhou, Gengmo, et al. "Uni-mol: A universal 3d molecular representation learning framework." ICLR, 2023.

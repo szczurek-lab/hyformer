@@ -30,13 +30,14 @@ def main(args):
 
     model_config = ModelConfig.from_config_file(args.path_to_model_config)
     model = AutoModel.from_config(model_config)
+    print(f"Loading model with {model.get_num_params()} parameters.")
 
     tokenizer_config = TokenizerConfig.from_config_file(args.path_to_tokenizer_config)
     tokenizer = AutoTokenizer.from_config(tokenizer_config)
 
     model.load_pretrained(args.path_to_model_ckpt)
     model = model.to_guacamole_generator(tokenizer, args.batch_size, args.temperature, args.top_k, args.device)
-    
+
     os.makedirs(os.path.dirname(args.output), exist_ok=True)
     assess_distribution_learning(model, args.chembl_training_file, args.output)
 
