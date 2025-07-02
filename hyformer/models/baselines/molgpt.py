@@ -34,8 +34,34 @@ class MolGPT:
         self._device = device
         return self
 
-    def to_guacamole_generator(self, *args, **kwargs):
-        raise NotImplementedError
+    def to_generator(self, tokenizer, batch_size: int, temperature: float = 0.7, top_k: int = None, top_p: float = None, max_sequence_length: int = 100, device = None):
+        self._tokenizer = tokenizer
+        self._dataset = SmilesDataset(['C'])
+        self._batch_size = batch_size
+        self._temperature = temperature
+        self._top_k = top_k
+        self._top_p = top_p
+        self._max_sequence_length = max_sequence_length
+        self._device = device if device is not None else self._device
+        return self
+    
+    @torch.no_grad()
+    def generate(self, number_samples: int):
+        
+        self._model.to(self._device if self._device is not None else 'cuda:0')
+        self._model.eval()
+        
+        context = "C"
+        samples = []
+        num_iterations = int(number_samples // self._batch_size) + 1
+        for _ in tqdm(range(num_iterations)):
+            x = torch.tensor([self._dataset.stoi[s] for s in self._dataset.regex.findall(context)], dtype=torch.long)[None,...].repeat(self._batch_size, 1).to(self._device)
+            y = self.sample(x, self._max_sequence_length, temperature=self._temperature, sample=True, top_k=self._top_k, prop=None, scaffold=None)   # 0.7 for guacamol
+            for gen_mol in y:
+                completion = ''.join([self._dataset.itos[int(i)] for i in gen_mol])
+                completion = completion.replace('<', '')
+                samples.append(completion)
+        return samples[:number_samples]
 
     @torch.no_grad()
     def encode(self, smiles: list[str]) -> np.ndarray:
@@ -90,7 +116,7 @@ class MolGPT:
 
         for k in range(steps):
             x_cond = x if x.size(1) <= block_size else x[:, -block_size:] # crop context if needed
-            logits, _, _ = self._model(x_cond, prop = prop, scaffold = scaffold)   # for liggpt
+            logits = self._model(x_cond, prop = prop, scaffold = scaffold)['logits']   # for liggpt
             # logits, _, _ = model(x_cond)   # for char_rnn
             # pluck the logits at the final step and scale by temperature
             logits = logits[:, -1, :] / temperature

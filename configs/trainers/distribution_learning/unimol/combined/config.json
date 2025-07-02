@@ -2,7 +2,7 @@
   "batch_size": 512,
   "learning_rate": 6e-4,
   "weight_decay": 1e-1,
-  "max_epochs": 100,
+  "max_epochs": 40,
   "tasks": 
     {
       "lm": 8,
@@ -11,7 +11,7 @@
     },
   "compile": true,
   "enable_ddp": false, 
-  "dtype": "float32",
+  "dtype": "bfloat16",
   "num_workers": 16,
   "beta1": 0.9,
   "beta2": 0.95,
@@ -20,5 +20,6 @@
   "decay_lr": true,
   "log_interval": 2000,
   "save_interval": 20,
-  "min_lr": 1e-6
+  "min_lr": 6e-5,
+  "warmup_iters": 5000
 }

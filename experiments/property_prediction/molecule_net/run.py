@@ -57,7 +57,7 @@ def main(args):
         if args.generative_trainer_config_path is not None:
             raise NotImplementedError("Generative training not implemented yet.")
 
-        _val_loss = train(
+        train(
             out_dir=_out_dir,
             data_dir=args.data_dir,
             experiment_seed=seed,
@@ -75,6 +75,18 @@ def main(args):
             decay_lr=args.decay_lr,
             dropout=args.dropout
             )
+        
+        _val_loss = test(
+            out_dir=_out_dir,
+            data_dir=args.data_dir,
+            experiment_seed=seed,
+            dataset_config_path=args.dataset_config_path,
+            tokenizer_config_path=args.tokenizer_config_path,
+            model_config_path=args.model_config_path,
+            trainer_config_path=args.predictive_trainer_config_path if args.predictive_trainer_config_path is not None else args.trainer_config_path,
+            model_ckpt_path=os.path.join(_out_dir, "ckpt.pt"),
+            split="val"
+            )
         val_loss[seed] = _val_loss
         print(f"Val loss for seed {seed}: {_val_loss}")
         
@@ -86,7 +98,8 @@ def main(args):
             tokenizer_config_path=args.tokenizer_config_path,
             model_config_path=args.model_config_path,
             trainer_config_path=args.predictive_trainer_config_path if args.predictive_trainer_config_path is not None else args.trainer_config_path,
-            model_ckpt_path=args.model_ckpt_path
+            model_ckpt_path=os.path.join(_out_dir, "ckpt.pt"),
+            split="test"
             )
         test_loss[seed] = _test_loss
         print(f"Test loss for seed {seed}: {_test_loss}")
@@ -98,7 +111,7 @@ def main(args):
     print(f"Latex entry classification: {round(np.mean(test_loss) * 100, 1)}({round(np.std(test_loss) * 100, 1)})")
 
     # Save results
-    save_json(os.path.join(args.out_dir, RESULTS_FILENAME), {"mean": np.mean(test_loss), "std": np.std(test_loss)})
+    save_json(filename=os.path.join(args.out_dir, RESULTS_FILENAME), data={"mean": np.mean(test_loss), "std": np.std(test_loss)})
 
 if __name__ == "__main__":
     args = parse_args()

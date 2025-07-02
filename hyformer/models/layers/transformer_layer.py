@@ -45,7 +45,6 @@ class TransformerLayer(nn.Module):
         x: torch.Tensor,
         is_causal: bool,
         attention_mask: torch.Tensor = None,
-        past_key_value: tuple[torch.Tensor, torch.Tensor] = None,
         use_cache: bool = False
     ) -> tuple[torch.Tensor, tuple[torch.Tensor, torch.Tensor] | None]:
         _residual = x
@@ -53,7 +52,6 @@ class TransformerLayer(nn.Module):
             x=self.attention_layer_normalization(x),
             is_causal=is_causal,
             attention_mask=attention_mask,
-            past_key_value=past_key_value,
             use_cache=use_cache
             )
         x = _residual + self.feed_forward(self.feed_forward_normalization(x))

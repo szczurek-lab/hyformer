@@ -2,6 +2,7 @@
 
 import os, logging, argparse, sys
 import torch
+import numpy as np
 
 from hyformer.configs.tokenizer import TokenizerConfig
 from hyformer.configs.model import ModelConfig
@@ -25,9 +26,6 @@ logging.basicConfig(
 
 
 def main(args):    
-    
-    # assert that the reference file exists
-    assert os.path.exists(args.chembl_training_file), f"Reference file {args.chembl_training_file} does not exist"
 
     # Load configurations
     tokenizer_config = TokenizerConfig.from_config_filepath(args.tokenizer_config_path) if args.tokenizer_config_path is not None else None
@@ -45,25 +43,49 @@ def main(args):
         top_k=args.top_k,
         top_p=args.top_p,
         max_sequence_length=args.max_sequence_length,
-        device=args.device
+        device=args.device,
+        use_cache=args.use_cache
     )
-    model.load_pretrained(filepath=args.model_ckpt_path, discard_prediction_head=True)
-    assess_distribution_learning(model, args.chembl_training_file, args.output_filepath)
+    
+    torch.cuda.empty_cache()
+    torch.cuda.synchronize()
+    
+    start_time = torch.cuda.Event(enable_timing=True)
+    end_time = torch.cuda.Event(enable_timing=True)
+
+    record_iterations = 100
+    times = []
+    for idx in range(record_iterations):
+        start_time.record()
+        samples = model.generate(args.batch_size)
+        end_time.record()
+        torch.cuda.synchronize()
+        times.append(start_time.elapsed_time(end_time)/args.batch_size)
+
+    print(f"Number of samples generated: {len(samples)}")
+    print(samples[0])
+    print(samples[1])
+    print(samples[2])
+    print(samples[3])
+    print(samples[4])
+    print(samples[5])
+    times = np.array(times[10:-10])
+    print(f"Average time per sample: {np.mean(times)} ms")
+    print(f"Std time per sample: {np.std(times)} ms")
+    print(f"Min time per sample: {np.min(times)} ms")
+    print(f"Max time per sample: {np.max(times)} ms")
+    
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--output-filepath", type=str, required=True, help="Path to the output directory")
-    parser.add_argument("--experiment-seed", type=int, default=0, help="Seed for the experiment")
     parser.add_argument("--tokenizer-config-path", type=str, nargs='?', help="Path to the tokenizer config file")
     parser.add_argument("--model-config-path", type=str, required=True, help="Path to the model config file")
-    parser.add_argument("--model-ckpt-path", type=str, nargs='?', help="Path to the model checkpoint file")
     parser.add_argument("--temperature", type=float, default=1.0, help="Temperature for the model")
     parser.add_argument("--top-k", type=int, nargs='?', help="Top-k for the model")
     parser.add_argument("--top-p", type=float, nargs='?', help="Top-p for the model")
     parser.add_argument("--batch-size", type=int, default=64, help="Batch size for the model")
     parser.add_argument("--device", type=str, default="cuda", help="Device for the model")
     parser.add_argument("--max-sequence-length", type=int, default=100, help="Maximum sequence length for the model")
-    parser.add_argument("--chembl-training-file", type=str, required=True, help="Path to the ChEMBL training file")
     args = parser.parse_args()
     log_args(args)
     return args
@@ -74,6 +96,5 @@ if __name__ == "__main__":
     print("Torch version:", torch.__version__)
     print("CUDA version:", torch.version.cuda)
     args = parse_args()
-    set_seed(args.experiment_seed)
     main(args)
     

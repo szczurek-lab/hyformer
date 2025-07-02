@@ -28,8 +28,8 @@ class DataCollatorWithTaskTokens:
     """
     tokenizer: BaseTokenizer
     tasks: Dict[str, float]
+    max_length: int
     pad_to_multiple_of: Optional[int] = None
-    max_length: int = 512  # Maximum sequence length
     return_tensors: str = "pt"
     mask_probability: float = 0.15  # Probability for masking tokens in MLM task, used only if the MLM task is present in the tasks dictionary
     _lm_prefix_length: int = _LM_PREFIX_LENGTH
@@ -113,7 +113,7 @@ class DataCollatorWithTaskTokens:
             if all(example['target'] is None for example in batch):  # if all targets are None, set target to None for getting cls token encodings
                 target = None
             else:
-                target = torch.from_numpy(np.stack([example['target'] for example in batch]))
+                target = torch.from_numpy(np.stack([example['target'] for example in batch])).float()
      
         else:
             raise ValueError(f"Task {task} not supported")

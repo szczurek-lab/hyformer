@@ -78,7 +78,7 @@ class Hyformer(LLAMABackbone):
         self.prediction_head = PredictionHead(
             embedding_dim=self.embedding_dim,
             num_prediction_tasks=num_prediction_tasks,
-            activation_fn='tanh' if prediction_task_type == 'classification' else 'relu',
+            activation_fn='tanh' if prediction_task_type == 'classification' else 'gelu',
             dropout_p=dropout_p
         )
 
@@ -86,7 +86,7 @@ class Hyformer(LLAMABackbone):
         if discard_prediction_head:
             removed_keys = [k for k in list(state_dict.keys()) if 'prediction_head' in k]
             if removed_keys:
-                print(f"Warning: Removing prediction head keys as model has no prediction head: {removed_keys}")
+                print(f"Warning: Removing prediction head: {removed_keys}")
                 for k in removed_keys:
                     state_dict.pop(k)
         super().load_pretrained(state_dict=state_dict)
@@ -239,19 +239,21 @@ class Hyformer(LLAMABackbone):
         elif task == 'prediction':
             if target is not None:
                 if self.prediction_task_type == 'classification':
+                    _is_binary_classification = logits.shape[-1] == 1
                     valid_mask = target != nan_target_idx
-                    valid_logits = logits[valid_mask]
-                    valid_targets = target[valid_mask]
                     
-                    if valid_logits.shape[-1] == 1:  # Binary classification
-                        valid_logits = valid_logits.view(-1)
-                        valid_targets = valid_targets.view(-1).float()  # Ensure float for BCE
+                    if _is_binary_classification:
+                        valid_logits = logits[valid_mask].view(-1)
+                        valid_targets = target[valid_mask].view(-1)
                         return F.binary_cross_entropy_with_logits(
                             valid_logits,
                             valid_targets,
                             reduction=loss_fn_reduction
                         )
-                    else:  # Multiclass classification
+                    else:
+                        batch_indices = torch.nonzero(valid_mask, as_tuple=True)[0]
+                        valid_logits = logits[batch_indices]
+                        valid_targets = target[batch_indices]
                         return F.cross_entropy(
                             valid_logits,
                             valid_targets,

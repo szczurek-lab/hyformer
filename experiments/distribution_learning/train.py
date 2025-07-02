@@ -106,6 +106,9 @@ def main(args):
         seed = args.experiment_seed + int(os.environ['LOCAL_RANK'])
         print(f"Rank: {int(os.environ['RANK'])}, Local Rank: {int(os.environ['LOCAL_RANK'])}, Device: {device}", flush=True)
 
+    # Print the number of model parameters in millions
+    print(f"Number of model parameters: {sum(p.numel() for p in model.parameters()) / 1e6:.2f}M", flush=True)
+    
     # Initialize trainer
     trainer = Trainer(
         config=trainer_config,

@@ -19,7 +19,7 @@ def calculate_rmse(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     Returns:
         RMSE value
     """
-    return np.sqrt(mean_squared_error(y_true, y_pred))
+    return float(np.sqrt(mean_squared_error(y_true, y_pred)).item())
 
 def calculate_roc_auc(y_true: np.ndarray, y_pred: np.ndarray) -> float:
     """Calculate ROC AUC score.

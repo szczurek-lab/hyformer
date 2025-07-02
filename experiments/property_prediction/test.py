@@ -38,7 +38,8 @@ def main(
     tokenizer_config_path: str,
     model_config_path: str,
     trainer_config_path: str,
-    model_ckpt_path: str
+    model_ckpt_path: str,
+    split: str = 'test'
 ):    
 
     # Set seed
@@ -51,7 +52,7 @@ def main(
     trainer_config = TrainerConfig.from_config_filepath(trainer_config_path)
     
     # Initialize
-    test_dataset = AutoDataset.from_config(dataset_config, split='test', root=data_dir)
+    test_dataset = AutoDataset.from_config(dataset_config, split=split, root=data_dir)
     tokenizer = AutoTokenizer.from_config(tokenizer_config)
     model = AutoModel.from_config(
         model_config, prediction_task_type=dataset_config.prediction_task_type, num_prediction_tasks=dataset_config.num_prediction_tasks

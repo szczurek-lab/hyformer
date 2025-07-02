@@ -52,7 +52,6 @@ class Attention(nn.Module):
         x: torch.Tensor,
         attention_mask: torch.Tensor,
         is_causal: bool,
-        past_key_value: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
         use_cache: bool = False
     ) -> Tuple[torch.Tensor, Optional[Tuple[torch.Tensor, torch.Tensor]]]:
         """ Forward pass of the attention layer.
@@ -61,12 +60,10 @@ class Attention(nn.Module):
             x (torch.Tensor): Input tensor of shape (batch_size, seq_len, embedding_dim)
             attention_mask (torch.Tensor): attention_mask tensor of shape (batch_size, seq_len) and type torch.bool
             is_causal (bool): If True, the model is autoregressive and variable `attention_mask` is ignored
-            past_key_value (Optional[Tuple[torch.Tensor, torch.Tensor]]): Past key and value tensors of shape (batch_size, num_attention_heads, seq_len, head_dim)
-            use_cache (bool): If True, the model is autoregressive and variable `past_key_value` is used
+            use_cache (bool): use cache for the attention layer
         
         Returns:
             torch.Tensor: Output tensor of shape (batch_size, seq_len, embedding_dim)
-            Optional[Tuple[torch.Tensor, torch.Tensor]]: Past key and value tensors of shape (batch_size, num_attention_heads, seq_len, head_dim)
         """
         batch_size, seq_len, embedding_dim = x.shape 
         

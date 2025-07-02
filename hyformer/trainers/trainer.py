@@ -3,7 +3,7 @@ import math
 import torch
 import logging
 
-from typing import Optional, Any, Dict, List
+from typing import Optional, Dict
 from contextlib import nullcontext
 
 import torch.distributed as dist
@@ -26,9 +26,8 @@ torch._dynamo.config.cache_size_limit = 64
 console = logging.getLogger(__name__)
 CHECKPOINT_FILENAME = 'ckpt.pt'  # Single checkpoint file for both best model and training state
 CHECKPOINT_FILENAME_EPOCH = 'ckpt_epoch={epoch}.pt'
-PAD_TO_MULTIPLE_OF = 64  # Pad sequences to multiple of x for better GPU utilization
+PAD_TO_MULTIPLE_OF = 128  # Pad sequences to multiple of x for better GPU utilization
 DEFAULT_WORKER_SEED = 42  # Default seed for data loading workers
-MAX_SEQ_LEN = 512
 SUPPORTED_TASKS = ['lm', 'prediction', 'mlm']
 
 class Trainer:
@@ -142,7 +141,7 @@ class Trainer:
             tokenizer=self.tokenizer, 
             tasks=tasks,
             pad_to_multiple_of=PAD_TO_MULTIPLE_OF,  # Use PAD_TO_MULTIPLE_OF from collator module
-            max_length=MAX_SEQ_LEN,  # Use max_seq_len from config
+            max_length=self.tokenizer.max_length,  # Use max_seq_len from config
             return_tensors="pt",  # Return PyTorch tensors directly
             mask_probability=0.15  # Set mask probability for reconstruction task
         )
@@ -333,12 +332,13 @@ class Trainer:
                 self._best_val_loss = _val_loss
                 self._best_epoch = self._epoch
                 self._save_ckpt()
+                console.info("--------------------------------")
                 console.info(f"New best validation loss: {self._best_val_loss:.4f} at epoch {self._best_epoch}")
+                console.info("--------------------------------")
                 self._not_improved_for_eval_epochs = 0
             else:
                 self._not_improved_for_eval_epochs += 1
-
-        # Restore original training mode
+                
         if was_training:
             self.model.train()
             
@@ -393,9 +393,9 @@ class Trainer:
         
         # Set local variables for learning rate scheduling
         self._learning_rate = self.config.learning_rate
-        self._min_lr = self.config.min_lr if self.config.min_lr is not None else self._learning_rate * 0.001
+        self._min_lr = self.config.min_lr if self.config.min_lr is not None else self._learning_rate * 0.01
         self._lr_decay_iters = self.config.max_epochs * len(self.train_loader) // self.config.gradient_accumulation_steps
-        self._warmup_iters = self.config.warmup_iters if self.config.warmup_iters is not None else len(self.train_loader)
+        self._warmup_iters = self.config.warmup_iters if self.config.warmup_iters is not None else int(0.1 * self._lr_decay_iters)
         
         # Log learning rate scheduling parameters
         if self._master_process:

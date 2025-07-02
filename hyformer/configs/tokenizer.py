@@ -10,7 +10,7 @@ class TokenizerConfig(BaseConfig):
     tokenizer_type: str  # Type of tokenizer to use
     
     # Common settings for all tokenizers
-    max_length: int = 512  # Maximum sequence length
+    max_length: int = 128  # Maximum sequence length
     task_tokens: Optional[Dict[str, str]] = None  # Optional task tokens dictionary
     
     # Additional configuration options stored as a dictionary

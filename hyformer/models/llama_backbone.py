@@ -54,9 +54,9 @@ class LLAMABackbone(TrainableModel):
         # Transformer layers
         self.layers = nn.ModuleList([
             TransformerLayer(
-                embedding_dim=self.embedding_dim, hidden_embedding_dim=self.hidden_embedding_dim, attention_dropout_p=self.attention_dropout_p,
-                num_attention_heads=self.num_attention_heads, layer_norm_eps=self.layer_norm_eps
-                )
+                embedding_dim=self.embedding_dim, hidden_embedding_dim=self.hidden_embedding_dim,
+                attention_dropout_p=self.attention_dropout_p, num_attention_heads=self.num_attention_heads,
+                layer_norm_eps=self.layer_norm_eps)
               for _ in range(self.num_transformer_layers)])
         self.layer_norm = RMSNorm(self.embedding_dim, self.layer_norm_eps)
         
@@ -83,7 +83,7 @@ class LLAMABackbone(TrainableModel):
             x[:, 0] += cls_context
         
         # apply the transformer layers
-        for idx, layer in enumerate(self.layers):
+        for _, layer in enumerate(self.layers):
             x = layer(
                 x,
                 is_causal=is_causal,

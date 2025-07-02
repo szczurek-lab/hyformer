@@ -128,10 +128,4 @@ def main(
         patience=patience,
         )
     
-    # Run testing
-    val_metric = trainer.test(
-        test_dataset=val_dataset,
-        metric=dataset_config.test_metric
-        )
-    
-    return val_metric
+    return None

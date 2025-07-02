@@ -38,6 +38,10 @@ class DefaultGeneratorWrapper:
 
 class HyformerGeneratorWrapper(DefaultGeneratorWrapper):
     
+    def load_pretrained(self, filepath: str, discard_prediction_head: bool = False):
+        checkpoint = torch.load(filepath, map_location=self._device)["model"]
+        self._model.load_pretrained(state_dict=checkpoint, discard_prediction_head=discard_prediction_head)
+        
     @torch.inference_mode()
     def generate(self, number_samples: int, temperature: float = None, top_k: int = None, top_p: float = None) -> List[str]:
         
