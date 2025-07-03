@@ -5,14 +5,19 @@ Source:
     [2] https://github.com/BenevolentAI/MolBERT/blob/main/molbert/utils/featurizer/molfeaturizer.py#L1346
 """
 
+import warnings
 from typing import Iterable, List, Optional
-from rdkit import Chem
+
+try:
+    from rdkit import Chem
+    from rdkit import RDLogger
+    RDLogger.logger().setLevel(RDLogger.CRITICAL)
+except ImportError:
+    Chem = None
+    RDLogger = None
+    warnings.warn("RDKit is not installed. Chemistry utilities will not be available.")
 
 from hyformer.utils.file_io import remove_duplicates
-
-# Suppress RDKit warnings
-from rdkit import RDLogger
-RDLogger.logger().setLevel(RDLogger.CRITICAL)
 
 
 def standardize(smiles: str, canonicalize: bool = False) -> Optional[str]:

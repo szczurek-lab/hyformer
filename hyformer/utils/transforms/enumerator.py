@@ -5,12 +5,12 @@ Bjerrum, E. J. (2017). SMILES enumeration as data augmentation for neural networ
 
 import numpy as np
 
-from rdkit import Chem
-
 
 class SmilesEnumerator:
     
+    
     def __init__(self, enumeration_probability: float = 0.9):
+        from rdkit import Chem 
         self.enumeration_probability = enumeration_probability
 
     def __call__(self, smiles: str) -> str:

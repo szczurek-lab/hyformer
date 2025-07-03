@@ -4,14 +4,12 @@ import wandb
 import time
 
 import torch.nn as nn
-import pandas as pd
 
-from rdkit import Chem
 from typing import Optional, List
 
 from hyformer.configs.base import BaseConfig
 from hyformer.configs.logger import LoggerConfig
-from hyformer.utils.plot import mol_to_pil_image
+
 
 
 class WandbLogger:
@@ -84,30 +82,6 @@ class WandbLogger:
     def finish(self):
         if self.enable:
             self.run.finish()
-
-    def log_molecule_data(self, data: List[str]) -> None:
-        if self.enable:
-            data = list(set(data))  # remove duplicates
-            out = []
-            for smiles in data:
-                try:
-                    out.extend({
-                        'smiles': smiles,
-                        'molecule': wandb.Molecule.from_smiles(smiles),
-                        'molecule_2d': wandb.Image(mol_to_pil_image(Chem.MolFromSmiles(smiles)))
-                    })
-                except:
-                    pass
-
-            if len(out) > 0:
-                dataframe = pd.DataFrame.from_records(data)
-                table = wandb.Table(dataframe=dataframe)
-                self.run.log(
-                    {
-                        "table": table,
-                        "molecules": [substance.get("molecule") for substance in data],
-                    }
-                )
 
     @classmethod
     def from_config(cls, config: LoggerConfig, display_name: str = None):
