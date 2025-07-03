@@ -12,12 +12,11 @@ requires-python = ">=3.10"
 dependencies = [
     "torch>=2.2.0",
     "torchvision>=0.17.0",
-    "numpy<2.0",
+    "numpy",
     "pandas",
     "tqdm",
     "scikit-learn",
     "scipy",
-    "rdkit>=2023.09.5",
 ]
 
 [build-system]
@@ -26,14 +25,8 @@ build-backend = "hatchling.build"
 
 [project.optional-dependencies]
 # For pip install hyformer[minimal] - basic ML tools only
-minimal = [
-    "torch>=2.2.0",
-    "torchvision>=0.17.0",
-    "numpy",
-    "pandas",
-    "scikit-learn",
-    "scipy",
-    "tqdm"
+chemistry = [
+    "rdkit>=2023.09.5"
 ]
 
 # For pip install hyformer[experiments] - adds research tools to default installation
