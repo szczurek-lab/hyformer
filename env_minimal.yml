@@ -5,6 +5,7 @@ channels:
   - conda-forge
   - defaults
 dependencies:
+  - pip
   - python>=3.10
   - pytorch>=2.2.0
   - torchvision>=0.17.0
@@ -12,8 +13,5 @@ dependencies:
   - pandas
   - scikit-learn
   - scipy
-  - tqdm
-  - pip
-  - pip:
-    - -e . 
+  - tqdm 
     
