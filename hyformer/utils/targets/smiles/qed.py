@@ -1,8 +1,5 @@
 import numpy as np
 
-from rdkit import Chem
-from rdkit.Chem.QED import qed
-
 from hyformer.utils.targets.base import BaseTarget
 
 
@@ -10,6 +7,11 @@ class QED(BaseTarget):
     """ QED target. 
     Source: https://github.com/wengong-jin/hgraph2graph/blob/master/props/properties.py
     """
+
+    def __init__(self):
+        super().__init__()
+        from rdkit import Chem
+        from rdkit.Chem.QED import qed
 
     def _get_target(self, example: str) -> float:
         try:

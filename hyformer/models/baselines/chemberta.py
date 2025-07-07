@@ -25,7 +25,7 @@ from hyformer.models.utils import ModelOutput
 from typing import Optional
 from torch import nn
 
-from hyformer.models.trainable import TrainableModel
+from hyformer.models.base import TrainableModel
 
 from hyformer.configs.model import ModelConfig
 

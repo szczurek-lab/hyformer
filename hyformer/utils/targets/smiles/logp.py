@@ -1,9 +1,6 @@
 import networkx as nx
 import numpy as np
 
-from rdkit import Chem
-from rdkit.Chem import Descriptors
-
 from hyformer.utils.targets.smiles import sascorer
 from hyformer.utils.targets.base import BaseTarget
 
@@ -20,6 +17,11 @@ class LogP(BaseTarget):
     Source: https://github.com/wengong-jin/hgraph2graph/blob/master/props/properties.py
     """
     
+    def __init__(self):
+        super().__init__()
+        from rdkit import Chem
+        from rdkit.Chem import Descriptors
+        
     def _get_target(self, example: str) -> float:
         try: 
             mol = Chem.MolFromSmiles(example)

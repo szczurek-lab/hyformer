@@ -2,9 +2,20 @@
 
 
 import sys
-from rdkit import Chem
-from rdkit.Chem.Descriptors import MolWt, MolLogP, NumHDonors, NumHAcceptors, TPSA
-from rdkit.Chem.rdMolDescriptors import CalcNumRotatableBonds
+import warnings
+
+try:
+    from rdkit import Chem
+    from rdkit.Chem.Descriptors import MolWt, MolLogP, NumHDonors, NumHAcceptors, TPSA
+    from rdkit.Chem.rdMolDescriptors import CalcNumRotatableBonds
+except ImportError:
+    Chem = None
+    MolWt = None
+    MolLogP = None
+    NumHDonors = None
+    NumHAcceptors = None
+    warnings.warn("RDKit is not installed. RDFilters will not be available.")
+
 import multiprocessing as mp
 from multiprocessing import Pool
 import time

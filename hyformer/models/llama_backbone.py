@@ -9,7 +9,7 @@ from hyformer.models.layers.layer_norm import RMSNorm
 from hyformer.models.layers.transformer_layer import TransformerLayer
 from hyformer.models.utils import ModelOutput, clean_checkpoint_for_compiled_model
 from hyformer.configs.model import ModelConfig
-from hyformer.models.trainable import TrainableModel
+from hyformer.models.base import TrainableModel
 
 
 class LLAMABackbone(TrainableModel):

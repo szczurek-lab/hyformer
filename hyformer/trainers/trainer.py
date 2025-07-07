@@ -10,7 +10,7 @@ import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 
 from hyformer.configs.trainer import TrainerConfig
-from hyformer.models.trainable import TrainableModel
+from hyformer.models.base import TrainableModel
 from hyformer.utils.loggers.wandb import WandbLogger
 from hyformer.utils.datasets.base import BaseDataset
 

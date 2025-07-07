@@ -1,0 +1,53 @@
+[project]
+name = "hyformer"
+version = "2.0.0"
+description = "An official implementation of Hyformer, a joint model for molecule generation and property prediction."
+readme = "README.md"
+license = {text = "GPL-3.0-or-later"}
+authors = [
+    {name = "Adam Izdebski", email = "adam.izdebski1@gmail.com"}
+]
+requires-python = ">=3.10"
+
+dependencies = [
+    "torch>=2.2.0",
+    "torchvision>=0.17.0",
+    "numpy",
+    "pandas",
+    "tqdm",
+    "scikit-learn",
+    "scipy",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project.optional-dependencies]
+# For pip install hyformer[minimal] - basic ML tools only
+chemistry = [
+    "rdkit>=2023.09.5"
+]
+
+# For pip install hyformer[experiments] - adds research tools to default installation
+experiments = [
+    "einops>=0.7",
+    "wandb",
+    "sentencepiece",
+    "matplotlib>=3.8.2",
+    "seaborn>=0.13.1",
+    "jupyter>=1.0.0",
+    "ipywidgets>=8.1.1",
+    "jupyterlab>=4.0.11",
+    "transformers>=4.37.2",
+    "tokenizers>=0.15.1",
+    "accelerate>=0.27.2",
+    "datasets>=2.17.0",
+    "torchaudio>=2.2.0",
+]
+
+# For pip install hyformer[full] - everything
+full = ["hyformer[experiments]"]
+
+# Aliases
+all = ["hyformer[full]"]

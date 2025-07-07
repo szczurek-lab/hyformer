@@ -26,8 +26,14 @@
 
 # Requires: https://github.com/wengong-jin/multiobj-rationale/blob/master/scripts/fpscores.pkl.gz
 
-from rdkit import Chem
-from rdkit.Chem import rdMolDescriptors
+try:
+    from rdkit import Chem
+    from rdkit.Chem import rdMolDescriptors
+except ImportError:
+    Chem = None
+    rdMolDescriptors = None
+    warnings.warn("RDKit is not installed. SAscorer will not be available.")
+
 import pickle
 
 import math

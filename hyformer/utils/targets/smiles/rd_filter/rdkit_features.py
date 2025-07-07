@@ -7,10 +7,17 @@ from typing import List, Tuple, Dict, Sequence, Optional
 import numpy as np
 import pandas as pd
 import scipy.stats as st
-from rdkit import Chem
-from rdkit.Chem import Descriptors
-from rdkit.Chem.rdMolDescriptors import GetMorganFingerprint
-from rdkit.ML.Descriptors.MoleculeDescriptors import MolecularDescriptorCalculator
+try:
+    from rdkit import Chem
+    from rdkit.Chem import Descriptors
+    from rdkit.Chem.rdMolDescriptors import GetMorganFingerprint
+    from rdkit.ML.Descriptors.MoleculeDescriptors import MolecularDescriptorCalculator
+except ImportError:
+    Chem = None
+    Descriptors = None
+    GetMorganFingerprint = None
+    MolecularDescriptorCalculator = None
+    warnings.warn("RDKit is not installed. RDKitFeaturizer will not be available.")
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)

@@ -4,7 +4,7 @@ from typing import Union
 
 from hyformer.configs.model import ModelConfig
 from hyformer.models.encoder import EncoderWrapper
-from hyformer.models.trainable import TrainableModel
+from hyformer.models.base import TrainableModel
 
 
 class AutoModel:

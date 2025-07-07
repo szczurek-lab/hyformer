@@ -6,7 +6,7 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 from typing import Optional
-from hyformer.models.trainable import TrainableModel
+from hyformer.models.base import TrainableModel
 from hyformer.models.encoder import SmilesEncoder
 
 from hyformer.models.layers.prediction import DownstreamPredictionHead
