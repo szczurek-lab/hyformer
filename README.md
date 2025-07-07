@@ -2,7 +2,7 @@
 
 The official implementation of [Hyformer](https://arxiv.org/abs/2310.02066), a [joint model](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/LasserreBishopMinka06.pdf) that simultaneously generates new molecules and predicts their properties.
 
-Despite transformers being state-of-the-art models across both molecule generation and property prediction, both tasks are apprached separately, with specialized models developed for each of the tasks. Hyformer unifies these tasks, by effectively combining a transformer-encoder and decoder in a single model. We find that unifying these tasks provides synergistic benefits, including better conditional generation, representation learning and out-of-dictribution property prediction.  
+Despite transformers being state-of-the-art models across both molecule generation and property prediction, both tasks are apprached separately, with specialized models developed for each of the tasks. Hyformer unifies these tasks, by effectively combining a transformer-encoder and decoder in a single model. We find that unifying these tasks provides synergistic benefits, including better conditional generation, representation learning and out-of-distribution property prediction.  
 
 <img src="_assets/hyformer.png" width="520" height="250"/>
 
@@ -74,7 +74,8 @@ Pre-trained Hyformer models are available on Hugging Face:
 
 To get started, load a pre-trained model from Hugging Face or a local checkpoint:
 ```python
-from transformers import AutoModel, AutoTokenizer
+from hyformer.utils.tokenizers.auto import AutoTokenizer
+from hyformer.models.auto import AutoModel
 
 model_name = "adamizdebski/hyformer-base"
 model = AutoModel.from_pretrained(model_name)
