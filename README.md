@@ -4,7 +4,8 @@ The official implementation of [Hyformer](https://arxiv.org/abs/2310.02066), a [
 
 Despite transformers being state-of-the-art models across both molecule generation and property prediction, both tasks are apprached separately, with specialized models developed for each of the tasks. Hyformer unifies these tasks, by effectively combining a transformer-encoder and decoder in a single model. We find that unifying these tasks provides synergistic benefits, including better conditional generation, representation learning and out-of-dictribution property prediction.  
 
----
+<img src="_assets/hyformer.png" width="520" height="250"/>
+
 ## Installation
 
 To install Hyformer via pip directly from GitHub, run
@@ -37,7 +38,7 @@ conda config --set solver libmamba
  
 
 ### Reproducing experiments
-You can choose between `env_minimal.yml` for a minimal installation, `env.yml` for a minimal installation that includes chemical utils and `env_experiments.yml` for reproducing all experiments from the paper.
+> You can choose between `env_minimal.yml` for a minimal installation, `env.yml` for a minimal installation that includes chemical utils and `env_experiments.yml` for reproducing all experiments from the paper.
 
 To reproduce the experiments from the paper, use
 ```
@@ -54,9 +55,11 @@ Pre-trained Hyformer models are available on Hugging Face:
 
 | Model | Description | Hugging Face Link |
 |-------|-------------|-------------------|
-| Hyformer-Base | Base model trained on molecular data | [🤗 HF Model](https://huggingface.co/adamizdebski/hyformer-base) |
-| Hyformer-Property | Joint generation and property prediction model | [🤗 HF Model](https://huggingface.co/adamizdebski/hyformer-property) |
-| Hyformer-Large | Large-scale model for enhanced performance | [🤗 HF Model](https://huggingface.co/adamizdebski/hyformer-large) |
+| **SMILES** | | |
+| Hyformer-1M | A single layer model for debugging | [🤗 HF Model](https://huggingface.co/adamizdebski/hyformer-base) |
+| Hyformer-6M | Base model for fast generation and fine-tuning | [🤗 HF Model](https://huggingface.co/adamizdebski/hyformer-property) |
+| **SAFE** | | |
+| Hyformer-1M-safe | Single layer SAFE model for debugging | [🤗 HF Model](https://huggingface.co/adamizdebski/hyformer-selfies-1m) |
 
 ### Peptide Models
 
