@@ -2,10 +2,25 @@
 
 The official implementation of [Hyformer](https://arxiv.org/abs/2310.02066), a [joint model](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/LasserreBishopMinka06.pdf) that simultaneously generates new molecules and predicts their properties.
 
+Despite transformers being state-of-the-art models across both molecule generation and property prediction, both tasks are apprached separately, with specialized models developed for each of the tasks. Hyformer unifies these tasks, by effectively combining a transformer-encoder and decoder in a single model. We find that unifying these tasks provides synergistic benefits, including better conditional generation, representation learning and out-of-dictribution property prediction.  
 
-## Getting Started
+---
+## Installation
 
-### Installation
+To install Hyformer via pip directly from GitHub, run
+```
+pip install git+https://github.com/adamizdebski/hyformer.git@jointformer-2.0#egg=hyformer
+```
+
+### Installing with uv
+
+To install Hyformer using [uv](https://docs.astral.sh/uv/), run
+```
+uv add git+https://github.com/adamizdebski/hyformer.git@jointformer-2.0#egg=hyformer
+```
+
+### Installing with conda
+
 To create an environment that satisfies the necessary requirements run
 ```
  conda env create -f env.yml
@@ -19,15 +34,51 @@ conda update -n base conda
 conda install -n base conda-libmamba-solver
 conda config --set solver libmamba
 ```
+ 
 
-### Installation (reproducing experiments)
+### Reproducing experiments
+You can choose between `env_minimal.yml` for a minimal installation, `env.yml` for a minimal installation that includes chemical utils and `env_experiments.yml` for reproducing all experiments from the paper.
+
 To reproduce the experiments from the paper, use
 ```
-conda env create -f env-experiments.yml
-conda activate hyformer-experiments
+conda env create -f env_experiments.yml
+conda activate hyformer_experiments
 migrate_guacamol.sh
 ```
 
+## Model Checkpoints
+
+Pre-trained Hyformer models are available on Hugging Face:
+
+### Molecular Models
+
+| Model | Description | Hugging Face Link |
+|-------|-------------|-------------------|
+| Hyformer-Base | Base model trained on molecular data | [🤗 HF Model](https://huggingface.co/adamizdebski/hyformer-base) |
+| Hyformer-Property | Joint generation and property prediction model | [🤗 HF Model](https://huggingface.co/adamizdebski/hyformer-property) |
+| Hyformer-Large | Large-scale model for enhanced performance | [🤗 HF Model](https://huggingface.co/adamizdebski/hyformer-large) |
+
+### Peptide Models
+
+| Model | Description | Hugging Face Link |
+|-------|-------------|-------------------|
+| Hyformer-Peptide-Base | Base model trained on peptide sequences | [🤗 HF Model](https://huggingface.co/adamizdebski/hyformer-peptide-base) |
+| Hyformer-Peptide-Property | Joint peptide generation and property prediction | [🤗 HF Model](https://huggingface.co/adamizdebski/hyformer-peptide-property) |
+| Hyformer-Peptide-Large | Large-scale peptide model | [🤗 HF Model](https://huggingface.co/adamizdebski/hyformer-peptide-large) |
+
+
+## Quickstart
+
+To get started, load a pre-trained model from Hugging Face or a local checkpoint:
+```python
+from transformers import AutoModel, AutoTokenizer
+
+model_name = "adamizdebski/hyformer-base"
+model = AutoModel.from_pretrained(model_name)
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+```
+
+---
 
 ## Basic Usage
 
@@ -210,10 +261,26 @@ In order to train Hyformer to a new dataset, add a
 
 ```
 ----
-## References
 
 
 ## License 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License v3.0
 as published by the Free Software Foundation.
+
+## Citation
+
+Cite our work with 
+```
+@misc{izdebski2025synergisticbenefits,
+      title={Synergistic Benefits of Joint Molecule Generation and Property Prediction}, 
+      author={Adam Izdebski and Jan Olszewski and Pankhil Gawade and Krzysztof Koras and Serra Korkmaz and Valentin Rauscher and Jakub M. Tomczak and Ewa Szczurek},
+      year={2025},
+      eprint={2504.16559},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2504.16559}, 
+}
+```
+
+
