@@ -8,10 +8,25 @@ Despite transformers being state-of-the-art models across both molecule generati
 
 ## Installation
 
-To install Hyformer via pip directly from GitHub, run
+Install Hyformer directly from GitHub:
 ```
 pip install git+https://github.com/adamizdebski/hyformer.git@jointformer-2.0#egg=hyformer
 ```
+
+For local development with optional dependencies:
+```
+pip install -e .[<DEPENDENCIES>]
+```
+
+> Examples:
+> ```
+> pip install -e .                             # minimal installation, core dependencies
+> pip install -e .[molecules]                  # molecule specific dependencies 
+> pip install -e .[peptides]                   # peptide specific dependencies
+> pip install -e .[dev]                        # dev specific dependencies
+> pip install -e .[full]                       # all dependencies
+> ```
+
 
 ### Installing with uv
 

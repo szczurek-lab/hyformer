@@ -17,6 +17,7 @@ dependencies = [
     "tqdm",
     "scikit-learn",
     "scipy",
+    "einops>=0.7"
 ]
 
 [build-system]
@@ -24,16 +25,22 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project.optional-dependencies]
-# For pip install hyformer[minimal] - basic ML tools only
-chemistry = [
-    "rdkit>=2023.09.5"
+# For pip install hyformer[molecules] - required to run chemistry related experiments
+molecules = [
+    "rdkit>=2023.09.5",
+    "numpy<2.0",
+    "guacamol",
+    "FCD"==1.2
 ]
 
-# For pip install hyformer[experiments] - adds research tools to default installation
-experiments = [
-    "einops>=0.7",
+# For pip install hyformer[peptides] - required to run peptide specific experitments
+peptides = [
+    "peptidy"
+]
+
+# For pip install hyformer[dev] - adds research tools
+dev = [
     "wandb",
-    "sentencepiece",
     "matplotlib>=3.8.2",
     "seaborn>=0.13.1",
     "jupyter>=1.0.0",
@@ -42,12 +49,8 @@ experiments = [
     "transformers>=4.37.2",
     "tokenizers>=0.15.1",
     "accelerate>=0.27.2",
-    "datasets>=2.17.0",
-    "torchaudio>=2.2.0",
+    "datasets>=2.17.0"
 ]
 
 # For pip install hyformer[full] - everything
-full = ["hyformer[experiments]"]
-
-# Aliases
-all = ["hyformer[full]"]
+full = ["hyformer[molecules]", "hyformer[peptides]", "hyformer[dev]"]
