@@ -86,6 +86,15 @@ tokenizer = AutoTokenizer.from_pretrained(model_name)
 
 ## Basic Usage
 
+### Extract embeddings
+
+### Unconditional generation
+
+### Fine-tuning
+
+### Conditional generation
+
+
 #### Load a dataset
 
 To load a custom dataset, prepare an `.npz` file that contains an array with the molecular representations and a separate array with their properties. Next, load the dataset using a config file
