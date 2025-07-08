@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 from typing import Optional
 
-from hyformer.models.llama_backbone import LLAMABackbone
+from hyformer.models.core.llama_backbone import LLAMABackbone
 from hyformer.models.utils import ModelOutput
 from hyformer.models.auto import AutoModel
 

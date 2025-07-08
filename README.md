@@ -1,8 +1,8 @@
 # Hyformer
 
-The official implementation of [Hyformer](https://arxiv.org/abs/2310.02066), a [joint model](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/LasserreBishopMinka06.pdf) that simultaneously generates new molecules and predicts their properties.
+The official implementation of [Hyformer](https://arxiv.org/abs/2310.02066), a [joint](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/LasserreBishopMinka06.pdf) transformer-based model that simultaneously generates new molecules and predicts their properties.
 
-Despite transformers being state-of-the-art models across both molecule generation and property prediction, both tasks are apprached separately, with specialized models developed for each of the tasks. Hyformer unifies these tasks, by effectively combining a transformer-encoder and decoder in a single model. We find that unifying these tasks provides synergistic benefits, including better conditional generation, representation learning and out-of-distribution property prediction.  
+Transformers are state-of-the-art models in both molecule generation and property prediction. However, generation and prediction are predominantly tackled in isolation, with separate models built for each of the tasks. Hyformer breaks this divide by unifying generation and prediction in a single architecture that combines a transformer encoder and decoder. This joint design leads to synergistic benefits: robust conditional generation, better out-of-distribution prediction, and meaningful representations.
 
 <img src="_assets/hyformer.png" width="520" height="250"/>
 
@@ -34,6 +34,7 @@ To install Hyformer using [uv](https://docs.astral.sh/uv/), run
 ```
 uv add git+https://github.com/adamizdebski/hyformer.git@jointformer-2.0#egg=hyformer
 ```
+
 or for local development with optional dependencies:
 ```
 uv pip install -e .[<DEPENDENCIES>]
@@ -63,7 +64,7 @@ To reproduce the experiments from the paper, use
 ```
 conda env create -f env_experiments.yml
 conda activate hyformer_experiments
-migrate_guacamol.sh  # installs distribution learning evaluation with Gucacamol
+migrate_guacamol.sh  # enable distribution learning benchmarking with Gucacamol
 ```
 
 ## Model Checkpoints
@@ -88,19 +89,20 @@ Pre-trained Hyformer models are available on Hugging Face:
 | Hyformer-Peptide-Property | Joint peptide generation and property prediction | [🤗 HF Model](https://huggingface.co/adamizdebski/hyformer-peptide-property) |
 | Hyformer-Peptide-Large | Large-scale peptide model | [🤗 HF Model](https://huggingface.co/adamizdebski/hyformer-peptide-large) |
 
-```
-huggingface-cli login
-huggingface-cli login --token $HUGGINGFACE_TOKEN
-```
+
+> To log in to the Hugging Face Hub, run:
+> ```
+> huggingface-cli login
+> huggingface-cli login --token $HUGGINGFACE_TOKEN
+> ```
 
 ## Quickstart
 
-To get started, load a pre-trained model from Hugging Face or a local checkpoint:
+To get started, load a pre-trained model from Hugging Face or a local directory:
 ```python
-from hyformer import AutoTokenizer
-from hyformer import AutoModel
+from hyformer import AutoTokenizer, AutoModel
 
-model_name = "adamizdebski/hyformer-base"
+model_name = "SzczurekLab/hyformer"
 model = AutoModel.from_pretrained(model_name)
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 ```
