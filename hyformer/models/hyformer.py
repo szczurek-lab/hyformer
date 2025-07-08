@@ -6,6 +6,7 @@ from typing import Optional
 
 from hyformer.models.llama_backbone import LLAMABackbone
 from hyformer.models.utils import ModelOutput
+from hyformer.models.auto import AutoModel
 
 from hyformer.utils.tokenizers.base import IGNORE_TOKEN_IDX
 from hyformer.models.layers.prediction import PredictionHead
@@ -14,6 +15,7 @@ from hyformer.configs.model import ModelConfig
 NAN_TARGET_IDX = -1
 
 
+@AutoModel.register('Hyformer')
 class Hyformer(LLAMABackbone):
     """ A joint transformer-based model for molecule generation and property prediction. Based on Llama backbone.
     """
