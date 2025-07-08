@@ -29,8 +29,9 @@ build-backend = "hatchling.build"
 molecules = [
     "rdkit>=2023.09.5",
     "numpy<2.0",
+    "scipy<=1.11.4",
     "guacamol",
-    "FCD"==1.2
+    "FCD==1.2"
 ]
 
 # For pip install hyformer[peptides] - required to run peptide specific experitments
@@ -41,15 +42,11 @@ peptides = [
 # For pip install hyformer[dev] - adds research tools
 dev = [
     "wandb",
-    "matplotlib>=3.8.2",
-    "seaborn>=0.13.1",
-    "jupyter>=1.0.0",
-    "ipywidgets>=8.1.1",
-    "jupyterlab>=4.0.11",
-    "transformers>=4.37.2",
-    "tokenizers>=0.15.1",
-    "accelerate>=0.27.2",
-    "datasets>=2.17.0"
+    "matplotlib",
+    "seaborn",
+    "jupyterlab",
+    "transformers",
+    "huggingface_hub"
 ]
 
 # For pip install hyformer[full] - everything
