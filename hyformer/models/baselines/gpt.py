@@ -138,7 +138,7 @@ class GPT(nn.Module):
         print("number of parameters: %.2fM" % (self.get_num_params()/1e6,))
 
     def to_guacamole_generator(self, tokenizer, batch_size, temperature, top_k, device) -> 'DistributionMatchingGenerator':
-        from hyformer.models.wrappers import HyformerSmilesGeneratorWrapper
+        from hyformer.models.wrappers.encoding import HyformerSmilesGeneratorWrapper
         return HyformerSmilesGeneratorWrapper(self, tokenizer, batch_size, temperature, top_k, device)
 
     def get_num_params(self, non_embedding=True):
@@ -316,7 +316,7 @@ class GPT(nn.Module):
         return idx
     
     def to_smiles_encoder(self, tokenizer, batch_size, device) -> 'SmilesEncoder':
-        from hyformer.models.wrappers import HyformerSmilesEncoderWrapper
+        from hyformer.models.wrappers.encoding import HyformerSmilesEncoderWrapper
         return GPTSmilesEncoderWrapper(self, tokenizer, batch_size, device) 
 
     @classmethod

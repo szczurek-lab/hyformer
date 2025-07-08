@@ -457,9 +457,9 @@ class Hyformer(LLAMABackbone):
         )
     
     def to_generator(self, **kwargs) -> 'HyformerGeneratorWrapper':
-        from hyformer.models.wrappers import HyformerGeneratorWrapper
+        from hyformer.models.wrappers.encoding import HyformerGeneratorWrapper
         return HyformerGeneratorWrapper(self, **kwargs)
 
     def to_encoder(self, tokenizer, batch_size, device) -> 'HyformerEncoderWrapper':
-        from hyformer.models.wrappers import HyformerEncoderWrapper
+        from hyformer.models.wrappers.encoding import HyformerEncoderWrapper
         return HyformerEncoderWrapper(self, tokenizer, batch_size, device)
