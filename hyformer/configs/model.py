@@ -58,7 +58,8 @@ class ModelConfig(BaseConfig):
         
         
         # Validate embedding dimension is compatible with number of heads
-        assert self.embedding_dim % self.num_attention_heads == 0, f"Embedding dimension {self.embedding_dim} must be 0 modulo number of attention heads {self.num_attention_heads}."
+        if self.num_attention_heads is not None:
+            assert self.embedding_dim % self.num_attention_heads == 0, f"Embedding dimension {self.embedding_dim} must be 0 modulo number of attention heads {self.num_attention_heads}."
         
         # Calculate derived parameters if not provided
         if self.hidden_embedding_dim is None:
