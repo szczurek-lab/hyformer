@@ -34,6 +34,10 @@ To install Hyformer using [uv](https://docs.astral.sh/uv/), run
 ```
 uv add git+https://github.com/adamizdebski/hyformer.git@jointformer-2.0#egg=hyformer
 ```
+or for local development with optional dependencies:
+```
+uv pip install -e .[<DEPENDENCIES>]
+```
 
 ### Installing with conda
 
@@ -59,7 +63,7 @@ To reproduce the experiments from the paper, use
 ```
 conda env create -f env_experiments.yml
 conda activate hyformer_experiments
-migrate_guacamol.sh
+migrate_guacamol.sh  # installs distribution learning evaluation with Gucacamol
 ```
 
 ## Model Checkpoints
@@ -84,13 +88,17 @@ Pre-trained Hyformer models are available on Hugging Face:
 | Hyformer-Peptide-Property | Joint peptide generation and property prediction | [🤗 HF Model](https://huggingface.co/adamizdebski/hyformer-peptide-property) |
 | Hyformer-Peptide-Large | Large-scale peptide model | [🤗 HF Model](https://huggingface.co/adamizdebski/hyformer-peptide-large) |
 
+```
+huggingface-cli login
+huggingface-cli login --token $HUGGINGFACE_TOKEN
+```
 
 ## Quickstart
 
 To get started, load a pre-trained model from Hugging Face or a local checkpoint:
 ```python
-from hyformer.utils.tokenizers.auto import AutoTokenizer
-from hyformer.models.auto import AutoModel
+from hyformer import AutoTokenizer
+from hyformer import AutoModel
 
 model_name = "adamizdebski/hyformer-base"
 model = AutoModel.from_pretrained(model_name)
