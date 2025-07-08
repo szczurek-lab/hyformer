@@ -108,16 +108,6 @@ class LLAMABackbone(TrainableModel):
             
         # return the output
         return ModelOutput(embeddings=x, attention_mask=attention_mask)
-
-    def load_pretrained(self, state_dict: dict):
-        state_dict = clean_checkpoint_for_compiled_model(state_dict, self)
-        try:
-            self.load_state_dict(state_dict, strict=True)
-        except RuntimeError:
-            missing_keys, unexpected_keys = self.load_state_dict(state_dict, strict=False)
-            print("Model state_dict loaded with `strict=False`.")
-            print(f"Missing keys: {missing_keys}")
-            print(f"Unexpected keys: {unexpected_keys}")
     
     def _init_weights(self, module):
         if isinstance(module, nn.Linear):
@@ -133,37 +123,6 @@ class LLAMABackbone(TrainableModel):
         elif isinstance(module, nn.LayerNorm):
             torch.nn.init.ones_(module.weight)
             torch.nn.init.zeros_(module.bias)
-
-    def initialize_parameters(self):
-        self.apply(self._init_weights)
-
-    def get_num_params(self):
-        return sum(p.numel() for p in self.parameters())
-
-    def configure_optimizers(self, weight_decay, learning_rate, betas, device_type):
-        # start with all of the candidate parameters
-        param_dict = {pn: p for pn, p in self.named_parameters()}
-        # filter out those that do not require grad
-        param_dict = {pn: p for pn, p in param_dict.items() if p.requires_grad}
-        # create optim groups. Any parameters that is 2D will be weight decayed, otherwise no.
-        # i.e. all weight tensors in matmuls + embeddings decay, all biases and layernorms don't.
-        decay_params = []
-        no_decay_params = []
-        for name, param in param_dict.items():
-            if name.endswith(".bias") or "norm" in name.lower():
-                no_decay_params.append(param)
-            else:
-                decay_params.append(param)
-        optim_groups = [
-            {'params': decay_params, 'weight_decay': weight_decay},
-            {'params': no_decay_params, 'weight_decay': 0.0}
-        ]
-        # Create AdamW optimizer and use the fused version if it is available
-        fused_available = 'fused' in inspect.signature(torch.optim.AdamW).parameters
-        use_fused = fused_available and device_type == 'cuda'
-        extra_args = dict(fused=True) if use_fused else dict()
-        optimizer = torch.optim.AdamW(optim_groups, lr=learning_rate, betas=betas, **extra_args)
-        return optimizer
     
     def resize_token_embeddings(self, new_vocab_size: int):
         """ Resize the token embedding matrix to accommodate a new vocabulary size. """
