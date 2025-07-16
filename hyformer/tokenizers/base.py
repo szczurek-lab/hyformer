@@ -1,6 +1,16 @@
 from typing import Dict, List, Union, Any, Optional
 from abc import ABC, abstractmethod
+import os
+import warnings
 import torch
+
+try:
+    from huggingface_hub import hf_hub_download
+    from huggingface_hub.utils import RepositoryNotFoundError
+except ImportError:
+    hf_hub_download = None
+    RepositoryNotFoundError = Exception
+    warnings.warn("HuggingFace Hub is not installed. Loading tokenizers from HuggingFace not available.")
 
 IGNORE_TOKEN_IDX = -100
 
@@ -18,24 +28,18 @@ TASK_TOKEN_DICT = {
     'mlm': '<mlm>'               # Masked language modeling task
 }
 
-# Maximum default length
-MAX_LENGTH = 512
+# Default filenames for tokenizer files
+TOKENIZER_CONFIG_FILENAME = "tokenizer_config.json"
+VOCABULARY_FILENAME = "vocab.txt"
 
 
 class BaseTokenizer(ABC):
-    """Abstract base class for tokenizers compatible with the trainer's DataCollatorWithTaskTokens.
-    
-    This class defines the interface that all tokenizers must implement and provides
-    common functionality that can be used by all tokenizer implementations. It handles
-    all special token functionality, allowing derived classes to focus solely on
-    tokenizing their specific string formats.
+    """Base class for tokenizers.
     
     Parameters
     ----------
     vocabulary_path : str
         Path to the vocabulary file
-    max_length : int, default=MAX_LENGTH
-        Maximum sequence length
     bos_token : str
         Beginning of sequence token. Required.
     eos_token : str
@@ -47,19 +51,18 @@ class BaseTokenizer(ABC):
     mask_token : str or None, default=TOKEN_DICT["mask"]
         Masking token for masked language modeling. If None, masking will not be used.
     task_tokens : dict, optional
-        Optional dictionary of task tokens to override defaults in TASK_TOKEN_DICT
+        Optional dictionary of task tokens.
     """
     
     def __init__(
         self,
         vocabulary_path: str,
-        max_length: int = MAX_LENGTH,
         bos_token: str = TOKEN_DICT["bos"],
         eos_token: str = TOKEN_DICT["eos"],
         pad_token: str = TOKEN_DICT["pad"],
         unk_token: Optional[str] = None,
         mask_token: Optional[str] = TOKEN_DICT["mask"],
-        task_tokens: Optional[Dict[str, str]] = None,
+        task_tokens: Optional[Dict[str, str]] = TASK_TOKEN_DICT,
         **kwargs
     ) -> None:
         """Initialize the base tokenizer.
@@ -68,8 +71,6 @@ class BaseTokenizer(ABC):
         ----------
         vocabulary_path : str
             Path to the vocabulary file
-        max_length : int, default=MAX_LENGTH
-            Maximum sequence length
         bos_token : str, default=TOKEN_DICT["bos"]
             Beginning of sequence token. Required.
         eos_token : str, default=TOKEN_DICT["eos"]
@@ -81,15 +82,13 @@ class BaseTokenizer(ABC):
         mask_token : str or None, default=TOKEN_DICT["mask"]
             Masking token for masked language modeling. If None, masking will not be used.
         task_tokens : dict, optional
-            Optional dictionary of task tokens to override defaults in TASK_TOKEN_DICT
+            Optional dictionary of task tokens.
         """
         self.vocab_file = vocabulary_path
-        self.max_length = max_length
-        self._setup_special_tokens(bos_token, eos_token, unk_token, pad_token, mask_token, task_tokens)
         self.vocab = self._load_vocab(vocabulary_path)
-        self._add_special_tokens_to_vocab()
+        self._init_special_tokens(bos_token, eos_token, unk_token, pad_token, mask_token, task_tokens)
     
-    def _setup_special_tokens(
+    def _init_special_tokens(
         self,
         bos_token: str,
         eos_token: str,
@@ -98,7 +97,12 @@ class BaseTokenizer(ABC):
         mask_token: Optional[str],
         task_tokens: Optional[Dict[str, str]]
     ) -> None:
-        """Set up special tokens and task tokens.
+        """Initialize special tokens and add them to vocabulary.
+        
+        This method sets up the special tokens dictionary and ensures that all 
+        special tokens (including task tokens) are present in the vocabulary, 
+        adding them if necessary. It also builds mappings for token IDs and 
+        pre-computes commonly used token IDs.
         
         Parameters
         ----------
@@ -115,6 +119,7 @@ class BaseTokenizer(ABC):
         task_tokens : dict or None
             Dictionary of task tokens
         """
+        # Set up special tokens dictionary
         self.special_tokens = {
             "bos": bos_token,
             "eos": eos_token,
@@ -128,39 +133,15 @@ class BaseTokenizer(ABC):
         
         task_dict = TASK_TOKEN_DICT.copy() if task_tokens is None else task_tokens.copy()
         self.special_tokens.update(task_dict)
-    
-    @abstractmethod
-    def _load_vocab(self, vocab_file: str) -> Dict[str, int]:
-        """Load vocabulary from file.
         
-        This method should only load the base vocabulary without worrying about 
-        special tokens, which are handled by the base class.
-        
-        Parameters
-        ----------
-        vocab_file : str
-            Path to the vocabulary file or model identifier
-            
-        Returns
-        -------
-        dict
-            Dictionary mapping tokens to their IDs
-        """
-        pass
-    
-    def _add_special_tokens_to_vocab(self) -> None:
-        """Add special tokens and task tokens to the vocabulary.
-        
-        This method ensures that all special tokens (including task tokens) are present
-        in the vocabulary, adding them if necessary. It also builds mappings for
-        token IDs and pre-computes commonly used token IDs.
-        """
+        # Add special tokens to vocabulary if not present
         next_id = len(self.vocab)
         for _, token in self.special_tokens.items():
             if token is not None and token not in self.vocab:
                 self.vocab[token] = next_id
                 next_id += 1
         
+        # Build reverse mapping and caches
         self.ids_to_tokens = {v: k for k, v in self.vocab.items()}
         
         self._token_id_cache = {}
@@ -174,6 +155,184 @@ class BaseTokenizer(ABC):
             self._special_token_ids["mask"] = self.mask_token_id
         if self.unk_token_id is not None:
             self._special_token_ids["unk"] = self.unk_token_id
+    
+    @classmethod
+    def from_pretrained(
+        cls,
+        repo_id_or_path: str,
+        revision: str = "main",
+        tokenizer_config: Optional[Dict[str, Any]] = None,
+        local_dir: Optional[str] = None,
+        local_dir_use_symlinks: str = "auto",
+        **kwargs
+    ) -> "BaseTokenizer":
+        """Load a pretrained tokenizer from HuggingFace Hub or a local path.
+
+        Parameters
+        ----------
+        repo_id_or_path : str
+            Path to local directory containing tokenizer files or HuggingFace Hub repository ID.
+        revision : str, optional
+            Git revision for HuggingFace Hub repositories, by default "main".
+        tokenizer_config : dict, optional
+            Tokenizer configuration dictionary. If None, will attempt to load from
+            tokenizer_config.json, by default None.
+        local_dir : str, optional
+            Local directory to download the tokenizer files from HuggingFace Hub,
+            by default None.
+        local_dir_use_symlinks : str, optional
+            Whether to use symlinks for local directory, by default "auto".
+        **kwargs
+            Additional keyword arguments passed to the tokenizer constructor.
+
+        Returns
+        -------
+        BaseTokenizer
+            Loaded tokenizer instance.
+
+        Raises
+        ------
+        ValueError
+            If tokenizer config or vocabulary files are not found.
+        NotImplementedError
+            If the specific tokenizer class doesn't implement from_config.
+
+        Examples
+        --------
+        Load from HuggingFace Hub:
+        ```
+        tokenizer = SMILESTokenizer.from_pretrained("SzczurekLab/hyformer-tokenizer")
+        ```
+        
+        Load from local directory:
+        ```
+        tokenizer = SMILESTokenizer.from_pretrained("./my_tokenizer")
+        ```
+        """
+        # Load tokenizer config
+        if tokenizer_config is None:
+            config_path_local = os.path.join(repo_id_or_path, TOKENIZER_CONFIG_FILENAME)
+            if os.path.exists(config_path_local):
+                import json
+                with open(config_path_local, 'r') as f:
+                    tokenizer_config = json.load(f)
+            else:
+                try:
+                    if hf_hub_download is None:
+                        raise ValueError("HuggingFace Hub is not available and no local config found")
+                    config_path_hf = hf_hub_download(
+                        repo_id=repo_id_or_path, 
+                        filename=TOKENIZER_CONFIG_FILENAME, 
+                        revision=revision,
+                        local_dir=local_dir, 
+                        local_dir_use_symlinks=local_dir_use_symlinks
+                    )
+                    import json
+                    with open(config_path_hf, 'r') as f:
+                        tokenizer_config = json.load(f)
+                except (Exception, RepositoryNotFoundError) as e:
+                    # If no config found, use defaults
+                    tokenizer_config = {}
+        
+        # Determine vocabulary path
+        vocab_path_local = os.path.join(repo_id_or_path, VOCABULARY_FILENAME)
+        if os.path.exists(vocab_path_local):
+            vocabulary_path = vocab_path_local
+        else:
+            try:
+                if hf_hub_download is None:
+                    raise ValueError(f"HuggingFace Hub is not available and vocabulary not found at {vocab_path_local}")
+                vocabulary_path = hf_hub_download(
+                    repo_id=repo_id_or_path, 
+                    filename=VOCABULARY_FILENAME, 
+                    revision=revision,
+                    local_dir=local_dir, 
+                    local_dir_use_symlinks=local_dir_use_symlinks
+                )
+            except (Exception, RepositoryNotFoundError) as e:
+                raise ValueError(f"Vocabulary file not found in {repo_id_or_path}")
+
+        # Merge config with kwargs
+        init_kwargs = tokenizer_config.copy()
+        init_kwargs.update(kwargs)
+        init_kwargs['vocabulary_path'] = vocabulary_path
+
+        # Create tokenizer instance
+        return cls(**init_kwargs)
+
+    def save_pretrained(
+        self,
+        save_directory: str,
+        save_vocabulary: bool = True,
+        **kwargs
+    ) -> None:
+        """Save the tokenizer configuration and vocabulary to a directory.
+
+        Parameters
+        ----------
+        save_directory : str
+            Directory where the tokenizer will be saved.
+        save_vocabulary : bool, optional
+            Whether to save the vocabulary file, by default True.
+        **kwargs
+            Additional keyword arguments (reserved for future use).
+
+        Raises
+        ------
+        OSError
+            If the save directory cannot be created.
+
+        Examples
+        --------
+        ```
+        tokenizer.save_pretrained("./my_tokenizer")
+        ```
+        """
+        os.makedirs(save_directory, exist_ok=True)
+
+        # Save tokenizer configuration
+        config = {
+            "tokenizer_type": self.__class__.__name__,
+            "special_tokens": self.special_tokens.copy(),
+        }
+        
+        # Add any additional config attributes that might be useful
+        if hasattr(self, 'regex_pattern'):
+            config["regex_pattern"] = self.regex_pattern
+
+        config_path = os.path.join(save_directory, TOKENIZER_CONFIG_FILENAME)
+        import json
+        with open(config_path, 'w') as f:
+            json.dump(config, f, indent=2)
+
+        # Save vocabulary if requested
+        if save_vocabulary:
+            vocab_path = os.path.join(save_directory, VOCABULARY_FILENAME)
+            with open(vocab_path, 'w', encoding='utf-8') as f:
+                # Sort by token ID to maintain order
+                sorted_vocab = sorted(self.vocab.items(), key=lambda x: x[1])
+                for token, _ in sorted_vocab:
+                    f.write(f"{token}\n")
+
+        print(f"Tokenizer saved to {save_directory}")
+
+    @abstractmethod
+    def _load_vocab(self, vocab_file: str) -> Dict[str, int]:
+        """Load vocabulary from file.
+        
+        Vocabulary shouldn't contain special tokens.
+        
+        Parameters
+        ----------
+        vocab_file : str
+            Path to the vocabulary file or model identifier
+            
+        Returns
+        -------
+        dict
+            Dictionary mapping tokens to their IDs
+        """
+        pass
     
     @property
     def pad_token_id(self) -> int:
@@ -401,10 +560,7 @@ class BaseTokenizer(ABC):
     def __call__(
         self, 
         inputs: Union[str, List[str]],
-        task: str,
-        padding: bool = False,
-        truncation: bool = True,
-        **kwargs
+        task: str
     ) -> Dict[str, Any]:
         """Process inputs and prepare them for the model.
         
@@ -414,12 +570,6 @@ class BaseTokenizer(ABC):
             String or list of strings to tokenize
         task : str
             Task identifier to prepend a task-specific token
-        padding : bool, default=False
-            Whether to pad sequences to max_length
-        truncation : bool, default=True
-            Whether to truncate sequences longer than max_length
-        **kwargs
-            Additional arguments for specific tokenizer implementations
             
         Returns
         -------
@@ -434,39 +584,14 @@ class BaseTokenizer(ABC):
         batch_input_ids = []
         for text in inputs:
             tokens = self.tokenize(text)
-            tokens.insert(0, self.get_task_token(task))
-            tokens.insert(1, self.special_tokens["bos"])
-            tokens.append(self.special_tokens["eos"])
-            
-            # Truncate if needed
-            if truncation and len(tokens) > self.max_length:
-                tokens = tokens[:self.max_length-1] + [tokens[-1]]
-            
-            # Convert to ids
-            input_ids = self.convert_tokens_to_ids(tokens)
-            batch_input_ids.append(input_ids)
-        
-        max_len = max(len(ids) for ids in batch_input_ids)
-        
-        # Create attention masks and pad if needed
-        attention_mask = []
-        if padding:
-            pad_token_id = self.pad_token_id
-            padded_input_ids = []
-            for input_ids in batch_input_ids:
-                mask = [1] * len(input_ids) + [0] * (max_len - len(input_ids))
-                attention_mask.append(mask)
-                
-                padded_input_ids.append(
-                    input_ids + [pad_token_id] * (max_len - len(input_ids))
-                )
-            batch_input_ids = padded_input_ids
-        else:
-            attention_mask = [[1] * len(ids) for ids in batch_input_ids]
+            tokens.insert(0, self.get_task_token(task)) # add task token
+            tokens.insert(1, self.special_tokens["bos"]) # add BOS token
+            tokens.append(self.special_tokens["eos"]) # add EOS token
+            batch_input_ids.append(self.convert_tokens_to_ids(tokens))
         
         return {
             "input_ids": batch_input_ids,
-            "attention_mask": attention_mask
+            "attention_mask": [[1] * len(ids) for ids in batch_input_ids]
         }
     
     def _decode_single_sequence(

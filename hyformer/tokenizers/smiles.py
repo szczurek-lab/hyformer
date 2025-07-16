@@ -1,8 +1,8 @@
 import re
-import os
 from typing import Dict, List, Optional
 
-from hyformer.utils.tokenizers.base import BaseTokenizer, TASK_TOKEN_DICT
+from hyformer.configs.tokenizer import TokenizerConfig
+from hyformer.tokenizers.base import BaseTokenizer, TOKEN_DICT, TASK_TOKEN_DICT
 
 
 # SMILES regex pattern for tokenization
@@ -12,28 +12,45 @@ SMILES_REGEX_PATTERN = r"""(\[[^\]]+\]|Br?|Cl?|N|O|S|P|F|I|b|c|n|o|s|p|\(|\)|\.|
 class SMILESTokenizer(BaseTokenizer):
     """A tokenizer specialized for SMILES strings using regex-based tokenization.
     
-    This tokenizer implements the BaseTokenizer interface and uses a regex pattern
-    to split SMILES strings into tokens. Special token handling is managed by the 
-    base tokenizer.
-    
     Parameters
     ----------
     vocabulary_path : str
-        Path to the vocabulary file
-    regex_pattern : str, default=SMILES_REGEX_PATTERN
-        Regex pattern for SMILES tokenization
-    **kwargs
-        Additional parameters passed to the base tokenizer, including:
-        max_length : int, default=512
-            Maximum sequence length
-        task_tokens : dict, optional
-            Optional dictionary of task tokens to override defaults in TASK_TOKEN_DICT
+        Path to the vocabulary file containing SMILES tokens
+    regex_pattern : str, optional
+        Regex pattern for SMILES tokenization. Uses SMILES_REGEX_PATTERN by default.
+    bos_token : str, default=TOKEN_DICT["bos"]
+        Beginning of sequence token
+    eos_token : str, default=TOKEN_DICT["eos"]
+        End of sequence token
+    pad_token : str, default=TOKEN_DICT["pad"]
+        Padding token
+    unk_token : str or None, default=None
+        Unknown token. If None, tokenizer will fail on unknown tokens.
+    mask_token : str or None, default=TOKEN_DICT["mask"]
+        Masking token for masked language modeling
+    task_tokens : dict, optional
+        Dictionary of task-specific tokens
+    
+    Examples
+    --------
+    Basic usage:
+    ```python
+    tokenizer = SMILESTokenizer("vocab.txt")
+    result = tokenizer("CCO", task="lm")
+    ```
+
     """
     
     def __init__(
         self,
         vocabulary_path: str,
-        regex_pattern: str = SMILES_REGEX_PATTERN,
+        regex_pattern: Optional[str] = SMILES_REGEX_PATTERN,
+        bos_token: str = TOKEN_DICT["bos"],
+        eos_token: str = TOKEN_DICT["eos"],
+        pad_token: str = TOKEN_DICT["pad"],
+        unk_token: Optional[str] = None,
+        mask_token: Optional[str] = TOKEN_DICT["mask"],
+        task_tokens: Optional[Dict[str, str]] = TASK_TOKEN_DICT,
         **kwargs
     ) -> None:
         """Initialize the SMILES tokenizer.
@@ -44,12 +61,37 @@ class SMILESTokenizer(BaseTokenizer):
             Path to the vocabulary file
         regex_pattern : str, default=SMILES_REGEX_PATTERN
             Regex pattern for SMILES tokenization
+        bos_token : str, default=TOKEN_DICT["bos"]
+            Beginning of sequence token. Required.
+        eos_token : str, default=TOKEN_DICT["eos"]
+            End of sequence token. Required.
+        pad_token : str, default=TOKEN_DICT["pad"]
+            Padding token. Required.
+        unk_token : str or None, default=None
+            Unknown token. If None, tokenizer will fail on unknown tokens.
+        mask_token : str or None, default=TOKEN_DICT["mask"]
+            Masking token for masked language modeling. If None, masking will not be used.
+        task_tokens : dict, optional
+            Optional dictionary of task tokens.
         **kwargs
             Additional keyword arguments passed to the parent class
         """
         self.regex_pattern = regex_pattern
-        self.regex = re.compile(self.regex_pattern)
-        super().__init__(vocabulary_path=vocabulary_path, **kwargs)
+        try:
+            self.regex = re.compile(self.regex_pattern)
+        except re.error as e:
+            raise ValueError(f"Invalid regex pattern '{self.regex_pattern}': {e}")
+        
+        super().__init__(
+            vocabulary_path=vocabulary_path,
+            bos_token=bos_token,
+            eos_token=eos_token,
+            pad_token=pad_token,
+            unk_token=unk_token,
+            mask_token=mask_token,
+            task_tokens=task_tokens,
+            **kwargs
+        )
     
     def _load_vocab(self, vocab_file: str) -> Dict[str, int]:
         """Load vocabulary from file.
@@ -79,10 +121,7 @@ class SMILESTokenizer(BaseTokenizer):
         return vocab
     
     def tokenize(self, text: str) -> List[str]:
-        """Convert a SMILES string into a list of tokens using regex pattern.
-        
-        This method only handles the core tokenization logic without adding
-        special tokens, which is handled by the base tokenizer.
+        """Simple regex-based tokenization of SMILES strings
         
         Parameters
         ----------
@@ -94,12 +133,10 @@ class SMILESTokenizer(BaseTokenizer):
         list of str
             The list of tokens
         """
-        # Simple regex-based tokenization
-        tokens = self.regex.findall(text)
-        return tokens
+        return self.regex.findall(text)
     
     @classmethod
-    def from_config(cls, config, **kwargs) -> 'SMILESTokenizer':
+    def from_config(cls, config: TokenizerConfig, **kwargs) -> 'SMILESTokenizer':
         """Create a SMILESTokenizer from configuration.
         
         Parameters
@@ -122,7 +159,6 @@ class SMILESTokenizer(BaseTokenizer):
         # Get other common parameters from config
         init_kwargs = {
             'vocabulary_path': config.vocabulary_path,
-            'max_length': getattr(config, 'max_length', 512),
             'task_tokens': getattr(config, 'task_tokens', None)
         }
         

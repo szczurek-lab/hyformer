@@ -1,4 +1,4 @@
-from hyformer.utils.tokenizers.smiles import SMILESTokenizer
+from hyformer.tokenizers.smiles import SMILESTokenizer
 
 # Amino acid regex (simple one-character tokenization)
 AA_REGEX_PATTERN = r"([ACDEFGHIKLMNPQRSTVWYX]|[BZO]|U|\-|\.)"

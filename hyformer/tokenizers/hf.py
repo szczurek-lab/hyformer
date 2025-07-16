@@ -20,7 +20,7 @@ try:
 except ImportError as e:
     raise ImportError(f"Required packages are not installed: {e}")
 
-from hyformer.utils.tokenizers.base import BaseTokenizer, TASK_TOKEN_DICT
+from hyformer.tokenizers.base import BaseTokenizer, TASK_TOKEN_DICT
 
 
 class HFTokenizer(BaseTokenizer):
@@ -40,8 +40,6 @@ class HFTokenizer(BaseTokenizer):
         Whether to trust remote code when loading the tokenizer
     **kwargs
         Additional parameters passed to the base tokenizer, including:
-        max_length : int, default=512
-            Maximum sequence length
         task_tokens : dict, optional
             Optional dictionary of task tokens to override defaults in TASK_TOKEN_DICT
     """
@@ -141,30 +139,28 @@ class HFTokenizer(BaseTokenizer):
     def __call__(
         self, 
         inputs: Union[str, List[str]],
-        add_bos_token: bool = True,
-        add_eos_token: bool = True,
+        task: str,
         padding: bool = False,
         truncation: bool = True,
+        max_length: Optional[int] = None,
         **kwargs
     ) -> Dict[str, Any]:
         """Process inputs and prepare them for the model.
         
-        This override uses the HF tokenizer directly for better performance and
-        to ensure all HF-specific options are properly handled. It then converts
-        tensor outputs to lists for consistency with the BaseTokenizer.
+        This override uses the base tokenizer implementation to maintain interface consistency.
         
         Parameters
         ----------
         inputs : str or list of str
             String or list of strings to tokenize
-        add_bos_token : bool, default=True
-            Whether to add the beginning of sequence token
-        add_eos_token : bool, default=True
-            Whether to add the end of sequence token
+        task : str
+            Task identifier to prepend a task-specific token
         padding : bool, default=False
-            Whether to pad sequences to max_length
+            Whether to pad sequences to max_length (if provided)
         truncation : bool, default=True
-            Whether to truncate sequences longer than max_length
+            Whether to truncate sequences longer than max_length (if provided)
+        max_length : int, optional
+            Maximum sequence length for truncation and padding. If None, no length constraints.
         **kwargs
             Additional arguments for the HF tokenizer
             
@@ -178,10 +174,10 @@ class HFTokenizer(BaseTokenizer):
         # Use the base implementation which returns lists
         result = super().__call__(
             inputs,
-            add_bos_token=add_bos_token,
-            add_eos_token=add_eos_token,
+            task=task,
             padding=padding,
             truncation=truncation,
+            max_length=max_length,
             **kwargs
         )
         
@@ -244,6 +240,51 @@ class HFTokenizer(BaseTokenizer):
         return self.hf_tokenizer.decode(token_ids, skip_special_tokens=True)
     
     @classmethod
+    def from_pretrained(
+        cls,
+        repo_id_or_path: str,
+        revision: str = "main",
+        tokenizer_config: Optional[Dict[str, Any]] = None,
+        local_dir: Optional[str] = None,
+        local_dir_use_symlinks: str = "auto",
+        **kwargs
+    ) -> 'HFTokenizer':
+        """Load a pretrained HFTokenizer.
+        
+        For HFTokenizer, this method directly loads the HF tokenizer from the path/repo
+        and wraps it, rather than loading our custom config files.
+        
+        Parameters
+        ----------
+        repo_id_or_path : str
+            Path or HuggingFace model identifier for the tokenizer
+        revision : str, optional
+            Git revision, by default "main"
+        tokenizer_config : dict, optional
+            Additional configuration, by default None
+        local_dir : str, optional
+            Local directory, by default None  
+        local_dir_use_symlinks : str, optional
+            Symlink usage, by default "auto"
+        **kwargs
+            Additional arguments passed to the tokenizer constructor
+            
+        Returns
+        -------
+        HFTokenizer
+            Loaded HF tokenizer instance
+        """
+        # For HFTokenizer, we use the repo_id_or_path directly as vocabulary_path
+        # since it points to a HuggingFace model identifier
+        init_kwargs = kwargs.copy()
+        if tokenizer_config:
+            init_kwargs.update(tokenizer_config)
+        
+        init_kwargs['vocabulary_path'] = repo_id_or_path
+        
+        return cls(**init_kwargs)
+
+    @classmethod
     def from_config(cls, config, **kwargs) -> 'HFTokenizer':
         """Create a HFTokenizer from configuration.
         
@@ -267,7 +308,6 @@ class HFTokenizer(BaseTokenizer):
         # Get other common parameters from config
         init_kwargs = {
             'vocabulary_path': config.vocabulary_path,
-            'max_length': getattr(config, 'max_length', 512),
             'task_tokens': getattr(config, 'task_tokens', None),
             'trust_remote_code': config_kwargs.get('trust_remote_code', False)
         }
