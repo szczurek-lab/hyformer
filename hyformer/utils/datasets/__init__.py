@@ -26,3 +26,8 @@ Examples
 ... )
 >>> dataset = AutoDataset.from_config(config, split='train')
 """
+
+from .auto import AutoDataset
+from .sequence import SequenceDataset
+
+__all__ = ['AutoDataset', 'SequenceDataset']

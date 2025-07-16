@@ -169,8 +169,8 @@ class SequenceDataset(BaseDataset):
             raise ValueError(f"Target has {target.shape[1]} tasks, expected {num_prediction_tasks}")
             
         # Convert target type based on task
-        if prediction_task_type == 'classification' and target.dtype != np.int64:
-            target = target.astype(np.int64)
+        if prediction_task_type == 'classification' and target.dtype != np.int32:
+            target = target.astype(np.int32)
         elif prediction_task_type == 'regression' and target.dtype != np.float32:
             target = target.astype(np.float32)
             
