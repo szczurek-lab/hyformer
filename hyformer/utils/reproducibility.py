@@ -71,15 +71,17 @@ def get_global_seed():
     return _GLOBAL_SEED
 
 
-def seed_worker(worker_id):
+def seed_worker(worker_id: int) -> None:
     """Set seed for each worker to ensure reproducibility.
     
     This function is used as a worker_init_fn in PyTorch DataLoader to ensure
     that each worker has a different but deterministic seed. It sets seeds for
     NumPy, Python's random module, and PyTorch.
     
-    Args:
-        worker_id: ID of the worker process
+    Parameters
+    ----------
+    worker_id : int
+        ID of the worker process
     """
     global _GLOBAL_SEED
     
@@ -95,4 +97,3 @@ def seed_worker(worker_id):
     np.random.seed(worker_seed)
     random.seed(worker_seed)
     torch.manual_seed(worker_seed)
-    

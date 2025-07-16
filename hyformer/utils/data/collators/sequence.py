@@ -13,9 +13,9 @@ _LM_PREFIX_LENGTH = 2
 
 
 @dataclass
-class DataCollatorWithTaskTokens:
+class SequenceDataCollator:
     """
-    Data collator with task tokens that handles padding, masking, and task-specific processing.
+    Data collator for sequence data that handles padding, masking, and task-specific processing.
     
     This collator:
     1. Pads sequences to the maximum length in the batch or to `pad_to_multiple_of`
@@ -23,8 +23,7 @@ class DataCollatorWithTaskTokens:
     3. Applies dynamic masking for MLM tasks
     4. Handles different task types (lm, prediction, mlm)
     
-    Following Hugging Face best practices, masking is handled by the collator rather than
-    the tokenizer to enable dynamic masking during training.
+    Following Hugging Face best practices, masking is handled by the collator to enable dynamic masking during training.
     """
     tokenizer: BaseTokenizer
     tasks: Dict[str, float]
@@ -233,4 +232,7 @@ class DataCollatorWithTaskTokens:
             special_tokens_mask[1] = True  # BOS token
                 
         return special_tokens_mask
-        
+
+
+# Alias for backward compatibility
+DataCollatorWithTaskTokens = SequenceDataCollator
