@@ -4,7 +4,7 @@ import numpy as np
 
 from typing import List
 
-from jointformer.utils.chemistry import is_valid, canonicalize_list
+from hyformer.utils.chemistry import is_valid, canonicalize_list
 
 
 logger = logging.getLogger(__name__)

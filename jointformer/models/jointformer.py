@@ -4,19 +4,19 @@ import torch.nn.functional as F
 
 from typing import Optional
 
-from jointformer.models.trainable import TrainableModel
-from jointformer.models.base import SmilesEncoder
-from jointformer.models.transformer import Transformer
-from jointformer.models.layers.prediction import RegressionHead, ClassificationHead
-from jointformer.models.utils import ModelOutput
+from hyformer.models.trainable import TrainableModel
+from hyformer.models.base import SmilesEncoder
+from hyformer.models.transformer import Transformer
+from hyformer.models.layers.prediction import RegressionHead, ClassificationHead
+from hyformer.models.utils import ModelOutput
 
-from jointformer.utils.tokenizers.base import TOKEN_DICT
-from jointformer.models.layers.prediction import DownstreamPredictionHead, DownstreamPredictionHeadDeep
+from hyformer.utils.tokenizers.base import TOKEN_DICT
+from hyformer.models.layers.prediction import DownstreamPredictionHead, DownstreamPredictionHeadDeep
 
 DEFAULT_NUM_PHYCHEM_TASKS = 200
 
 
-class Jointformer(Transformer, TrainableModel):
+class Hyformer(Transformer, TrainableModel):
 
     def __init__(
             self,
@@ -240,15 +240,15 @@ class Jointformer(Transformer, TrainableModel):
         return idx
 
     def to_guacamole_generator(self, tokenizer, batch_size, temperature, top_k, device) -> 'DistributionMatchingGenerator':
-        from jointformer.models.wrappers import JointformerSmilesGeneratorWrapper
-        return JointformerSmilesGeneratorWrapper(self, tokenizer, batch_size, temperature, top_k, device)
+        from hyformer.models.wrappers import HyformerSmilesGeneratorWrapper
+        return HyformerSmilesGeneratorWrapper(self, tokenizer, batch_size, temperature, top_k, device)
 
     def to_smiles_encoder(self, tokenizer, batch_size, device) -> SmilesEncoder:
-        from jointformer.models.wrappers import JointformerSmilesEncoderWrapper
-        return JointformerSmilesEncoderWrapper(self, tokenizer, batch_size, device)
+        from hyformer.models.wrappers import HyformerSmilesEncoderWrapper
+        return HyformerSmilesEncoderWrapper(self, tokenizer, batch_size, device)
 
     def to_downstream_predictive_model(self, task_type, num_tasks, prediction_hidden_dim):
-        from jointformer.models.wrappers import DownstreamPredictiveModelWrapper
+        from hyformer.models.wrappers import DownstreamPredictiveModelWrapper
         return DownstreamPredictiveModelWrapper(self, task_type, num_tasks, prediction_hidden_dim)
 
     def load_pretrained(self, filename, device='cpu'):
@@ -272,13 +272,13 @@ class Jointformer(Transformer, TrainableModel):
         )
 
 
-class JointformerWithPrefix(Jointformer):
+class HyformerWithPrefix(Hyformer):
 
     def _get_lm_embeddings(self, embeddings, next_token_only):
         return super()._get_lm_embeddings(embeddings[:, 1:], next_token_only)
 
 
-class JointformerWithMaxEmbeddings(Jointformer):
+class HyformerWithMaxEmbeddings(Hyformer):
 
     def _get_cls_embeddings(self, embeddings, attention_mask=None):
         _, _, embedding_dim = embeddings.size()
@@ -289,7 +289,7 @@ class JointformerWithMaxEmbeddings(Jointformer):
         return embeddings
 
 
-class JointformerForDownstreamPrediction(JointformerWithPrefix):
+class HyformerForDownstreamPrediction(HyformerWithPrefix):
 
     def __init__(self, config, downstream_task, num_tasks, hidden_dim):
             
@@ -373,7 +373,7 @@ class JointformerForDownstreamPrediction(JointformerWithPrefix):
         return cls(config, downstream_task, num_tasks, hidden_dim)
 
 
-class JointformerForDownstreamPredictionDeep(JointformerForDownstreamPrediction):
+class HyformerForDownstreamPredictionDeep(HyformerForDownstreamPrediction):
 
     def __init__(self, config, downstream_task, num_tasks, hidden_dim=None):
             

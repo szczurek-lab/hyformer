@@ -5,8 +5,8 @@ import torch.nn.functional as F
 
 from typing import Optional
 
-from jointformer.models.transformer import Transformer
-from jointformer.utils.tokenizers.smiles.smiles import IGNORE_INDEX
+from hyformer.models.transformer import Transformer
+from hyformer.utils.tokenizers.smiles.smiles import IGNORE_INDEX
 
 
 class GPT(Transformer):

@@ -2,9 +2,9 @@ import torch
 
 from typing import List, Optional, Union, Tuple
 
-from jointformer.utils.tokenizers.base import TOKEN_DICT
-from jointformer.utils.tokenizers.smiles_with_prefix import SmilesTokenizerWithPrefix
-from jointformer.models.utils import ModelInput
+from hyformer.utils.tokenizers.base import TOKEN_DICT
+from hyformer.utils.tokenizers.smiles_with_prefix import SmilesTokenizerWithPrefix
+from hyformer.models.utils import ModelInput
 
 TASK_TOKEN_DICT = {
     'generation': '[GEN]',

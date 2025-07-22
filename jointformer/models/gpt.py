@@ -6,10 +6,10 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 from typing import Optional
-from jointformer.models.trainable import TrainableModel
-from jointformer.models.base import SmilesEncoder
+from hyformer.models.trainable import TrainableModel
+from hyformer.models.base import SmilesEncoder
 
-from jointformer.models.layers.prediction import DownstreamPredictionHead
+from hyformer.models.layers.prediction import DownstreamPredictionHead
 
 import numpy as np
 from tqdm import tqdm
@@ -138,8 +138,8 @@ class GPT(nn.Module):
         print("number of parameters: %.2fM" % (self.get_num_params()/1e6,))
 
     def to_guacamole_generator(self, tokenizer, batch_size, temperature, top_k, device) -> 'DistributionMatchingGenerator':
-        from jointformer.models.wrappers import JointformerSmilesGeneratorWrapper
-        return JointformerSmilesGeneratorWrapper(self, tokenizer, batch_size, temperature, top_k, device)
+        from hyformer.models.wrappers import HyformerSmilesGeneratorWrapper
+        return HyformerSmilesGeneratorWrapper(self, tokenizer, batch_size, temperature, top_k, device)
 
     def get_num_params(self, non_embedding=True):
         """
@@ -316,7 +316,7 @@ class GPT(nn.Module):
         return idx
     
     def to_smiles_encoder(self, tokenizer, batch_size, device) -> 'SmilesEncoder':
-        from jointformer.models.wrappers import JointformerSmilesEncoderWrapper
+        from hyformer.models.wrappers import HyformerSmilesEncoderWrapper
         return GPTSmilesEncoderWrapper(self, tokenizer, batch_size, device) 
 
     @classmethod

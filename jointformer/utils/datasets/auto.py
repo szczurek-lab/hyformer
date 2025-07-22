@@ -1,7 +1,7 @@
 import importlib
 
-from jointformer.configs.dataset import DatasetConfig
-from jointformer.utils.datasets.base import BaseDataset
+from hyformer.configs.dataset import DatasetConfig
+from hyformer.utils.datasets.base import BaseDataset
 
 
 class AutoDataset:
@@ -17,7 +17,7 @@ class AutoDataset:
 
         if config.dataset_name == 'sequence_dataset':
             return getattr(importlib.import_module(
-                "jointformer.utils.datasets.sequence"),
+                "hyformer.utils.datasets.sequence"),
                 "SequenceDataset").from_config(config, root=root, split=split)
         else:
             raise ValueError(f"Dataset {config.dataset_name} not available.")

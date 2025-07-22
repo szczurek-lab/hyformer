@@ -8,9 +8,9 @@ import numpy as np
 
 from typing import List, Callable, Optional, Union
 
-from jointformer.configs.dataset import DatasetConfig
-from jointformer.utils.datasets.base import BaseDataset
-from jointformer.utils.transforms.auto import AutoTransform, AutoTargetTransform
+from hyformer.configs.dataset import DatasetConfig
+from hyformer.utils.datasets.base import BaseDataset
+from hyformer.utils.transforms.auto import AutoTransform, AutoTargetTransform
 
 
 class SequenceDataset(BaseDataset):

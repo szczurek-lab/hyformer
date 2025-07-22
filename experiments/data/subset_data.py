@@ -2,7 +2,7 @@ import argparse
 import os
 import random 
 
-from jointformer.utils.data import read_strings_from_file, save_strings_to_file
+from hyformer.utils.data import read_strings_from_file, save_strings_to_file
 
 
 def get_parser():

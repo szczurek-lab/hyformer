@@ -9,11 +9,11 @@ import numpy as np
 from tqdm import tqdm
 
 from typing import Optional
-from jointformer.models.trainable import TrainableModel
+from hyformer.models.trainable import TrainableModel
 
-from jointformer.models.layers.prediction import DownstreamPredictionHead
-from jointformer.models.base import SmilesEncoder
-from jointformer.models.gpt import LayerNorm, MLP
+from hyformer.models.layers.prediction import DownstreamPredictionHead
+from hyformer.models.base import SmilesEncoder
+from hyformer.models.gpt import LayerNorm, MLP
 
 
 class SelfAttention(nn.Module):
@@ -86,7 +86,7 @@ class Block(nn.Module):
         return x
 
 
-class Jointformer(nn.Module):
+class Hyformer(nn.Module):
 
     def __init__(self, config):
         super().__init__()
@@ -234,8 +234,8 @@ class Jointformer(nn.Module):
         return self
 
     def to_guacamole_generator(self, tokenizer, batch_size, temperature, top_k, device) -> 'DistributionMatchingGenerator':
-        from jointformer.models.wrappers import JointformerSmilesGeneratorWrapper
-        return JointformerSmilesGeneratorWrapper(self, tokenizer, batch_size, temperature, top_k, device)
+        from hyformer.models.wrappers import HyformerSmilesGeneratorWrapper
+        return HyformerSmilesGeneratorWrapper(self, tokenizer, batch_size, temperature, top_k, device)
     
     def configure_optimizers(self, weight_decay, learning_rate, betas, device_type):
         # start with all of the candidate parameters
@@ -329,7 +329,7 @@ class Jointformer(nn.Module):
         return idx
 
     def to_smiles_encoder(self, tokenizer, batch_size, device) -> 'SmilesEncoder':
-        return JointformerSmilesEncoderWrapper(self, tokenizer, batch_size, device) 
+        return HyformerSmilesEncoderWrapper(self, tokenizer, batch_size, device) 
 
     @classmethod
     def from_config(cls, config):
@@ -343,7 +343,7 @@ class Jointformer(nn.Module):
         )
 
 
-class JointformerForDownstreamPrediction(Jointformer):
+class HyformerForDownstreamPrediction(Hyformer):
 
     def __init__(self, config):
         super().__init__(config)
@@ -460,7 +460,7 @@ class JointformerForDownstreamPrediction(Jointformer):
         )
 
 
-class JointformerSmilesEncoderWrapper(SmilesEncoder):
+class HyformerSmilesEncoderWrapper(SmilesEncoder):
 
     def __init__(self, model, tokenizer, batch_size, device):
         self._model = model

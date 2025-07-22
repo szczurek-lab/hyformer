@@ -1,7 +1,7 @@
 import importlib
 
 from typing import Union, Optional
-from jointformer.configs.logger import LoggerConfig
+from hyformer.configs.logger import LoggerConfig
 
 
 class AutoLogger:
@@ -13,7 +13,7 @@ class AutoLogger:
 
         if config.logger_name == 'wandb':
             return getattr(importlib.import_module(
-                "jointformer.utils.loggers.wandb"),
+                "hyformer.utils.loggers.wandb"),
                 "WandbLogger").from_config(config, display_name)
         else:
             raise ValueError(f"Logger {config.logger_name} not available.")

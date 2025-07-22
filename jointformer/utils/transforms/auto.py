@@ -17,7 +17,7 @@ class AutoTransform:
 
                 if transform_config['name'] == 'smiles_enumerator':
                     transform.append(getattr(importlib.import_module(
-                        "jointformer.utils.transforms.enumerator"),
+                        "hyformer.utils.transforms.enumerator"),
                         "SmilesEnumerator").from_config(transform_config['params']))
 
             return transforms.Compose(transform)
@@ -30,12 +30,12 @@ class AutoTargetTransform:
         
         if config['name'] == 'scaler':
             return getattr(importlib.import_module(
-                "jointformer.utils.transforms.scaler"),
+                "hyformer.utils.transforms.scaler"),
                 "Scaler").from_config(config['params'])
         
         elif config['name'] == 'scaler_test_time_only':
             return getattr(importlib.import_module(
-                "jointformer.utils.transforms.scaler"),
+                "hyformer.utils.transforms.scaler"),
                 "ScalerTestTimeOnly").from_config(config['params'])
     
         else:

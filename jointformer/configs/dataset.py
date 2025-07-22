@@ -1,6 +1,6 @@
 
 from typing import List, Optional, Union, Callable
-from jointformer.configs.base import BaseConfig
+from hyformer.configs.base import BaseConfig
 
 
 class DatasetConfig(BaseConfig):

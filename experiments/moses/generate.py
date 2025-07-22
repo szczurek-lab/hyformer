@@ -9,13 +9,13 @@ import pandas as pd
 
 from tqdm.auto import tqdm
 
-from jointformer.configs.tokenizer import TokenizerConfig
-from jointformer.configs.model import ModelConfig
+from hyformer.configs.tokenizer import TokenizerConfig
+from hyformer.configs.model import ModelConfig
 
-from jointformer.utils.tokenizers.auto import AutoTokenizer
-from jointformer.models.auto import AutoModel
+from hyformer.utils.tokenizers.auto import AutoTokenizer
+from hyformer.models.auto import AutoModel
 
-from jointformer.utils.runtime import set_seed
+from hyformer.utils.runtime import set_seed
 
 
 NUM_SAMPLES = 30000

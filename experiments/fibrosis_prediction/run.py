@@ -3,7 +3,7 @@ import argparse
 
 import numpy as np
 
-from jointformer.utils.optuna import save_json
+from hyformer.utils.optuna import save_json
 
 from experiments.fibrosis_prediction.train import main as model_training_loop
 from experiments.fibrosis_prediction.test import main as model_testing_loop

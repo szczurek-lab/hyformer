@@ -23,7 +23,7 @@ from gt4sd.algorithms.conditional_generation.regression_transformer import Regre
 from gt4sd.algorithms.conditional_generation.regression_transformer.implementation import ConditionalGenerator
 from gt4sd.frameworks.torch import map_tensor_dict
  
-from jointformer.models.base import BaseModel, SmilesEncoder
+from hyformer.models.base import BaseModel, SmilesEncoder
 
 
 

@@ -2,9 +2,9 @@ import numpy as np
 
 from rdkit import Chem
 from rdkit.Chem.QED import qed
-from jointformer.utils.properties.smiles.molbert.featurizer import PhysChemFeaturizer
+from hyformer.utils.properties.smiles.molbert.featurizer import PhysChemFeaturizer
 
-from jointformer.utils.properties.smiles.base import BaseTarget
+from hyformer.utils.properties.smiles.base import BaseTarget
 
 NORMALIZE = True
 

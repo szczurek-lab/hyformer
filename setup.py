@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 
 setup(
-    name='Jointformer',
+    name='Hyformer',
     version='1.0.0',
     author='Adam Izdebski',
     packages=find_packages(),

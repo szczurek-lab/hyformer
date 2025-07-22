@@ -2,7 +2,7 @@ import os
 import argparse 
 
 import pandas as pd
-from jointformer.utils.optuna import save_json
+from hyformer.utils.optuna import save_json
 from experiments.fibrosis_prediction.train import main as model_training_loop
 
 

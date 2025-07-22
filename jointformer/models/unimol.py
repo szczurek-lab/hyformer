@@ -1,5 +1,5 @@
 
-from jointformer.models.base import BaseModel, SmilesEncoder
+from hyformer.models.base import BaseModel, SmilesEncoder
 import os
 import shutil
 from tqdm import tqdm

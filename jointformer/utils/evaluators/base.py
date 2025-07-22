@@ -4,7 +4,7 @@ import torch
 
 from typing import Optional
 
-from jointformer.utils.data import read_strings_from_file, write_dict_to_file
+from hyformer.utils.data import read_strings_from_file, write_dict_to_file
 
 
 class Evaluate:

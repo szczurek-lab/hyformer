@@ -6,7 +6,7 @@ import numpy as np
 from tqdm import tqdm
 from typing import List, Union
 
-from jointformer.utils.properties.smiles.utils import TorchConvertMixin
+from hyformer.utils.properties.smiles.utils import TorchConvertMixin
 
 class BaseTarget(TorchConvertMixin):
 

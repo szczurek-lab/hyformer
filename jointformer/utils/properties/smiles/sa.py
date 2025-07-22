@@ -4,8 +4,8 @@ import numpy as np
 from rdkit import Chem
 from rdkit.Chem import Descriptors
 
-from jointformer.utils.properties.smiles import sascorer
-from jointformer.utils.properties.smiles.base import BaseTarget
+from hyformer.utils.properties.smiles import sascorer
+from hyformer.utils.properties.smiles.base import BaseTarget
 
 
 class SA(BaseTarget):

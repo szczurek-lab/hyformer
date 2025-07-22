@@ -5,11 +5,11 @@ import argparse
 
 from tqdm import tqdm
 
-from jointformer.configs.dataset import DatasetConfig
+from hyformer.configs.dataset import DatasetConfig
 
-from jointformer.utils.datasets.auto import AutoDataset
-from jointformer.utils.tokenizers.smiles.regex import RegexSmilesTokenizer
-from jointformer.utils.runtime import save_strings_to_file
+from hyformer.utils.datasets.auto import AutoDataset
+from hyformer.utils.tokenizers.smiles.regex import RegexSmilesTokenizer
+from hyformer.utils.runtime import save_strings_to_file
 
 VOCABULARY_DIR = './data/vocabularies'
 

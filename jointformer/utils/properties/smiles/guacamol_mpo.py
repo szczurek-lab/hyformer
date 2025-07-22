@@ -3,7 +3,7 @@ import numpy as np
 from guacamol import standard_benchmarks
 from typing import Optional
 
-from jointformer.utils.properties.smiles.base import BaseTarget
+from hyformer.utils.properties.smiles.base import BaseTarget
 
 GUACAMOL_MPO_DEFAULT_DTYPE = np.float64
 

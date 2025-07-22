@@ -7,17 +7,17 @@ import numpy as np
 
 from functools import partial
 
-from jointformer.configs.dataset import DatasetConfig
-from jointformer.configs.tokenizer import TokenizerConfig
-from jointformer.configs.model import ModelConfig
-from jointformer.configs.trainer import TrainerConfig
+from hyformer.configs.dataset import DatasetConfig
+from hyformer.configs.tokenizer import TokenizerConfig
+from hyformer.configs.model import ModelConfig
+from hyformer.configs.trainer import TrainerConfig
 
-from jointformer.models.auto import AutoModel
-from jointformer.trainers.trainer_fixed import Trainer
+from hyformer.models.auto import AutoModel
+from hyformer.trainers.trainer_fixed import Trainer
 
-from jointformer.utils.datasets.auto import AutoDataset
-from jointformer.utils.tokenizers.auto import AutoTokenizer
-from jointformer.utils.optuna import load_json, get_hparam_search_space, save_json
+from hyformer.utils.datasets.auto import AutoDataset
+from hyformer.utils.tokenizers.auto import AutoTokenizer
+from hyformer.utils.optuna import load_json, get_hparam_search_space, save_json
 
 from experiments.hi.train import main as model_training_loop
 from experiments.hi.test import main as model_testing_loop

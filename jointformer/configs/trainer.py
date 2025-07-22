@@ -1,6 +1,6 @@
 import math
 import logging
-from jointformer.configs.base import BaseConfig
+from hyformer.configs.base import BaseConfig
 
 console = logging.getLogger(__file__)
 

@@ -3,7 +3,7 @@ import torch
 
 from typing import Optional
 
-from jointformer.models.base import BaseModel
+from hyformer.models.base import BaseModel
 
 
 class TrainableModel(BaseModel, abc.ABC):

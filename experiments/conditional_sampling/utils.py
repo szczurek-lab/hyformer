@@ -2,7 +2,7 @@ from rdkit import Chem
 from rdkit.Chem import AllChem, Crippen
 from rdkit.Chem.QED import qed
 
-from jointformer.utils.properties.smiles.sascorer import compute_sa_score
+from hyformer.utils.properties.smiles.sascorer import compute_sa_score
 
 
 def smiles_to_mol(smiles):

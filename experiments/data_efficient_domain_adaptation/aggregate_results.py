@@ -5,9 +5,9 @@ import numpy as np
 import logging
 from socket import gethostname
 
-from jointformer.utils.runtime import set_seed, create_output_dir, set_to_dev_mode, log_args, dump_configs
-from jointformer.utils.ddp import init_ddp, end_ddp
-from jointformer.utils.data import write_dict_to_file 
+from hyformer.utils.runtime import set_seed, create_output_dir, set_to_dev_mode, log_args, dump_configs
+from hyformer.utils.ddp import init_ddp, end_ddp
+from hyformer.utils.data import write_dict_to_file 
 
 
 console = logging.getLogger(__file__)

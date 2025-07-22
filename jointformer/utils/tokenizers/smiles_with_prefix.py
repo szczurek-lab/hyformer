@@ -2,9 +2,9 @@ import torch
 
 from typing import List, Optional, Tuple, Union
 
-from jointformer.models.utils import ModelInput
-from jointformer.utils.tokenizers.base import TOKEN_DICT
-from jointformer.utils.tokenizers.smiles import SmilesTokenizer
+from hyformer.models.utils import ModelInput
+from hyformer.utils.tokenizers.base import TOKEN_DICT
+from hyformer.utils.tokenizers.smiles import SmilesTokenizer
 
 PREFIX_TOKEN_DICT = {'prefix': '[PREFIX]'}
 
@@ -23,7 +23,7 @@ class SmilesTokenizerWithPrefix(SmilesTokenizer):
         Returns tokenized SMILES with a prefix token at the beginning of the sequence.
 
         Example:
-        >>> from jointformer.utils.tokenizers import SmilesTokenizerWithPrefix
+        >>> from hyformer.utils.tokenizers import SmilesTokenizerWithPrefix
         >>> tokenizer = SmilesTokenizerWithPrefix(path_to_vocabulary='path/to/vocab.txt', max_molecule_length=128)
         >>> tokenizer('CCO')
 

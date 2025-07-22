@@ -12,24 +12,24 @@ from transformers import PreTrainedModel, RobertaModel
 from transformers.file_utils import ModelOutput
 from transformers.models.roberta.modeling_roberta import RobertaPreTrainedModel
 
-from jointformer.configs.model import ModelConfig
+from hyformer.configs.model import ModelConfig
 from transformers import RobertaConfig
-from jointformer.models.base import BaseModel
+from hyformer.models.base import BaseModel
 
 import torch 
 import logging
 import inspect
 
-from jointformer.models.utils import ModelOutput
+from hyformer.models.utils import ModelOutput
 
 from typing import Optional
 from torch import nn
 
-from jointformer.models.trainable import TrainableModel
+from hyformer.models.trainable import TrainableModel
 
-from jointformer.configs.model import ModelConfig
+from hyformer.configs.model import ModelConfig
 
-from jointformer.models.base import BaseModel, SmilesEncoder
+from hyformer.models.base import BaseModel, SmilesEncoder
 
 console = logging.getLogger(__name__)
 

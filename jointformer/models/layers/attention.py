@@ -7,7 +7,7 @@ import torch.nn.functional as F
 
 from typing import Optional
 
-from jointformer.models.layers.rotary import RotaryPositionalEmbedding
+from hyformer.models.layers.rotary import RotaryPositionalEmbedding
 
 
 class Attention(nn.Module):

@@ -8,7 +8,7 @@ Hyformer is a [joint](https://www.microsoft.com/en-us/research/wp-content/upload
 
 <img src="hyformer.png" width="520" height="250"/>
 
-> For an optimized implementation, see [Hyformer 2.0](https://github.com/szczurek-lab/hyformer/tree/jointformer-2.0). 
+> For an optimized implementation, see [Hyformer 2.0](https://github.com/szczurek-lab/hyformer/tree/hyformer-2.0). 
 
 
 ## Requirements
@@ -92,7 +92,7 @@ python eval.py --model-file mymodel.pth --benchmark imagenet
 .
 ├── configs/              # configuration files
 ├── experiments/          # scripts
-└── jointformer/          
+└── hyformer/          
     ├── configs/            
     ├── models/             # models
     ├── trainers/           # trainer

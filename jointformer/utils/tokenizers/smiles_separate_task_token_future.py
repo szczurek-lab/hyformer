@@ -3,9 +3,9 @@ import torch
 
 from typing import List, Optional, Union, Tuple
 
-from jointformer.utils.tokenizers.base import TOKEN_DICT
-from jointformer.utils.tokenizers.smiles_separate_task_token import SmilesTokenizerSeparateTaskToken
-from jointformer.models.utils import ModelInput
+from hyformer.utils.tokenizers.base import TOKEN_DICT
+from hyformer.utils.tokenizers.smiles_separate_task_token import SmilesTokenizerSeparateTaskToken
+from hyformer.models.utils import ModelInput
 
 
 class SmilesTokenizerSeparateTaskTokenFuture(SmilesTokenizerSeparateTaskToken):

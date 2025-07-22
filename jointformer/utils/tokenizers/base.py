@@ -2,7 +2,7 @@ import torch
 
 from torch.utils.data._utils.collate import default_collate
 from typing import List, Tuple, Any, Optional, Union
-from jointformer.models.utils import ModelInput
+from hyformer.models.utils import ModelInput
 
 
 TOKEN_DICT = {

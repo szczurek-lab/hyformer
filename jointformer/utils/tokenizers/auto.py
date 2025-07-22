@@ -1,7 +1,7 @@
 import importlib
 
-from jointformer.configs.tokenizer import TokenizerConfig
-from jointformer.utils.tokenizers.smiles import SmilesTokenizer
+from hyformer.configs.tokenizer import TokenizerConfig
+from hyformer.utils.tokenizers.smiles import SmilesTokenizer
 
 
 class AutoTokenizer:
@@ -11,35 +11,35 @@ class AutoTokenizer:
 
         if config.tokenizer == 'SmilesTokenizer':
             return getattr(importlib.import_module(
-                "jointformer.utils.tokenizers.smiles"),
+                "hyformer.utils.tokenizers.smiles"),
                 "SmilesTokenizer").from_config(config)
         if config.tokenizer == 'SmilesBPETokenizer':
             return getattr(importlib.import_module(
-                "jointformer.utils.tokenizers.smiles_bpe"),
+                "hyformer.utils.tokenizers.smiles_bpe"),
                 "SmilesBPETokenizer").from_config(config)
         elif config.tokenizer == 'SmilesTokenizerWithPrefix':
             return getattr(importlib.import_module(
-                "jointformer.utils.tokenizers.smiles_with_prefix"),
+                "hyformer.utils.tokenizers.smiles_with_prefix"),
                 "SmilesTokenizerWithPrefix").from_config(config)
         elif config.tokenizer == 'SmilesTokenizerSeparateTaskToken':
             return getattr(importlib.import_module(
-                "jointformer.utils.tokenizers.smiles_separate_task_token"),
+                "hyformer.utils.tokenizers.smiles_separate_task_token"),
                 "SmilesTokenizerSeparateTaskToken").from_config(config)
         elif config.tokenizer == 'SmilesTokenizerSeparateTaskTokenFuture':
             return getattr(importlib.import_module(
-                "jointformer.utils.tokenizers.smiles_separate_task_token_future"),
+                "hyformer.utils.tokenizers.smiles_separate_task_token_future"),
                 "SmilesTokenizerSeparateTaskTokenFuture").from_config(config)
         elif config.tokenizer == "ESMTokenizer":
             return getattr(importlib.import_module(
-                "jointformer.utils.tokenizers.amp"),
+                "hyformer.utils.tokenizers.amp"),
                 "AMPTokenizer").from_config(config)
         elif config.tokenizer == "HFTokenizer":
             return getattr(importlib.import_module(
-                "jointformer.utils.tokenizers.hf"),
+                "hyformer.utils.tokenizers.hf"),
                 "HFTokenizer").from_config(config)
         elif config.tokenizer == "FancyTokenizer":
             return getattr(importlib.import_module(
-                "jointformer.utils.tokenizers.fancy_tokenizer"),
+                "hyformer.utils.tokenizers.fancy_tokenizer"),
                 "FancyTokenizer").from_config(config)
         else:
             raise ValueError(f"Tokenizer {config.tokenizer} not available.")

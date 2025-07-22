@@ -1,7 +1,7 @@
 from typing import Optional
 
-from jointformer.configs.base import BaseConfig
-from jointformer.utils.runtime import find_multiple
+from hyformer.configs.base import BaseConfig
+from hyformer.utils.runtime import find_multiple
 
 EMBEDDING_DIM_HIDDEN_FACTOR = 8 / 3
 EMBEDDIND_DIM_MULTIPLE_OF = 256

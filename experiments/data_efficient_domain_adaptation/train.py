@@ -7,22 +7,22 @@ import argparse
 from socket import gethostname
 import torch.nn as nn
 
-from jointformer.configs.dataset import DatasetConfig
-from jointformer.configs.tokenizer import TokenizerConfig
-from jointformer.configs.model import ModelConfig
-from jointformer.configs.trainer import TrainerConfig
-from jointformer.configs.logger import LoggerConfig
+from hyformer.configs.dataset import DatasetConfig
+from hyformer.configs.tokenizer import TokenizerConfig
+from hyformer.configs.model import ModelConfig
+from hyformer.configs.trainer import TrainerConfig
+from hyformer.configs.logger import LoggerConfig
 
-from jointformer.utils.datasets.auto import AutoDataset
-from jointformer.utils.tokenizers.auto import AutoTokenizer
-from jointformer.models.auto import AutoModel
-from jointformer.utils.loggers.auto import AutoLogger
+from hyformer.utils.datasets.auto import AutoDataset
+from hyformer.utils.tokenizers.auto import AutoTokenizer
+from hyformer.models.auto import AutoModel
+from hyformer.utils.loggers.auto import AutoLogger
 
-from jointformer.trainers.trainer_fixed import Trainer
+from hyformer.trainers.trainer_fixed import Trainer
 
-from jointformer.utils.runtime import set_seed, create_output_dir, set_to_dev_mode, log_args, dump_configs
-from jointformer.utils.ddp import init_ddp, end_ddp
-from jointformer.utils.data import write_dict_to_file
+from hyformer.utils.runtime import set_seed, create_output_dir, set_to_dev_mode, log_args, dump_configs
+from hyformer.utils.ddp import init_ddp, end_ddp
+from hyformer.utils.data import write_dict_to_file
 
 
 console = logging.getLogger(__file__)

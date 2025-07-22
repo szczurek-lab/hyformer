@@ -11,7 +11,7 @@ from tqdm import tqdm
 from torch.utils.data import Dataset, DataLoader
 from torch.nn import functional as F
 
-from jointformer.models.base import BaseModel, SmilesEncoder
+from hyformer.models.base import BaseModel, SmilesEncoder
 
 
 logger = logging.getLogger(__name__)

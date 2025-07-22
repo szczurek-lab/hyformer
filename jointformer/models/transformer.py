@@ -6,9 +6,9 @@ import torch.nn as nn
 
 from typing import Optional
 
-from jointformer.models.layers.layer_norm import RMSNorm
-from jointformer.models.layers.transformer import TransformerLayer
-from jointformer.models.utils import ModelOutput
+from hyformer.models.layers.layer_norm import RMSNorm
+from hyformer.models.layers.transformer import TransformerLayer
+from hyformer.models.utils import ModelOutput
 
 
 class Transformer(nn.Module):

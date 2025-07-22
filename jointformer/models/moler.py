@@ -1,5 +1,5 @@
 from guacamol.assess_distribution_learning import DistributionMatchingGenerator
-from jointformer.models.base import BaseModel, SmilesEncoder
+from hyformer.models.base import BaseModel, SmilesEncoder
 from molecule_generation import load_model_from_directory, VaeWrapper
 from molecule_generation.models.moler_vae import MoLeRVae
 import os

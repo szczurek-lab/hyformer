@@ -6,8 +6,8 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 from typing import Optional
-from jointformer.models.layers.prediction import DownstreamPredictionHead
-from jointformer.models.gpt import LayerNorm, Block
+from hyformer.models.layers.prediction import DownstreamPredictionHead
+from hyformer.models.gpt import LayerNorm, Block
 
 
 class FancyModel(nn.Module):
@@ -293,8 +293,8 @@ class FancyModel(nn.Module):
         return self
     
     def to_guacamole_generator(self, tokenizer, batch_size, temperature, top_k, device) -> 'DistributionMatchingGenerator':
-        from jointformer.models.wrappers import JointformerSmilesGeneratorWrapper
-        return JointformerSmilesGeneratorWrapper(self, tokenizer, batch_size, temperature, top_k, device)
+        from hyformer.models.wrappers import HyformerSmilesGeneratorWrapper
+        return HyformerSmilesGeneratorWrapper(self, tokenizer, batch_size, temperature, top_k, device)
 
     @classmethod
     def from_config(cls, config):

@@ -15,16 +15,16 @@ from torch.distributions.categorical import Categorical
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 
-from jointformer.configs.trainer import TrainerConfig
-from jointformer.models.transformer import Transformer
-from jointformer.utils.loggers.wandb import WandbLogger
-from jointformer.utils.datasets.base import BaseDataset
+from hyformer.configs.trainer import TrainerConfig
+from hyformer.models.transformer import Transformer
+from hyformer.utils.loggers.wandb import WandbLogger
+from hyformer.utils.datasets.base import BaseDataset
 
-from jointformer.utils.runtime import set_seed
-from jointformer.utils.collator import DataCollator
-from jointformer.utils.chemistry import is_valid
+from hyformer.utils.runtime import set_seed
+from hyformer.utils.collator import DataCollator
+from hyformer.utils.chemistry import is_valid
 
-from jointformer.trainers.utils import get_test_metric
+from hyformer.trainers.utils import get_test_metric
 
 console = logging.getLogger(__name__)
 SNAPSHOT_FILENAME = 'snapshot.pt'

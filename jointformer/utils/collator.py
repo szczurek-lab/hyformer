@@ -1,7 +1,7 @@
 import torch
 
 from torch.distributions.categorical import Categorical
-from jointformer.models.utils import ModelInput
+from hyformer.models.utils import ModelInput
 
 class DataCollator:
 

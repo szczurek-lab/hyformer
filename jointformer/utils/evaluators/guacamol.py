@@ -4,10 +4,10 @@ import warnings
 
 from typing import Optional
 
-from jointformer.utils.metrics import calculate_validity, calculate_uniqueness, calculate_novelty, calculate_kl_div, calculate_fcd
-from jointformer.utils.evaluators.base import Evaluate
-from jointformer.utils.data import read_strings_from_file, get_random_subset
-from jointformer.utils.chemistry import is_valid, canonicalize_list
+from hyformer.utils.metrics import calculate_validity, calculate_uniqueness, calculate_novelty, calculate_kl_div, calculate_fcd
+from hyformer.utils.evaluators.base import Evaluate
+from hyformer.utils.data import read_strings_from_file, get_random_subset
+from hyformer.utils.chemistry import is_valid, canonicalize_list
 
 NUM_SAMPLES = 10000
 

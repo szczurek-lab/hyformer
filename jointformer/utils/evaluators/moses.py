@@ -6,7 +6,7 @@ from typing import Optional
 
 from moses.metrics.metrics import get_all_metrics
 
-from jointformer.utils.evaluators.base import Evaluate
+from hyformer.utils.evaluators.base import Evaluate
 
 
 class MosesEvaluator(Evaluate):

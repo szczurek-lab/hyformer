@@ -1,8 +1,8 @@
 from typing import List, Optional, Union
 from transformers import T5Tokenizer
 
-from jointformer.utils.tokenizers.base import BaseTokenizer, TOKEN_DICT
-from jointformer.utils.tokenizers.smiles_separate_task_token import TASK_TOKEN_DICT
+from hyformer.utils.tokenizers.base import BaseTokenizer, TOKEN_DICT
+from hyformer.utils.tokenizers.smiles_separate_task_token import TASK_TOKEN_DICT
 
 
 class SmilesBPETokenizer(BaseTokenizer):

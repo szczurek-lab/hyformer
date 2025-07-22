@@ -1,4 +1,4 @@
-models=(jointformer_lm_features jointformer_cls_features jointformer_old moler)
+models=(hyformer_lm_features hyformer_cls_features hyformer_old moler)
 #targets=()
 targets=(plogp qed amlodipine fexofenadine osimertinib perindopril sitagliptin ranolazine zaleplon)
 evals=(eval_linear eval_mlp)

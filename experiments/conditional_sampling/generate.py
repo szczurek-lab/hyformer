@@ -9,14 +9,14 @@ import pandas as pd
 
 from tqdm.auto import tqdm
 
-from jointformer.configs.tokenizer import TokenizerConfig
-from jointformer.configs.model import ModelConfig
+from hyformer.configs.tokenizer import TokenizerConfig
+from hyformer.configs.model import ModelConfig
 
-from jointformer.utils.tokenizers.auto import AutoTokenizer
-from jointformer.models.auto import AutoModel
+from hyformer.utils.tokenizers.auto import AutoTokenizer
+from hyformer.models.auto import AutoModel
 
-from jointformer.utils.runtime import set_seed
-from jointformer.utils.chemistry import is_valid
+from hyformer.utils.runtime import set_seed
+from hyformer.utils.chemistry import is_valid
 
 from experiments.conditional_sampling.utils import get_logp, get_qed, get_sa
 

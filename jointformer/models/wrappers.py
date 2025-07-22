@@ -2,12 +2,12 @@ import torch
 import numpy as np
 
 from guacamol.assess_distribution_learning import DistributionMatchingGenerator
-from jointformer.models.base import SmilesEncoder
-from jointformer.utils.tokenizers.auto import SmilesTokenizer
+from hyformer.models.base import SmilesEncoder
+from hyformer.utils.tokenizers.auto import SmilesTokenizer
 from tqdm import tqdm
 from typing import List
 
-from jointformer.models.utils import ModelOutput
+from hyformer.models.utils import ModelOutput
 
 
 class DefaultSmilesGeneratorWrapper(DistributionMatchingGenerator):
@@ -37,7 +37,7 @@ class DefaultSmilesGeneratorWrapper(DistributionMatchingGenerator):
         return generated[:number_samples]
 
 
-class JointformerSmilesGeneratorWrapper(DefaultSmilesGeneratorWrapper):
+class HyformerSmilesGeneratorWrapper(DefaultSmilesGeneratorWrapper):
     @torch.no_grad()
     def generate(self, number_samples: int) -> List[str]:
         generated = []
@@ -73,7 +73,7 @@ class DefaultSmilesEncoderWrapper(SmilesEncoder):
         return ret
 
 
-class JointformerSmilesEncoderWrapper(DefaultSmilesEncoderWrapper):
+class HyformerSmilesEncoderWrapper(DefaultSmilesEncoderWrapper):
 
     @torch.no_grad()
     def encode(self, smiles: list[str]) -> np.ndarray:

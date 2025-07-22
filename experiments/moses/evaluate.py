@@ -4,8 +4,8 @@ import moses
 import pandas as pd
 import numpy as np
 
-from jointformer.utils.runtime import set_seed
-from jointformer.utils.data import write_dict_to_file
+from hyformer.utils.runtime import set_seed
+from hyformer.utils.data import write_dict_to_file
 
 def main(args):
 

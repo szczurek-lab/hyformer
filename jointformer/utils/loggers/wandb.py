@@ -9,9 +9,9 @@ import pandas as pd
 from rdkit import Chem
 from typing import Optional, List
 
-from jointformer.configs.base import BaseConfig
-from jointformer.configs.logger import LoggerConfig
-from jointformer.utils.plot import mol_to_pil_image
+from hyformer.configs.base import BaseConfig
+from hyformer.configs.logger import LoggerConfig
+from hyformer.utils.plot import mol_to_pil_image
 
 
 class WandbLogger:

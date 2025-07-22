@@ -5,21 +5,21 @@ import argparse
 import torch 
 from socket import gethostname
 
-from jointformer.configs.dataset import DatasetConfig
-from jointformer.configs.tokenizer import TokenizerConfig
-from jointformer.configs.model import ModelConfig
-from jointformer.configs.trainer import TrainerConfig
-from jointformer.configs.logger import LoggerConfig
+from hyformer.configs.dataset import DatasetConfig
+from hyformer.configs.tokenizer import TokenizerConfig
+from hyformer.configs.model import ModelConfig
+from hyformer.configs.trainer import TrainerConfig
+from hyformer.configs.logger import LoggerConfig
 
-from jointformer.utils.datasets.auto import AutoDataset
-from jointformer.utils.tokenizers.auto import AutoTokenizer
-from jointformer.models.auto import AutoModel
-from jointformer.utils.loggers.auto import AutoLogger
+from hyformer.utils.datasets.auto import AutoDataset
+from hyformer.utils.tokenizers.auto import AutoTokenizer
+from hyformer.models.auto import AutoModel
+from hyformer.utils.loggers.auto import AutoLogger
 
-from jointformer.trainers.trainer_fixed import Trainer
+from hyformer.trainers.trainer_fixed import Trainer
 
-from jointformer.utils.runtime import set_seed
-from jointformer.utils.data import write_dict_to_file
+from hyformer.utils.runtime import set_seed
+from hyformer.utils.data import write_dict_to_file
 
 import pandas as pd
 
