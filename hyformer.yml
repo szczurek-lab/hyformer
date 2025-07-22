@@ -1,4 +1,4 @@
-name: hyformer-experiments
+name: hyformer
 channels:
   - defaults
   - conda-forge
