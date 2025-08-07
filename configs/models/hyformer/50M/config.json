@@ -1,5 +1,5 @@
 {
-  "model_name": "HyformerWithPrefix",
+  "model_name": "Hyformer",
   "bias": false,
   "attention_dropout": 0.0,
   "feed_forward_dropout": 0.0,

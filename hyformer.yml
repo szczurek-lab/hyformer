@@ -1,4 +1,4 @@
-name: hyformer
+name: hyformer-neurips25-experiments
 channels:
   - defaults
   - conda-forge

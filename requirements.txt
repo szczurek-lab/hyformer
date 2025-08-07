@@ -1,0 +1,15 @@
+deepchem
+fcd==1.2
+guacamol
+ipykernel
+jupyterlab
+matplotlib
+numpy<2.0
+pandas==1.5.3
+scipy==1.10.1
+seaborn
+tqdm
+transformers
+wandb
+torch==2.2.2
+torchvision==0.17.2
