@@ -187,3 +187,7 @@ outputs
 scratch/
 .slurm
 *.slurm
+
+# Exclude Y directory and all its contents
+/Y/
+/Y/*

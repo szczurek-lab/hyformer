@@ -1,4 +1,4 @@
-name: hyformer-neurips25
+name: hyformer
 channels:
   - conda-forge
 dependencies:
