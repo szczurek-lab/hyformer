@@ -5,13 +5,13 @@ import torch.nn.functional as F
 from typing import Optional
 
 from hyformer.models.trainable import TrainableModel
-from hyformer.models.base import SmilesEncoder
+from hyformer.models.base import Encoder, Generator
 from hyformer.models.transformer import Transformer
 from hyformer.models.layers.prediction import RegressionHead
 from hyformer.models.utils import ModelOutput
 
 from hyformer.utils.tokenizers.base import TOKEN_DICT
-from hyformer.models.layers.prediction import DownstreamPredictionHead, DownstreamPredictionHeadDeep
+from hyformer.models.layers.prediction import DownstreamPredictionHead
 
 DEFAULT_NUM_PHYCHEM_TASKS = 200
 
@@ -61,7 +61,7 @@ class Hyformer(Transformer, TrainableModel):
     
     @staticmethod
     def _get_lm_embeddings(embeddings, next_token_only):
-        embeddings = embeddings[:, 1:].copy()
+        embeddings = embeddings[:, 1:].clone()
         return embeddings[:, [-1]] if next_token_only else embeddings
         
     def forward(
@@ -240,17 +240,13 @@ class Hyformer(Transformer, TrainableModel):
 
         return idx
 
-    def to_guacamole_generator(self, tokenizer, batch_size, temperature, top_k, device) -> 'DistributionMatchingGenerator':
-        from hyformer.models.wrappers import HyformerSmilesGeneratorWrapper
-        return HyformerSmilesGeneratorWrapper(self, tokenizer, batch_size, temperature, top_k, device)
+    def to_generator(self, tokenizer, batch_size, temperature, top_k, device) -> Generator:
+        from hyformer.models.wrappers import HyformerGeneratorWrapper
+        return HyformerGeneratorWrapper(self, tokenizer, batch_size, temperature, top_k, device)
 
-    def to_smiles_encoder(self, tokenizer, batch_size, device) -> SmilesEncoder:
-        from hyformer.models.wrappers import HyformerSmilesEncoderWrapper
-        return HyformerSmilesEncoderWrapper(self, tokenizer, batch_size, device)
-
-    def to_downstream_predictive_model(self, task_type, num_tasks, prediction_hidden_dim):
-        from hyformer.models.wrappers import DownstreamPredictiveModelWrapper
-        return DownstreamPredictiveModelWrapper(self, task_type, num_tasks, prediction_hidden_dim)
+    def to_encoder(self, tokenizer, batch_size, device) -> Encoder:
+        from hyformer.models.wrappers import HyformerEncoderWrapper
+        return HyformerEncoderWrapper(self, tokenizer, batch_size, device)
 
     def load_pretrained(self, filename, device='cpu'):
         super().load_pretrained(filename, device=device)
@@ -293,10 +289,9 @@ class HyformerForDownstreamPrediction(Hyformer):
         )
         self.prediction_task_type = downstream_task
         self.num_prediction_tasks = num_tasks
-        self.prediction_head = DownstreamPredictionHeadDeep(
+        self.prediction_head = DownstreamPredictionHead(
             embedding_dim=config.embedding_dim,
             num_tasks=2 if downstream_task == 'classification' and num_tasks == 1 else num_tasks,
-            hidden_dim=config.pooler_hidden_dim,
             pooler_dropout=config.pooler_dropout)
 
     def forward(self, input_ids: torch.Tensor, task: str = 'generation', input_labels: torch.Tensor = None, attention_mask: torch.Tensor = None,

@@ -5,7 +5,7 @@ from torch.nn import functional as F
 
 class FeedForward(nn.Module):
 
-    def __init__(self, embedding_dim: int, embedding_hidden_dim: int, bias: bool, *args, **kwargs):
+    def __init__(self, embedding_dim: int, embedding_hidden_dim: int):
         super().__init__()
         self.w1 = nn.Linear(embedding_dim, embedding_hidden_dim, bias=False)
         self.w3 = nn.Linear(embedding_dim, embedding_hidden_dim, bias=False)

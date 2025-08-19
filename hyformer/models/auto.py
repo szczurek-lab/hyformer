@@ -10,7 +10,7 @@ class AutoModel:
         
         if config.model_name == 'GPT':
             return getattr(importlib.import_module(
-                "hyformer.models.gpt"),
+                "hyformer.models.baselines.gpt"),
                 "GPT").from_config(config)
 
         elif config.model_name == 'Hyformer':
@@ -25,27 +25,27 @@ class AutoModel:
         
         elif config.model_name == 'ChemBERTa' and config.prediction_task_type == 'classification':
             return getattr(importlib.import_module(
-                "hyformer.models.chemberta"),
+                "hyformer.models.baselines.chemberta"),
                 "RobertaForSequenceClassification").from_config(config)
         
         if config.model_name == "Moler":
             return getattr(importlib.import_module(
-                "hyformer.models.moler"),
+                "hyformer.models.baselines.moler"),
                 "Moler").from_config(config)
         
         if config.model_name == "RegressionTransformer":
             return getattr(importlib.import_module(
-                "hyformer.models.regression_transformer"),
+                "hyformer.models.baselines.regression_transformer"),
                 "RegressionTransformer").from_config(config)
         
         if config.model_name == "UniMol":
             return getattr(importlib.import_module(
-                "hyformer.models.unimol"),
+                "hyformer.models.baselines.unimol"),
                 "UniMol").from_config(config)
         
         if config.model_name == "MolGPT":
             return getattr(importlib.import_module(
-                "hyformer.models.molgpt"),
+                "hyformer.models.baselines.molgpt"),
                 "MolGPT").from_config(config)
         
         else:

@@ -64,7 +64,12 @@ class Transformer(nn.Module):
         for k, v in list(state_dict.items()):
             if k.startswith(unwanted_prefix):
                 state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
-        self.load_state_dict(state_dict, strict=False)
+        try:
+            self.load_state_dict(state_dict, strict=True)
+            print("Model state_dict loaded with strict=True.")
+        except RuntimeError: # safe model loading
+            missing_keys, unexpected_keys = self.load_state_dict(state_dict, strict=False)
+            print(f"Model state_dict loaded with strict=False. Missing keys: {missing_keys}, Unexpected keys: {unexpected_keys}")
 
     def _init_weights(self, module):
         if isinstance(module, nn.Linear):

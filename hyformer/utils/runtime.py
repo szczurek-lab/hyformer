@@ -3,6 +3,7 @@ import torch
 import logging
 import random
 import json
+from typing import Optional
 
 import numpy as np
 
@@ -25,9 +26,6 @@ def dump_configs(out_dir: str, *config_list):
 
 def create_output_dir(out_dir):
     if not os.path.isdir(out_dir):
-        # is_ddp = int(os.environ.get('RANK', -1)) != -1
-        # is_master_process = int(os.environ.get('RANK', -1)) == 0
-        # if (is_master_process and is_ddp) or not is_ddp:
         os.makedirs(out_dir, exist_ok=False)
         logger.info(f"Output directory {out_dir} created...")
     
@@ -82,24 +80,11 @@ def set_seed(seed: int = 42) -> None:
     return None
 
 
-def get_device() -> torch.device or str:
-    return 'cuda' if torch.cuda.is_available() else 'cpu'
-
-
-def save_strings_to_file(strings, filename):
-    with open(filename, 'w') as f:
-        for s in strings:
-            f.write(s + '\n')
-
-
-def read_strings_from_file(filename):
-    with open(filename, 'r') as f:
-        strings = f.read().splitlines()
-    return strings
-
-
-def select_random_indices_from_length(length: int, num_indices_to_select: int) -> torch.Tensor:
-    return torch.randperm(length)[:num_indices_to_select]
+def get_device(device: Optional[str] = None) -> torch.device:
+    if device is None:
+        return 'cuda' if torch.cuda.is_available() else 'cpu'
+    else:
+        return torch.device(device)
 
 
 def flatten(dictionary, parent_key='', separator='_'):

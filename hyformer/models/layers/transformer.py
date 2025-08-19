@@ -13,7 +13,7 @@ class TransformerLayer(nn.Module):
             feed_forward_dropout, num_heads, block_size, layer_norm_eps, flash_attention):
         super().__init__()
         self.attention_layer = Attention(embedding_dim, num_heads, bias, attention_dropout, block_size, flash_attention)
-        self.feed_forward = FeedForward(embedding_dim, embedding_hidden_dim, bias, feed_forward_dropout)
+        self.feed_forward = FeedForward(embedding_dim, embedding_hidden_dim)
         self.attention_layer_normalization = RMSNorm(embedding_dim, layer_norm_eps)
         self.feed_forward_normalization = RMSNorm(embedding_dim, layer_norm_eps)
         

@@ -15,34 +15,6 @@ from rdkit import RDLogger
 RDLogger.logger().setLevel(RDLogger.CRITICAL)
 
 
-def standardize(smiles: str, canonicalize: bool = False) -> Optional[str]:
-    """
-            Standardise a SMILES string if valid (canonical + kekulized)
-
-            Args:
-                smiles: SMILES string
-                canonicalise: optional flag to override `self.canonicalise`
-
-            Returns: standard version the SMILES if valid, None otherwise
-
-            """
-    try:
-        mol = Chem.MolFromSmiles(smiles, sanitize=False)
-        if mol is None:
-            return None
-        flags = Chem.SanitizeFlags.SANITIZE_ALL ^ Chem.SanitizeFlags.SANITIZE_CLEANUP
-        Chem.SanitizeMol(mol, flags, catchErrors=True)
-        if canonicalize:
-            mol = Chem.MolFromSmiles(Chem.MolToSmiles(mol))
-            if mol is None:
-                return None
-        Chem.Kekulize(mol, clearAromaticFlags=True)
-        smiles = Chem.MolToSmiles(mol, kekuleSmiles=True, canonical=canonicalize)
-    except:
-         return None
-
-    return smiles
-
 def is_valid(smiles: str):
     """
     Verifies whether a SMILES string corresponds to a valid molecule.
@@ -99,25 +71,3 @@ def canonicalize_list(smiles_list: Iterable[str], include_stereocenters=True) ->
     canonicalized_smiles = [s for s in canonicalized_smiles if s is not None]
 
     return remove_duplicates(canonicalized_smiles)
-
-
-def smiles_to_rdkit_mol(smiles: str) -> Optional[Chem.Mol]:
-    """
-    Converts a SMILES string to a RDKit molecule.
-
-    Args:
-        smiles: SMILES string of the molecule
-
-    Returns:
-        RDKit Mol, None if the SMILES string is invalid
-    """
-    mol = Chem.MolFromSmiles(smiles)
-
-    #  Sanitization check (detects invalid valence)
-    if mol is not None:
-        try:
-            Chem.SanitizeMol(mol)
-        except ValueError:
-            return None
-
-    return mol

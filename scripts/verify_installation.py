@@ -1,4 +1,4 @@
-""" Test file that initializes a ddp run and counts the number of available GPUs.
+""" Verify the installation of the Hyformer package.
 """
 
 import sys
@@ -21,6 +21,13 @@ def main():
     logger.info(f"Number of recognized GPUs: {torch.cuda.device_count()}")
     for i in range(torch.cuda.device_count()):
         logger.info(f'CUDA:{i}: {torch.cuda.get_device_properties(i).name}')
+
+    try: 
+        import hyformer
+    except ImportError as e:
+        logger.error(f"Hyformer installation not found: {e}")
+    else:
+        logger.info(f"Hyformer installation with version {hyformer.__version__} found")
 
 if __name__ == "__main__":
     main()
