@@ -15,6 +15,8 @@ micromamba create -y -p <ENV_PATH> -f hyformer.yml
 bash migrate_guacamol.sh 
 ```
 
+Verify installation with `python3 scripts/verify_intallation.py`.
+
 ## Pre-trained Models
 
 Download pre-trained models from [HuggingFace](https://huggingface.co/SzczurekLab/hyformer):
@@ -32,6 +34,41 @@ srun python3 experiments/pretrain/train.py
     --path_to_tokenizer_config <PATH_TO_TOKENIZER_CONFIG>
     --path_to_model_config <PATH_TO_MODEL_CONFIG>
     --path_to_trainer_config <PATH_TO_TRAINER_CONFIG>
+```
+
+## Example Usage
+
+### Featurize
+
+In order to featurize a list of sequences, e.g., SMILES, run
+
+```bash
+python scripts/featurize.py \
+    --path_to_sequence_file data/raw/sequences.csv \
+    --path_to_sequence_column smiles \
+    --path_to_output_file data/processed/embeddings.npz \
+    --path_to_tokenizer_config configs/tokenizers/smiles/deepchem/config.json \
+    --path_to_model_config models/hyformer/50M/config.json \
+    --path_to_model_ckpt <PATH_TO_MODEL_CKPT> \
+    --device cuda:0 \
+    --batch_size 128 \
+    --seed 1337
+```
+
+> Alternatively, `path_to_sequence_file` can point to a `.txt` or `.smiles` file. 
+
+### Predict
+
+To predict target properties, using a fine-tuned model, run
+```bash
+TODO
+```
+
+### Generate
+
+To unconditionally generate a list of sequences, e.g., SMILES, run
+```bash
+TODO
 ```
 
 ## Experiments

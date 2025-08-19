@@ -77,6 +77,8 @@ class DefaultEncoderWrapper(Encoder):
 
 
 class HyformerEncoderWrapper(DefaultEncoderWrapper):
+    _TASK = "prediction"
+    _EMBEDDING_KEY = "cls_embeddings"
 
     @torch.no_grad()
     def encode(self, X: list[str]) -> np.ndarray:
@@ -85,15 +87,11 @@ class HyformerEncoderWrapper(DefaultEncoderWrapper):
         embeddings = np.zeros((len(X), model.embedding_dim))
         for i in tqdm(range(0, len(X), self._batch_size), "Encoding samples"):
             batch = X[i:i+self._batch_size]
-            model_input = self._tokenizer(batch, task="prediction")
-            # Ensure model_input is properly moved to device
+            model_input = self._tokenizer(batch, task=self._TASK)
             model_input = model_input.to(self._device)
-            # Pass task parameter explicitly
-            output = model(**model_input, task="prediction")
-            # Get the batch size for this iteration (might be smaller for the last batch)
+            output = model(**model_input)
             batch_size = min(self._batch_size, len(X) - i)
-            # Extract global embeddings and convert to numpy
-            global_embs = output["global_embeddings"].cpu().numpy()
+            global_embs = output[self._EMBEDDING_KEY].cpu().numpy()
             embeddings[i:i+batch_size] = global_embs[:batch_size]
         return embeddings
     
