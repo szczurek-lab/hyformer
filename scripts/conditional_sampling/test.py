@@ -17,7 +17,7 @@ from hyformer.utils.tokenizers.auto import AutoTokenizer
 from hyformer.models.auto import AutoModel
 from hyformer.utils.loggers.auto import AutoLogger
 
-from hyformer.trainers.trainer_fixed import Trainer
+from hyformer.trainers.trainer import Trainer
 
 from hyformer.utils.runtime import set_seed, create_output_dir, set_to_dev_mode, log_args, dump_configs
 from hyformer.utils.ddp import init_ddp, end_ddp

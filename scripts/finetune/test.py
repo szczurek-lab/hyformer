@@ -1,8 +1,8 @@
 import os
 import sys
-import torch
 import logging
-
+import argparse
+import torch 
 from socket import gethostname
 
 from hyformer.configs.dataset import DatasetConfig
@@ -16,9 +16,12 @@ from hyformer.utils.tokenizers.auto import AutoTokenizer
 from hyformer.models.auto import AutoModel
 from hyformer.utils.loggers.auto import AutoLogger
 
-from hyformer.trainers.trainer_fixed import Trainer
+from hyformer.trainers.trainer import Trainer
 
-from hyformer.utils.runtime import set_seed, dump_configs
+from hyformer.utils.runtime import set_seed, create_output_dir, set_to_dev_mode, log_args, dump_configs
+from hyformer.utils.ddp import init_ddp, end_ddp
+from hyformer.utils.data import write_dict_to_file
+
 
 console = logging.getLogger(__file__)
 logging.basicConfig(
@@ -32,15 +35,29 @@ logging.captureWarnings(False)
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 
-def main(args, hparams=None, disable_logging=False, max_iters=None):
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--out_dir", type=str, default='results')
+    parser.add_argument("--data_dir", type=str, default='data')
+    parser.add_argument("--path_to_dataset_config", type=str, required=True)
+    parser.add_argument("--path_to_tokenizer_config", type=str, required=True)
+    parser.add_argument("--path_to_model_config", type=str, required=True)
+    parser.add_argument("--path_to_trainer_config", type=str, required=True)
+    parser.add_argument("--path_to_logger_config", type=str, nargs='?')
+    parser.add_argument("--model_seed", type=int, required=True)
+    parser.add_argument("--metric", type=str, required=True)
+    parser.add_argument("--destroy_ckpt", default=False, action=argparse.BooleanOptionalAction)
+    parser.add_argument("--adjust_dataset_seed", default=False, action=argparse.BooleanOptionalAction)
+    args = parser.parse_args()
+    return args
+
+
+def main(args, hparams=None):
 
     # Set seed
     set_seed(1337)
+    path_to_model_ckpt = os.path.join(args.out_dir, 'ckpt.pt')
 
-    # Disable logging for infer_max_num_epochs
-    # if max_iters is not None and max_iters == 'infer':
-    #     disable_logging = True
-    
     # Load configs
     dataset_config = DatasetConfig.from_config_file(args.path_to_dataset_config)
     tokenizer_config = TokenizerConfig.from_config_file(args.path_to_tokenizer_config)
@@ -53,6 +70,15 @@ def main(args, hparams=None, disable_logging=False, max_iters=None):
         if value is not None and isinstance(value, str) and 'seed_0' in value:
             dataset_config[key] = value.replace('seed_0', f'seed_{args.seed}')
             print(f"Updated {key} to {dataset_config[key]}")
+
+    # Load trainer hparams
+    if hparams is not None:
+        print("Updating hparams")
+        for key, value in hparams.items():
+            if key in model_config.__dict__.keys():
+                model_config[key] = value
+            if key in trainer_config.__dict__.keys():
+                trainer_config[key] = value
 
     if hasattr(args, 'decay_lr') and args.decay_lr is not None:
         trainer_config.decay_lr = args.decay_lr
@@ -75,56 +101,30 @@ def main(args, hparams=None, disable_logging=False, max_iters=None):
         print("Max epochs updated to", trainer_config.max_epochs)
 
     # Init
-    train_dataset = AutoDataset.from_config(dataset_config, split='train', root=args.data_dir)
-    val_dataset = AutoDataset.from_config(dataset_config, split='val', root=args.data_dir)
+    test_dataset = AutoDataset.from_config(dataset_config, split='test', root=args.data_dir)
     tokenizer = AutoTokenizer.from_config(tokenizer_config)
-    trainer_config.correct_for_num_train_examples(num_train_examples=len(train_dataset))  # adjust trainer config to dataset size
-
-    # Infer max_iters
-    if max_iters is not None and isinstance(max_iters, int):
-        console.info(f"Inferred max_iters equal to {max_iters}")
-        max_iters = round(max_iters * (len(train_dataset + val_dataset) / len(train_dataset)))
-        console.info(f"Setting max_iters to {max_iters}")
-        train_dataset = train_dataset + val_dataset
-        val_dataset = None
-        trainer_config.max_iters = max_iters
-
-    # If, debug
-    if args.debug:
-        console.info("Debugging...")
-        trainer_config.max_iters = 2
-        trainer_config.batch_size = 2
-        trainer_config.eval_iters = 1
-        trainer_config.eval_interval = 1
-        trainer_config.log_interval = 1
-
-    # Dump configs
-    if not disable_logging:
-        if args.path_to_model_ckpt is None:
-            model_config.path_to_model_ckpt = args.path_to_model_ckpt
-        dump_configs(args.out_dir, dataset_config, tokenizer_config, model_config, trainer_config, logger_config)
 
     model = AutoModel.from_config(model_config, downstream_task=dataset_config.task_type, num_tasks=dataset_config.num_tasks, hidden_dim=256)
     logger = AutoLogger.from_config(logger_config) if logger_config else None
-    if logger is not None:
-        logger.store_configs(dataset_config, tokenizer_config, model_config, trainer_config, logger_config)
+    
+    # Test
     device = torch.device('cuda:0')
     trainer = Trainer(
-        out_dir=None if disable_logging else args.out_dir, seed=1337, config=trainer_config, model=model,
-        train_dataset=train_dataset, val_dataset=val_dataset, test_dataset=val_dataset,
-        tokenizer=tokenizer, logger=logger, device=device, test_metric=None, patience=args.patience)
+        out_dir=args.out_dir, config=trainer_config, model=model,
+        test_dataset=test_dataset, tokenizer=tokenizer, logger=logger, seed=1337, device=device, test_metric=dataset_config.task_metric)
+    trainer._init_data_loaders()
+    print(f"Loading model from {path_to_model_ckpt}")
+    trainer.model.load_state_dict(torch.load(path_to_model_ckpt, map_location=device)['model'], strict=True)
 
-    if args.path_to_model_ckpt is not None:
-        if not os.path.exists(args.path_to_model_ckpt):
-            raise ValueError(f"Model checkpoint {args.path_to_model_ckpt} does not exist.")
-        trainer.resume_from_file(args.path_to_model_ckpt)
-        console.info(f"Resuming from {args.path_to_model_ckpt}")
-    else:
-        console.info("Training from scrach.")
+    test_metric = dataset_config.task_metric
+    objective_metric = trainer.test(metric=test_metric)
+    print(f"Test {test_metric}: {objective_metric}")
+    write_dict_to_file({f'{test_metric}': str(objective_metric)}, os.path.join(args.out_dir, 'test_loss.json'))
+    
+    return objective_metric
 
-    trainer.train()
 
-    if max_iters is not None and max_iters in ['infer', 'infer_generation']:
-        return trainer._best_iter
-
-    return trainer._optuna_loss
+if __name__ == "__main__":
+    args = parse_args()
+    main(args)
+           

@@ -157,8 +157,9 @@ class Trainer:
             }    
             torch.save(checkpoint, os.path.join(self.out_dir, filename))
 
-    def _get_data_loader(self, dataset: torch.utils.data.dataset.Dataset, shuffle=True):
-        collator = DataCollator(tokenizer=self.tokenizer, tasks=self.config.tasks)
+    def _get_data_loader(self, dataset: torch.utils.data.dataset.Dataset, split='train', shuffle=True):
+        tasks = self.config.tasks if split == 'train' else {'prediction': 1.0}
+        collator = DataCollator(tokenizer=self.tokenizer, tasks=tasks)
         sampler = torch.utils.data.distributed.DistributedSampler(
                 dataset,
                 num_replicas=int(os.environ["WORLD_SIZE"]),
@@ -176,11 +177,11 @@ class Trainer:
     
     def _init_data_loaders(self):
         if self.train_dataset is not None:
-            self.train_loader = self._get_data_loader(self.train_dataset, shuffle=True)
+            self.train_loader = self._get_data_loader(self.train_dataset, split='train', shuffle=True)
         if self.val_dataset is not None:
-            self.val_loader = self._get_data_loader(self.val_dataset, shuffle=False)
+            self.val_loader = self._get_data_loader(self.val_dataset, split='val', shuffle=False)
         if self.test_dataset is not None:
-            self.test_loader = self._get_data_loader(self.test_dataset, shuffle=False)
+            self.test_loader = self._get_data_loader(self.test_dataset, split='test', shuffle=False)
 
     def get_training_batch(self):
         if self._is_distributed_run:
@@ -236,60 +237,45 @@ class Trainer:
         
         self.model.train()
         return test_metric
+    
+    @torch.no_grad()
+    def get_predictions(self, split):
+        self.model.eval()
+        y_true = None
+        y_pred = None
+
+        if split == 'train':
+            loader = self.train_loader
+        elif split == 'val':
+            loader = self.val_loader
+        elif split == 'test':
+            loader = self.test_loader
+        else:
+            raise ValueError(f"Split {split} not supported.")
+
+        for _, batch in enumerate(loader):
+            
+            y_true = batch['properties'] if y_true is None else torch.cat((y_true, batch['properties']))
+            
+            batch = batch.to(self.device)
+            _y_pred = self.model.predict(**batch).cpu()
+            y_pred = _y_pred if y_pred is None else torch.cat((y_pred, _y_pred))
+        
+        self.model.train()
+        return {'y_true': y_true, 'y_pred': y_pred}
 
     @torch.no_grad()
-    def estimate_loss(self):
+    def estimate_loss(self, split):
 
         self.model.eval()
-        out = {}
-        splits = []
-        if self.train_dataset:
-            splits.append('train')
-        if self.val_dataset:
-            splits.append('val')
-        tasks = list(self.config.tasks.keys())
+        loss = 0.
+        
+        for _, batch in enumerate(self.train_loader if split == 'train' else self.val_loader):
+            batch = batch.to(self.device)
+            loss += self.model.get_loss(**batch, reduction='sum')["loss"].cpu()
 
-        for split in splits:
-            out[split] = {}
-            for task in tasks:
-                losses = torch.zeros(self.config.eval_iters)
-                for k in range(self.config.eval_iters):
-                    inputs = self.get_batch(split, task)
-                    with self.ctx:
-                        outputs = self.model.module.get_loss(**inputs) if dist.is_initialized() else self.model.get_loss(**inputs)
-                    losses[k] = outputs["loss"].item() if outputs["loss"] is not None else torch.nan
-                out[split][task] = losses.mean().item() if torch.nan not in losses else torch.nan
-
-        for split in splits:
-            for task in tasks:
-                if 'combined' in out[split]:
-                    out[split]['combined'] += out[split][task]
-                else:
-                    out[split]['combined'] = out[split][task]
-
-        # if hasattr(self.model, 'calculate_perplexity') and self.eval_generation:
-        #     for split in splits:
-        #         out[split]['perplexity'] = {}
-        #         losses = torch.zeros(self.config.eval_iters)
-        #         for k in range(self.config.eval_iters):
-        #             inputs = self.get_batch(split, task='generation')
-        #             with self.ctx:
-        #                 perplexity = self.model.calculate_perplexity(**inputs)
-        #             losses[k] = perplexity.mean()
-        #         out[split]['perplexity'] = losses.mean().item() if torch.nan not in losses else torch.nan
-
-        if hasattr(self.model, 'generate') or hasattr(self.model.module, 'generate'):
-            samples = []
-            for _ in range(self.config.eval_iters):
-                samples.extend(self.generate())
-            if self.logger:
-                self.logger.log_molecule_data(samples)
-            is_valid_batch = [is_valid(sample) for sample in samples]
-            out["val"]["validity"] = sum(is_valid_batch) / len(is_valid_batch)
-            out["val"]["uniqueness"] = len(set(samples)) / len(samples)
-            out["val"]["novelty"] = len(set(samples) - set(self.train_dataset.data)) / len(samples)
         self.model.train()
-        return out
+        return loss.mean().item()
 
     def _get_lr(self):
         # 1) linear warmup for warmup_iters steps
@@ -321,13 +307,16 @@ class Trainer:
                     raise ValueError(f"Test metric {self.test_metric} not supported.")
                 console.info(f"Optuna loss: {self._optuna_loss:.4f}")
                 
-            losses = self.estimate_loss()
+            train_loss = self.estimate_loss(split='train')
+            val_loss = self.estimate_loss(split='val')
+            losses = {'train': {'loss': train_loss}, 'val': {'loss': val_loss}}
+
             self._loss_dict[self._iter_num] = losses
             info = f"Evaluation at step {self._iter_num}"
             if 'train' in losses:
-                info += f": train loss {losses['train'][self.eval_metric]:.4f}"
+                info += f": train loss {losses['train']['loss']:.4f}"
             if 'val' in losses:
-                info += f", val loss {losses['val'][self.eval_metric]:.4f}"
+                info += f", val loss {losses['val']['loss']:.4f}"
             console.info(info)
             if self.out_dir:
                 with open(os.path.join(self.out_dir, 'loss_dict.json'), 'w') as fp:
@@ -344,10 +333,10 @@ class Trainer:
 
             if self._iter_num > 0: # More logging here
                 if 'val' in losses: # save checkpoint if validation loss is better
-                    console.info(f"Validation loss: {losses['val'][self.eval_metric]:.4f}")
+                    console.info(f"Validation loss: {losses['val']['loss']:.4f}")
                     console.info(f"Cuurent best validation loss: {self._best_val_loss:.4f} at iteration {self._best_iter}")
-                    if losses['val'][self.eval_metric] < self._best_val_loss or self.config.always_save_checkpoint:
-                        self._best_val_loss = losses['val'][self.eval_metric]
+                    if losses['val']['loss'] < self._best_val_loss or self.config.always_save_checkpoint:
+                        self._best_val_loss = losses['val']['loss']
                         self._best_iter = self._iter_num
                         self._save_ckpt(MODEL_FILENAME)
                         console.info(f"Checkpoint updated at iteration {self._iter_num}")
@@ -377,9 +366,7 @@ class Trainer:
         return samples
 
     def train(self) -> None:
-        
-        self.model.train()
-        
+
         if self._iter_num > self.config.max_iters:
             return
 
@@ -390,6 +377,8 @@ class Trainer:
         inputs = self.get_training_batch()
         local_iter_num = 0  # number of iterations in the lifetime of this process
         self._not_improved_for_eval_iters = 0
+
+        self.model.train()
 
         start_timer = torch.cuda.Event(enable_timing=True)
         end_timer = torch.cuda.Event(enable_timing=True)

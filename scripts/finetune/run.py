@@ -13,7 +13,7 @@ from hyformer.configs.model import ModelConfig
 from hyformer.configs.trainer import TrainerConfig
 
 from hyformer.models.auto import AutoModel
-from hyformer.trainers.trainer_fixed import Trainer
+from hyformer.trainers.trainer import Trainer
 
 from hyformer.utils.datasets.auto import AutoDataset
 from hyformer.utils.tokenizers.auto import AutoTokenizer
