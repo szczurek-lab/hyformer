@@ -51,7 +51,7 @@ python scripts/featurize.py \
     --path_to_model_config models/hyformer/50M/config.json \
     --path_to_model_ckpt <PATH_TO_MODEL_CKPT> \
     --device cuda:0 \
-    --batch_size 128 \
+    --batch_size 256 \
     --seed 1337
 ```
 
@@ -61,14 +61,33 @@ python scripts/featurize.py \
 
 To predict target properties, using a fine-tuned model, run
 ```bash
-TODO
+python3 scripts/featurize.py \
+    --path_to_sequence_file data/raw/sequences.csv \
+    --path_to_output_file predictions.csv \
+    --path_to_tokenizer_config configs/tokenizers/smiles/deepchem/config.json \
+    --path_to_model_config configs/models/hyformer/50M/config.json \
+    --path_to_model_ckpt <PATH_TO_MODEL_CKPT> \
+    --path_to_sequence_column smiles \
+    --device cuda:0 \
+    --batch_size 256 \
+    --seed 1337
 ```
 
 ### Generate
 
 To unconditionally generate a list of sequences, e.g., SMILES, run
 ```bash
-TODO
+python3 scripts/generate.py \
+    --path_to_output_file data/synthetic/smiles.txt \
+    --path_to_tokenizer_config configs/tokenizers/smiles/deepchem/config.json \
+    --path_to_model_config configs/models/hyformer/50M/config.json \
+    --path_to_model_ckpt <PATH_TO_MODEL_CKPT> \
+    --device cuda:0 \
+    --batch_size 16 \
+    --seed 1337 \
+    --temperature 0.9 \
+    --top_k 25 \
+    --num_samples 100
 ```
 
 ## Experiments
