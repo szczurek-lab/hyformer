@@ -6,7 +6,7 @@ python scripts/featurize.py \
     --path_to_sequence_file data/raw/sequences.csv \
     --path_to_output_file data/processed/embeddings.npz \
     --path_to_tokenizer_config configs/tokenizers/smiles/deepchem/config.json \
-    --path_to_model_config models/hyformer/50M/config.json \
+    --path_to_model_config configs/models/hyformer/50M/config.json \
     --path_to_model_ckpt <PATH_TO_MODEL_CKPT> \
     --path_to_sequence_column smiles \
     --device cuda:0 \
@@ -101,6 +101,7 @@ def main():
     featurizer = _load_featurizer(tokenizer, args.path_to_model_config, args.path_to_model_ckpt, device, args.batch_size)
     embeddings = featurizer.encode(sequences)
     _save(sequences, embeddings, args.path_to_output_file)
+    return None
     
 if __name__ == "__main__":
     main()
