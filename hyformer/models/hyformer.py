@@ -300,6 +300,10 @@ class HyformerForDownstreamPrediction(Hyformer):
         if task == 'prediction':
             _outputs["logits_prediction"] = self.prediction_head(_outputs['cls_embeddings'])
         return _outputs
+    
+    def to_predictor(self, tokenizer, batch_size, device) -> 'HyformerPredictionWrapper':
+        from hyformer.models.wrappers import HyformerPredictionWrapper
+        return HyformerPredictionWrapper(self, tokenizer, batch_size, device)
 
     def predict(self, input_ids: torch.Tensor, attention_mask: torch.Tensor, **kwargs):
         outputs = self(input_ids=input_ids, attention_mask=attention_mask, task='prediction')

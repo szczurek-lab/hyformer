@@ -94,4 +94,24 @@ class HyformerEncoderWrapper(DefaultEncoderWrapper):
             global_embs = output[self._EMBEDDING_KEY].cpu().numpy()
             embeddings[i:i+batch_size] = global_embs[:batch_size]
         return embeddings
+
+
+### PREDICTION ###
+
+class HyformerPredictionWrapper(DefaultEncoderWrapper):
+    _TASK = "prediction"
+
+    @torch.no_grad()
+    def predict(self, X: list[str]) -> np.ndarray:
+        self._model.eval()
+        model = self._model.to(self._device)
+        predictions = np.zeros((len(X), self._model.num_prediction_tasks))
+        for i in tqdm(range(0, len(X), self._batch_size), "Predicting samples"):
+            batch = X[i:i+self._batch_size]
+            model_input = self._tokenizer(batch, task=self._TASK)
+            model_input = model_input.to(self._device)
+            output = model.predict(**model_input)
+            batch_size = min(self._batch_size, len(X) - i)
+            predictions[i:i+batch_size] = output.cpu().numpy()[:batch_size]
+        return predictions
     
