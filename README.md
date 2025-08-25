@@ -63,11 +63,11 @@ To predict target properties, using a fine-tuned model, run
 ```bash
 python3 scripts/featurize.py \
     --path_to_sequence_file data/raw/sequences.csv \
+    --path_to_sequence_column smiles \
     --path_to_output_file predictions.csv \
     --path_to_tokenizer_config configs/tokenizers/smiles/deepchem/config.json \
     --path_to_model_config configs/models/hyformer/50M/config.json \
     --path_to_model_ckpt <PATH_TO_MODEL_CKPT> \
-    --path_to_sequence_column smiles \
     --device cuda:0 \
     --batch_size 256 \
     --seed 1337
@@ -96,14 +96,28 @@ Experiments are executable through scripts in `experiments/`.
 
 ### GuacaMol distribution learning benchmark
 
-To evaluate the unconditional predictive performance of Hyformer, on GuacaMol benchmark, run 
+To evaluate the unconditional generative performance of Hyformer, using GuacaMol benchmark, run 
 ```bash
-srun python3 experiments/evaluate_guacamol.py ...
+python3 scripts/pretrain/evaluate_guacamol.py \
+    --path_to_tokenizer_config configs/tokenizers/smiles/guacamol/config.json \
+    --path_to_model_config configs/models/hyformer/8M/config.json \
+    --path_to_model_ckpt <PATH_TO_MODEL_CKPT> \
+    --path_to_output_file <RESULTS_FILENAME> \
+    --device 'cuda:0' \
+    --batch_size 256 \
+    --temperature 1.0 \
+    --top_k 10 \
+    --chembl_training_file <PATH_TO_GUACAMOL_TRAINING_FILE>
 ```
 
-### Conditional sampling
+> Guacamol training file can be downloaded [here](https://ndownloader.figshare.com/files/13612760).
 
-For the conditional sampling experiment, first jointly fine-tune the model
+> Make sure to first run `migrate_guacamol.sh`. 
+
+
+### Conditional molecule generation
+
+For the conditional sampling experiment, first jointly finetune the model
 ```train
 python train.py --input-data <path_to_data> --alpha 10 --beta 20
 ```
@@ -128,6 +142,12 @@ To evaluate Hyformer's representations, run:
 python eval.py --model-file mymodel.pth --benchmark imagenet
 ```
 
+### GuacaMol distribution learning benchmark
+
+To evaluate the unconditional predictive performance of Hyformer, on GuacaMol benchmark, run 
+```bash
+srun python3 experiments/evaluate_guacamol.py ...
+```
 
 ## References
 

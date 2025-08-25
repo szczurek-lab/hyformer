@@ -3,7 +3,11 @@ from hyformer.configs.tokenizer import TokenizerConfig
 from hyformer.configs.model import ModelConfig
 from hyformer.utils.tokenizers.auto import AutoTokenizer
 from hyformer.models.auto import AutoModel
-from guacamol.assess_distribution_learning import assess_distribution_learning
+try:
+    from guacamol.assess_distribution_learning import assess_distribution_learning
+except ImportError:
+    print("GuacaMol is not installed.")
+    sys.exit(1)
 import logging
 import os
 import sys
@@ -17,7 +21,7 @@ def get_parser():
     parser.add_argument("--path_to_model_config", type=str, required=True)
     parser.add_argument("--path_to_tokenizer_config", type=str, required=True)
     parser.add_argument("--chembl_training_file", type=str, required=True)
-    parser.add_argument("--output", type=str, required=True)
+    parser.add_argument("--path_to_output_file", type=str, required=True)
     parser.add_argument("--device", type=str, default="cuda:0")
     parser.add_argument("--batch_size", type=int, default=64)
     parser.add_argument("--temperature", type=float, default=1.0)
@@ -36,10 +40,16 @@ def main(args):
     tokenizer = AutoTokenizer.from_config(tokenizer_config)
 
     model.load_pretrained(args.path_to_model_ckpt)
-    model = model.to_guacamole_generator(tokenizer, args.batch_size, args.temperature, args.top_k, args.device)
+    model = model.to_generator(
+        tokenizer=tokenizer,
+        batch_size=args.batch_size,
+        temperature=args.temperature,
+        top_k=args.top_k,
+        device=args.device
+    )
 
-    os.makedirs(os.path.dirname(args.output), exist_ok=True)
-    assess_distribution_learning(model, args.chembl_training_file, args.output)
+    os.makedirs(os.path.dirname(args.path_to_output_file), exist_ok=True)
+    assess_distribution_learning(model, args.chembl_training_file, args.path_to_output_file)
 
 
 if __name__ == "__main__":
