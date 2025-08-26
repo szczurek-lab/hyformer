@@ -19,8 +19,8 @@ from hyformer.utils.datasets.auto import AutoDataset
 from hyformer.utils.tokenizers.auto import AutoTokenizer
 from hyformer.utils.optuna import load_json, get_hparam_search_space, save_json
 
-from experiments.data_efficient_domain_adaptation.train import main as model_training_loop
-from experiments.data_efficient_domain_adaptation.test import main as model_testing_loop
+from scripts.conditional_sampling.train import main as model_training_loop
+from scripts.conditional_sampling.test import main as model_testing_loop
 
 
 def objective(trial, hparams_grid, train_dataset, val_dataset, test_dataset, tokenizer, model_config, trainer_config,

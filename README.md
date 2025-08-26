@@ -90,6 +90,7 @@ python3 scripts/generate.py \
     --num_samples 100
 ```
 
+
 ## Experiments
 
 Experiments are executable through scripts in `experiments/`.
@@ -114,39 +115,41 @@ python3 scripts/pretrain/evaluate_guacamol.py \
 
 > Make sure to first run `migrate_guacamol.sh`. 
 
+### Out-of-Distribution Molecular Property Prediction (Hi benchmark)
+
+```bash
+python3 scripts/finetune/run_hi_benchmark.py \
+    ...
+```
+
 
 ### Conditional molecule generation
 
 For the conditional sampling experiment, first jointly finetune the model
 ```train
-python train.py --input-data <path_to_data> --alpha 10 --beta 20
+python3 scripts/conditional_sampling/run_surrogate.py \
+    ...
 ```
 and generate
 ```train
-python train.py --input-data <path_to_data> --alpha 10 --beta 20
+python3 scripts/conditional_sampling/generate.py \
+    ...
 ```
 
-### Hit Ideantification (Hi) task from Lo-Hi benchmark
+## Cite
 
-For the Hi task, fine-tune and evaluate the model across 3 independent runs using
-```train
-python train.py --input-data <path_to_data> --alpha 10 --beta 20
+To cite our work, use
+
 ```
-
-
-### Representation Learning
-
-To evaluate Hyformer's representations, run:
-
-```eval
-python eval.py --model-file mymodel.pth --benchmark imagenet
-```
-
-### GuacaMol distribution learning benchmark
-
-To evaluate the unconditional predictive performance of Hyformer, on GuacaMol benchmark, run 
-```bash
-srun python3 experiments/evaluate_guacamol.py ...
+@misc{izdebski2025synergisticbenefitsjointmolecule,
+      title={Synergistic Benefits of Joint Molecule Generation and Property Prediction}, 
+      author={Adam Izdebski and Jan Olszewski and Pankhil Gawade and Krzysztof Koras and Serra Korkmaz and Valentin Rauscher and Jakub M. Tomczak and Ewa Szczurek},
+      year={2025},
+      eprint={2504.16559},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2504.16559}, 
+}
 ```
 
 ## References
