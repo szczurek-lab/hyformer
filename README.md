@@ -29,7 +29,7 @@ Download pre-trained models from [HuggingFace](https://huggingface.co/SzczurekLa
 To pre-train Hyformer from scratch, run
 
 ```bash
-srun python3 experiments/pretrain/train.py
+srun python3 scripts/pretrain/train.py
     --path_to_dataset_config <PATH_TO_DATASET_CONFIG>
     --path_to_tokenizer_config <PATH_TO_TOKENIZER_CONFIG>
     --path_to_model_config <PATH_TO_MODEL_CONFIG>
