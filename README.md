@@ -61,7 +61,7 @@ python scripts/featurize.py \
 
 To predict target properties, using a fine-tuned model, run
 ```bash
-python3 scripts/featurize.py \
+python3 scripts/predict.py \
     --path_to_sequence_file data/raw/sequences.csv \
     --path_to_sequence_column smiles \
     --path_to_output_file predictions.csv \
