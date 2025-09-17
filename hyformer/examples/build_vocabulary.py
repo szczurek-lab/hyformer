@@ -10,9 +10,9 @@ import os
 import argparse
 from hyformer.configs.dataset import DatasetConfig
 from hyformer.configs.tokenizer import TokenizerConfig
-from hyformer.utils.tokenizers.auto import AutoTokenizer
-from hyformer.utils.tokenizers.utils import build_vocabulary_from_dataset
-from hyformer.utils.tokenizers.smiles import SMILES_REGEX_PATTERN
+from hyformer.tokenizers.auto import AutoTokenizer
+from hyformer.tokenizers.utils import build_vocabulary_from_dataset
+from hyformer.tokenizers.smiles import SMILES_REGEX_PATTERN
 
 
 def main():

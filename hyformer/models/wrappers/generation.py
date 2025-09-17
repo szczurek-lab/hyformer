@@ -4,8 +4,8 @@ import numpy as np
 from tqdm import tqdm
 from typing import List, Any
 
-from hyformer.utils.datasets.base import BaseDataset
-from hyformer.utils.tokenizers.base import BaseTokenizer
+from hyformer.utils.data.datasets.base import BaseDataset
+from hyformer.tokenizers.base import BaseTokenizer
 
 
 class DefaultGeneratorWrapper:

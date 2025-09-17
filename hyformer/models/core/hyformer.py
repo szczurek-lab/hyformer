@@ -8,7 +8,7 @@ from hyformer.models.core.llama_backbone import LLAMABackbone
 from hyformer.models.utils import ModelOutput
 from hyformer.models.auto import AutoModel
 
-from hyformer.utils.tokenizers.base import IGNORE_TOKEN_IDX
+from hyformer.tokenizers.base import IGNORE_TOKEN_IDX
 from hyformer.models.layers.prediction import PredictionHead
 from hyformer.configs.model import ModelConfig
 

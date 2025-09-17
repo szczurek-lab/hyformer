@@ -17,8 +17,8 @@ from hyformer.configs.model import ModelConfig
 from hyformer.configs.trainer import TrainerConfig
 from hyformer.configs.logger import LoggerConfig
 
-from hyformer.utils.datasets.auto import AutoDataset
-from hyformer.utils.tokenizers.auto import AutoTokenizer
+from hyformer.utils.data.datasets.auto import AutoDataset
+from hyformer.tokenizers.auto import AutoTokenizer
 from hyformer.models.auto import AutoModel
 from hyformer.utils.loggers.auto import AutoLogger
 

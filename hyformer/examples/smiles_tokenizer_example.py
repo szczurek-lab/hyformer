@@ -8,7 +8,7 @@ This shows how to tokenize, encode, and decode SMILES strings.
 
 import os
 import torch
-from hyformer.utils.tokenizers.smiles import SMILESTokenizer
+from hyformer.tokenizers.smiles import SMILESTokenizer
 
 # Example SMILES strings
 examples = [

@@ -12,9 +12,9 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from hyformer.configs.trainer import TrainerConfig
 from hyformer.models.base import TrainableModel
 from hyformer.utils.loggers.wandb import WandbLogger
-from hyformer.utils.datasets.base import BaseDataset
+from hyformer.utils.data.datasets.base import BaseDataset
 
-from hyformer.utils.tokenizers.base import BaseTokenizer
+from hyformer.tokenizers.base import BaseTokenizer
 from hyformer.utils.collators.data_collator_task_tokens import DataCollatorWithTaskTokens
 
 from hyformer.utils.metrics import calculate_metric

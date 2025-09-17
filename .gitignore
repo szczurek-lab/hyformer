@@ -190,3 +190,7 @@ outputs
 scratch/
 .slurm
 *.slurm
+
+.vscode/
+
+tmp_test_data/

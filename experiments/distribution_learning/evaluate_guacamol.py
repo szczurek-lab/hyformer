@@ -6,7 +6,7 @@ import torch
 from hyformer.configs.tokenizer import TokenizerConfig
 from hyformer.configs.model import ModelConfig
 
-from hyformer.utils.tokenizers.auto import AutoTokenizer
+from hyformer.tokenizers.auto import AutoTokenizer
 from hyformer.models.auto import AutoModel
 
 from hyformer.utils.experiments import log_args
