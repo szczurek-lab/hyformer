@@ -3,10 +3,10 @@ import numpy as np
 from typing import List, Callable, Optional, Union, Tuple, Any, Dict
 
 from hyformer.configs.dataset import DatasetConfig
-from hyformer.utils.datasets.base import BaseDataset
+from hyformer.utils.data.datasets.base import BaseDataset
 from hyformer.utils.transforms.auto import AutoTransform, AutoTargetTransform
-from hyformer.utils.datasets.storage.base import DataStorage
-from hyformer.utils.datasets.storage.auto import AutoStorage
+from hyformer.utils.data.datasets.storage.base import DataStorage
+from hyformer.utils.data.datasets.storage.auto import AutoStorage
 
 # Default settings - shared with storage module
 _ALLOW_PICKLE = False  # Security setting - controls whether pickled objects are allowed in NPZ files
