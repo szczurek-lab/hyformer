@@ -1,5 +1,5 @@
 from .rf import RFProbe
-from .knn_new import KNNProbe
+from .knn import KNNProbe
 from .mlp import MLPProbe
 
 __all__ = [
