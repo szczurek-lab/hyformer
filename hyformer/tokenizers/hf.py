@@ -49,6 +49,8 @@ class HFTokenizer(BaseTokenizer):
         vocabulary_path: str,
         use_fast: bool = True,
         trust_remote_code: bool = False,
+        subfolder: Optional[str] = None,
+        repo_type: Optional[str] = None,
         **kwargs
     ) -> None:
         """Initialize the HF tokenizer adapter.
@@ -74,7 +76,9 @@ class HFTokenizer(BaseTokenizer):
                 vocabulary_path,
                 use_fast=use_fast,
                 trust_remote_code=trust_remote_code,
-                legacy=False  # Use the new tokenizers API
+                legacy=False,  # Use the new tokenizers API
+                subfolder=subfolder,
+                repo_type=repo_type
             )
         except TypeError as e:
             if "legacy" in str(e):
@@ -82,7 +86,9 @@ class HFTokenizer(BaseTokenizer):
                 self.hf_tokenizer = HFAutoTokenizer.from_pretrained(
                     vocabulary_path,
                     use_fast=use_fast,
-                    trust_remote_code=trust_remote_code
+                    trust_remote_code=trust_remote_code,
+                    subfolder=subfolder,
+                    repo_type=repo_type
                 )
             else:
                 raise
@@ -247,6 +253,8 @@ class HFTokenizer(BaseTokenizer):
         tokenizer_config: Optional[Dict[str, Any]] = None,
         local_dir: Optional[str] = None,
         local_dir_use_symlinks: str = "auto",
+        subfolder: Optional[str] = None,
+        repo_type: Optional[str] = None,
         **kwargs
     ) -> 'HFTokenizer':
         """Load a pretrained HFTokenizer.
@@ -280,7 +288,10 @@ class HFTokenizer(BaseTokenizer):
         if tokenizer_config:
             init_kwargs.update(tokenizer_config)
         
+        # For HF tokenizers, store the repo id and pass subfolder/repo_type through
         init_kwargs['vocabulary_path'] = repo_id_or_path
+        init_kwargs['subfolder'] = subfolder
+        init_kwargs['repo_type'] = repo_type
         
         return cls(**init_kwargs)
 

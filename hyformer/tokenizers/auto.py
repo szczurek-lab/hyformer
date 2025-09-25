@@ -82,6 +82,8 @@ class AutoTokenizer:
         tokenizer_config: Optional[Dict[str, Any]] = None,
         local_dir: Optional[str] = None,
         local_dir_use_symlinks: str = "auto",
+        subfolder: Optional[str] = None,
+        repo_type: Optional[str] = None,
         **kwargs
     ) -> BaseTokenizer:
         """Load a pretrained tokenizer from HuggingFace Hub or a local path.
@@ -125,9 +127,19 @@ class AutoTokenizer:
         tokenizer = AutoTokenizer.from_pretrained("./my_tokenizer")
         ```
         """
+        # Normalize repo_id and subfolder if a Hub path like "org/repo/sub/dir" was provided
+        if not os.path.isdir(repo_id_or_path) and "/" in repo_id_or_path:
+            parts = repo_id_or_path.split("/")
+            if len(parts) > 2:
+                repo_id_or_path = "/".join(parts[:2])
+                inferred_subfolder = "/".join(parts[2:])
+                if subfolder is None:
+                    subfolder = inferred_subfolder
+
         # Load tokenizer config to determine tokenizer type
         if tokenizer_config is None:
-            config_path_local = os.path.join(repo_id_or_path, TOKENIZER_CONFIG_FILENAME)
+            base_local_path = os.path.join(repo_id_or_path, subfolder) if (subfolder and os.path.isdir(repo_id_or_path)) else repo_id_or_path
+            config_path_local = os.path.join(base_local_path, TOKENIZER_CONFIG_FILENAME)
             if os.path.exists(config_path_local):
                 import json
                 with open(config_path_local, 'r') as f:
@@ -141,7 +153,9 @@ class AutoTokenizer:
                         filename=TOKENIZER_CONFIG_FILENAME, 
                         revision=revision,
                         local_dir=local_dir, 
-                        local_dir_use_symlinks=local_dir_use_symlinks
+                        local_dir_use_symlinks=local_dir_use_symlinks,
+                        subfolder=subfolder,
+                        repo_type=repo_type
                     )
                     import json
                     with open(config_path_hf, 'r') as f:
@@ -158,17 +172,17 @@ class AutoTokenizer:
         if tokenizer_type == 'SMILESTokenizer':
             from hyformer.tokenizers.smiles import SMILESTokenizer
             return SMILESTokenizer.from_pretrained(
-                repo_id_or_path, revision, tokenizer_config, local_dir, local_dir_use_symlinks, **kwargs
+                repo_id_or_path, revision, tokenizer_config, local_dir, local_dir_use_symlinks, subfolder=subfolder, repo_type=repo_type, **kwargs
             )
         elif tokenizer_type == "AATokenizer":
             from hyformer.tokenizers.amino_acid import AATokenizer
             return AATokenizer.from_pretrained(
-                repo_id_or_path, revision, tokenizer_config, local_dir, local_dir_use_symlinks, **kwargs
+                repo_id_or_path, revision, tokenizer_config, local_dir, local_dir_use_symlinks, subfolder=subfolder, repo_type=repo_type, **kwargs
             )
         elif tokenizer_type == "HFTokenizer":
             from hyformer.tokenizers.hf import HFTokenizer
             return HFTokenizer.from_pretrained(
-                repo_id_or_path, revision, tokenizer_config, local_dir, local_dir_use_symlinks, **kwargs
+                repo_id_or_path, revision, tokenizer_config, local_dir, local_dir_use_symlinks, subfolder=subfolder, repo_type=repo_type, **kwargs
             )
         else:
             raise ValueError(f"Tokenizer type '{tokenizer_type}' is not supported. "
