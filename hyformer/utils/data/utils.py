@@ -127,7 +127,9 @@ def create_dataloader(
 
     def collate_fn(batch: List[Dict[str, Any]]):
         task = _sample_task()
-        texts = [ex["data"] for ex in batch]
+        # Support both dataset items as dicts (with 'data'/'target') and raw strings
+        is_mapping = isinstance(batch[0], dict)
+        texts = [ex["data"] for ex in batch] if is_mapping else batch
         tokenized = tokenizer(texts, task=task)
         input_ids = tokenized["input_ids"]
         attention_mask = tokenized["attention_mask"]
@@ -156,11 +158,12 @@ def create_dataloader(
                 tokenizer, padded_input_ids.clone(), padded_attn, mask_probability
             )
         elif task == "prediction":
-            targets = [ex["target"] for ex in batch]
-            if not all(t is None for t in targets):
-                import numpy as _np
+            if is_mapping:
+                targets = [ex["target"] for ex in batch]
+                if not all(t is None for t in targets):
+                    import numpy as _np
 
-                target = torch.from_numpy(_np.stack(targets)).float()
+                    target = torch.from_numpy(_np.stack(targets)).float()
 
         from hyformer.models.utils import ModelInput  # local import to avoid circulars
 
