@@ -4,6 +4,7 @@ import random
 import logging
 
 import numpy as np
+from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 
@@ -107,3 +108,27 @@ def seed_worker(worker_id: int) -> None:
     np.random.seed(worker_seed)
     random.seed(worker_seed)
     torch.manual_seed(worker_seed)
+
+
+def remove_prefix_inplace(state_dict: Dict[str, Any], prefix: str) -> None:
+    """
+    Remove a prefix from keys of a state_dict in-place.
+
+    Parameters
+    ----------
+    state_dict : Dict[str, Any]
+        The dictionary of model parameters, keyed by parameter names.
+    prefix : str
+        The prefix string to remove from matching keys.
+
+    This function mutates state_dict directly, renaming any keys that start with the given prefix
+    by stripping the prefix from the key.
+    """
+    # Ensure prefix ends with dot for clean key stripping
+    prefix_dot = prefix if prefix.endswith('.') else prefix + '.'
+    keys = list(state_dict.keys())
+    for key in keys:
+        if key.startswith(prefix_dot):
+            new_key = key[len(prefix_dot):]
+            state_dict[new_key] = state_dict.pop(key)
+    # In-place; no return

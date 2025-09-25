@@ -1,7 +1,7 @@
 import os, sys
 import logging
 import json
-from typing import Any, List, Optional, Set
+from typing import Any, List, Optional, Set, Union
 
 import numpy as np
 import torch
@@ -52,7 +52,7 @@ def set_to_dev_mode(**kwargs) -> None:
         logger_config.display_name = "test"
 
 
-def get_device() -> torch.device | str:
+def get_device() -> Union[torch.device, str]:
     return "cuda" if torch.cuda.is_available() else "cpu"
 
 

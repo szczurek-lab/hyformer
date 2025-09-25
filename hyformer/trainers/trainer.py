@@ -26,7 +26,7 @@ torch._dynamo.config.cache_size_limit = 64
 console = logging.getLogger(__name__)
 CHECKPOINT_FILENAME = 'ckpt.pt'  # Single checkpoint file for both best model and training state
 CHECKPOINT_FILENAME_EPOCH = 'ckpt_epoch={epoch}.pt'
-PAD_TO_MULTIPLE_OF = 128  # Pad sequences to multiple of x for better GPU utilization
+PAD_TO_MULTIPLE_OF = 64  # Pad sequences to multiple of x for better GPU utilization
 DEFAULT_WORKER_SEED = 42  # Default seed for data loading workers
 SUPPORTED_TASKS = ['lm', 'prediction', 'mlm']
 
