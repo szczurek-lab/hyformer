@@ -19,72 +19,78 @@ Download pre-trained models from [HuggingFace](https://huggingface.co/SzczurekLa
 - [hyformer_peptides_34M](https://huggingface.co/SzczurekLab/hyformer_peptides_34M) trained on 3.5M general-purpose and antimicrobial peptides.
 - [hyformer_peptides_34M_MIC](https://huggingface.co/SzczurekLab/hyformer_peptides_34M_MIC) `Hyformer_peptides_34M` jointly fine-tuned on minimal inhibitory concentration values (MIC) against E. coli bacteria.
 
-### Pre-train from scratch
+## Usage
 
-To pre-train Hyformer from scratch, run
+### Generation
 
-```bash
-srun python3 scripts/pretrain/train.py
-    --path_to_dataset_config <PATH_TO_DATASET_CONFIG>
-    --path_to_tokenizer_config <PATH_TO_TOKENIZER_CONFIG>
-    --path_to_model_config <PATH_TO_MODEL_CONFIG>
-    --path_to_trainer_config <PATH_TO_TRAINER_CONFIG>
+```python
+import torch
+
+from hyformer import AutoModel, AutoTokenizer
+
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+batch_size = 16
+seed = 1337
+num_samples = 16
+
+tokenizer = AutoTokenizer.from_pretrained('SzczurekLab/hyformer_peptides_34M')
+model = AutoModel.from_pretrained('SzczurekLab/hyformer_peptides_34M')
+
+generator = model.to_generator(tokenizer, batch_size, device)
+
+generator.generate(number_samples=num_samples, seed=seed)
+
 ```
 
-## Example Usage
+### Featurization
 
-### Featurize
+```python
+import torch
 
-In order to featurize a list of sequences, e.g., SMILES, run
+from hyformer import AutoModel, AutoTokenizer
 
-```bash
-python scripts/featurize.py \
-    --path_to_sequence_file data/raw/sequences.csv \
-    --path_to_sequence_column smiles \
-    --path_to_output_file data/processed/embeddings.npz \
-    --path_to_tokenizer_config configs/tokenizers/smiles/deepchem/config.json \
-    --path_to_model_config models/hyformer/50M/config.json \
-    --path_to_model_ckpt <PATH_TO_MODEL_CKPT> \
-    --device cuda:0 \
-    --batch_size 256 \
-    --seed 1337
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+batch_size = 16
+
+sequences = [
+    'WGLKLRMRAAGTSYSSAGRRGSAATGATRATTQFPSKR',
+    'ILQNIGIKNVKKSAPIRVVLKLKPNQYGIIDG',
+    'IIAEATYYVTADKLK',
+    'VFVFGLLLKAIVAAVKRHGFKSFRYY',
+    ]
+
+tokenizer = AutoTokenizer.from_pretrained('SzczurekLab/hyformer_peptides_34M')
+model = AutoModel.from_pretrained('SzczurekLab/hyformer_peptides_34M')
+
+encoder = model.to_encoder(tokenizer, batch_size, device)
+
+encoder.encode(sequences=sequences)
+
 ```
 
-> Alternatively, `path_to_sequence_file` can point to a `.txt` or `.smiles` file. 
+### Prediction
 
-### Predict
+```python
+import torch
 
-To predict target properties, using a fine-tuned model, run
-```bash
-python3 scripts/predict.py \
-    --path_to_sequence_file data/raw/sequences.csv \
-    --path_to_sequence_column smiles \
-    --path_to_output_file predictions.csv \
-    --path_to_tokenizer_config configs/tokenizers/smiles/deepchem/config.json \
-    --path_to_model_config configs/models/hyformer/50M/config.json \
-    --path_to_model_ckpt <PATH_TO_MODEL_CKPT> \
-    --device cuda:0 \
-    --batch_size 256 \
-    --seed 1337
+from hyformer import AutoModel, AutoTokenizer
+
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+batch_size = 16
+
+sequences = [
+    'WGLKLRMRAAGTSYSSAGRRGSAATGATRATTQFPSKR',
+    'ILQNIGIKNVKKSAPIRVVLKLKPNQYGIIDG',
+    'IIAEATYYVTADKLK',
+    'VFVFGLLLKAIVAAVKRHGFKSFRYY',
+    ]
+
+tokenizer = AutoTokenizer.from_pretrained('SzczurekLab/hyformer_peptides_34M_MIC')
+model = AutoModel.from_pretrained('SzczurekLab/hyformer_peptides_34M_MIC')
+
+predictor = model.to_predictor(tokenizer, batch_size, device)
+predictor.predict(sequences)
 ```
-
-### Generate
-
-To unconditionally generate a list of sequences, e.g., SMILES, run
-```bash
-python3 scripts/generate.py \
-    --path_to_output_file data/synthetic/smiles.txt \
-    --path_to_tokenizer_config configs/tokenizers/smiles/deepchem/config.json \
-    --path_to_model_config configs/models/hyformer/50M/config.json \
-    --path_to_model_ckpt <PATH_TO_MODEL_CKPT> \
-    --device cuda:0 \
-    --batch_size 16 \
-    --seed 1337 \
-    --temperature 0.9 \
-    --top_k 25 \
-    --num_samples 100
-```
-
 
 ## Cite
 

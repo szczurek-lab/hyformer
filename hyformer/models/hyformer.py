@@ -287,7 +287,8 @@ class Hyformer(LLAMABackbone):
         top_k=None,
         top_p=None,
         use_cache=False,
-        device=None
+        device=None,
+        seed=None
     ):
         """Generate sequence ids by sampling from the model.
 
@@ -309,6 +310,8 @@ class Hyformer(LLAMABackbone):
             Cumulative probability threshold for nucleus sampling, by default None.
         use_cache : bool, optional
             Whether to use KV caching for faster generation, by default True.
+        seed : int, optional
+            Random seed used to initialize a ``torch.Generator`` for deterministic sampling.
 
         Returns
         -------
@@ -320,6 +323,10 @@ class Hyformer(LLAMABackbone):
         # Initialize generation
         batch_size = prefix_input_ids.shape[0]
         device = prefix_input_ids.device
+        generator = None
+        if seed is not None:
+            generator = torch.Generator(device=device)
+            generator.manual_seed(seed)
         prefix_len = prefix_input_ids.shape[1]
         
         self.init_cache(batch_size, prefix_len + num_tokens_to_generate)
@@ -345,7 +352,8 @@ class Hyformer(LLAMABackbone):
                 temperature=temperature,
                 top_k=top_k,
                 top_p=top_p,
-                use_cache=use_cache
+                use_cache=use_cache,
+                generator=generator
             )
 
             # For sequences that hit EOS, force next token to be PAD
@@ -368,7 +376,7 @@ class Hyformer(LLAMABackbone):
         return output_ids[:, :generated_len]
 
     @torch.inference_mode()
-    def _generate_single_token(self, prefix_input_ids, temperature, top_k, top_p, use_cache):
+    def _generate_single_token(self, prefix_input_ids, temperature, top_k, top_p, use_cache, generator=None):
         """
         Generate a single token for each sequence in the batch, with optional KV caching.
         Args:
@@ -377,6 +385,7 @@ class Hyformer(LLAMABackbone):
             top_k: Number of highest probability tokens to keep for top-k filtering
             top_p: Cumulative probability for nucleus sampling
             use_cache: Whether to use KV caching
+            generator: Optional torch.Generator to control sampling randomness
         Returns:
             next_token: Generated token ids for each sequence in batch
         """
@@ -391,7 +400,7 @@ class Hyformer(LLAMABackbone):
 
         # Convert logits to probabilities and sample
         probs = F.softmax(logits, dim=-1)
-        next_token = torch.multinomial(probs, num_samples=1).squeeze(-1)
+        next_token = torch.multinomial(probs, num_samples=1, generator=generator).squeeze(-1)
 
         return next_token
 
@@ -453,10 +462,15 @@ class Hyformer(LLAMABackbone):
             prediction_head_dropout_p=config.prediction_head_dropout_p if prediction_head_dropout_p is None else prediction_head_dropout_p
         )
     
-    def to_generator(self, **kwargs) -> 'HyformerGeneratorWrapper':
-        from hyformer.models.wrappers.encoding import HyformerGeneratorWrapper
-        return HyformerGeneratorWrapper(self, **kwargs)
+    def to_generator(self, tokenizer, batch_size, device) -> 'HyformerGeneratorWrapper':
+        from hyformer.models.wrappers import HyformerGeneratorWrapper
+        return HyformerGeneratorWrapper(model=self, tokenizer=tokenizer, batch_size=batch_size, device=device)
 
     def to_encoder(self, tokenizer, batch_size, device) -> 'HyformerEncoderWrapper':
-        from hyformer.models.wrappers.encoding import HyformerEncoderWrapper
-        return HyformerEncoderWrapper(self, tokenizer, batch_size, device)
+        from hyformer.models.wrappers import HyformerEncoderWrapper
+        return HyformerEncoderWrapper(model=self, tokenizer=tokenizer, batch_size=batch_size, device=device)
+
+    def to_predictor(self, tokenizer, batch_size, device) -> 'HyformerPredictorWrapper':
+        assert self.prediction_head is not None, "Model must have a prediction head initialized to be converted to a predictor."
+        from hyformer.models.wrappers import HyformerPredictorWrapper
+        return HyformerPredictorWrapper(model=self, tokenizer=tokenizer, batch_size=batch_size, device=device)
