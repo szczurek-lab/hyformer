@@ -1,9 +1,9 @@
 [project]
 name = "hyformer"
 version = "2.0.0"
-description = "An official implementation of Hyformer, a joint model for molecule generation and property prediction."
+description = "An optimized implementation of Hyformer, a joint model for molecule generation and property prediction."
 readme = "README.md"
-license = {text = "GPL-3.0-or-later"}
+license = {file = "LICENSE"}
 authors = [
     {name = "Adam Izdebski", email = "adam.izdebski1@gmail.com"}
 ]
