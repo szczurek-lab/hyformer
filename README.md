@@ -21,8 +21,8 @@ Verify installation with `python3 scripts/verify_intallation.py`.
 
 Download pre-trained models from [HuggingFace](https://huggingface.co/SzczurekLab/hyformer):
 
-- [Hyformer-8M](https://huggingface.co/SzczurekLab/hyformer/tree/main/molecules/8M) trained on GuacaMol dataset [1].
-- [Hyformer-50M](https://huggingface.co/SzczurekLab/hyformer/tree/main/molecules/50M) trained on 19M molecules from combined: ZINC, ChEMBL and various purchusable molecular datasets [2]. 
+- [hyformer_molecules_8M](https://huggingface.co/SzczurekLab/hyformer_molecules_8M) trained on GuacaMol dataset [1].
+- [hyformer_molecules_50M](https://huggingface.co/SzczurekLab/hyformer_molecules_50M) trained on 19M molecules from combined: ZINC, ChEMBL and various purchusable molecular datasets [2]. 
 
 ### Pre-train from scratch
 
