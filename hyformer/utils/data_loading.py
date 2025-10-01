@@ -2,12 +2,13 @@ from torch.utils.data import DataLoader
 from typing import Optional, Dict
 
 from hyformer.utils.datasets.base import BaseDataset
+from hyformer.utils.datasets.sequence import SequenceDataset
 from hyformer.utils.tokenizers.base import BaseTokenizer
 from hyformer.utils.collator import DataCollator
 
 
 def get_data_loader(
-    dataset: Optional[BaseDataset],
+    dataset: list[str],
     tasks: Dict[str, float],
     tokenizer: BaseTokenizer,
     batch_size: int,
@@ -17,7 +18,7 @@ def get_data_loader(
     ):
     collator = DataCollator(tokenizer=tokenizer, tasks=tasks)
     return  DataLoader(
-                dataset,
+                SequenceDataset(dataset),
                 batch_size=batch_size,
                 shuffle=False,
                 collate_fn=collator,

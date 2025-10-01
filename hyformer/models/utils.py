@@ -16,6 +16,9 @@ class ModelInput(dict):
                     else:
                         self[key] = value.to(device, non_blocking=True)
         return self
+    
+    def to_device(self, device: str) -> 'ModelInput':
+        return self.to(device)
 
 
 class ModelOutput(dict):

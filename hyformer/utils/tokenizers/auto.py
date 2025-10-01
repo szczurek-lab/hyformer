@@ -8,18 +8,28 @@ class AutoTokenizer:
     
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path, local_dir=None):
+        """Seqme package compatibility."""
+
         try:
             from huggingface_hub import hf_hub_download
             from huggingface_hub.utils import RepositoryNotFoundError
         except ImportError:
             print("HuggingFace Hub is not installed. Loading models from HuggingFace not available.")
 
+        # download vocabulary
+        vocab_absolute_path = hf_hub_download(
+            repo_id=pretrained_model_name_or_path,
+            filename="vocab.txt",
+            local_dir=local_dir
+        )
         _tokenizer_config_path_hf = hf_hub_download(
                     repo_id=pretrained_model_name_or_path,
                     filename="tokenizer_config.json",
                     local_dir=local_dir
                 )
+
         _tokenizer_config = TokenizerConfig.from_config_file(_tokenizer_config_path_hf)
+        _tokenizer_config.path_to_vocabulary = vocab_absolute_path  # overwrite path_to_vocabulary with vocab_absolute_path
         return cls.from_config(_tokenizer_config)
         
     @classmethod
