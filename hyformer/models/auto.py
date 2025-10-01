@@ -6,6 +6,30 @@ from hyformer.models.base import BaseModel
 class AutoModel:
 
     @classmethod
+    def from_pretrained(cls, pretrained_model_name_or_path, device='cpu', local_dir=None):
+        try:
+            from huggingface_hub import hf_hub_download
+            from huggingface_hub.utils import RepositoryNotFoundError
+        except ImportError:
+            print("HuggingFace Hub is not installed. Loading models from HuggingFace not available.")
+        
+        _model_config_path_hf = hf_hub_download(
+                    repo_id=pretrained_model_name_or_path,
+                    filename="model_config.json",
+                    local_dir=local_dir
+                )
+        _model_config = ModelConfig.from_config_file(_model_config_path_hf)
+        model = cls.from_config(_model_config)
+        
+        _state_dict_path_hf = hf_hub_download(
+                    repo_id=pretrained_model_name_or_path,
+                    filename="ckpt.pt",
+                    local_dir=local_dir
+                )
+        model.load_pretrained(_state_dict_path_hf, device=device)
+        return model
+        
+    @classmethod
     def from_config(cls, config: ModelConfig, **kwargs) -> BaseModel:
         
         if config.model_name == 'GPT':
