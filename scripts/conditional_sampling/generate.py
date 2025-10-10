@@ -17,8 +17,10 @@ from hyformer.models.auto import AutoModel
 
 from hyformer.utils.runtime import set_seed
 from hyformer.utils.chemistry import is_valid
-
-from experiments.conditional_sampling.utils import get_logp, get_qed, get_sa
+try:
+    from scripts.conditional_sampling.utils import get_logp, get_qed, get_sa
+except:
+    from utils import get_logp, get_qed, get_sa
 
 
 def main(args):
@@ -61,18 +63,18 @@ def main(args):
 
         # 1. Generate K-many unique samples 
         samples = []
-        while len(samples) < args.k:
+        while len(samples) < args.n:
             _samples_idx = model.generate(
                 tokenizer=tokenizer,
                 batch_size=args.batch_size,
                 temperature=args.temperature,
-                top_k=args.generation_k,
+                top_k=args.top_k,
                 device=device
                 ).detach().cpu()
             _samples = tokenizer.decode(_samples_idx)
             samples.extend(_samples)
             samples = list(set(samples) - set(generated_samples))
-        samples = samples[:args.k]
+        samples = samples[:args.n]
 
         # 2. Compute properties with a surrogate model
         properties = []
@@ -115,18 +117,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Distributed Optuna Worker")
     parser.add_argument("--target_name", type=str, default=None, help="Target name for the model", choices=["qed", "logp", "sa"])
     parser.add_argument("--out-dir", type=str, required=True, help="Root directory for the experiment")
-    parser.add_argument("--data_dir", type=str, nargs='?', help="Path to the data directory")
     parser.add_argument("--path_to_tokenizer_config", type=str, required=True)
     parser.add_argument("--path_to_model_config", type=str, required=True)
     parser.add_argument("--path_to_model_ckpt", type=str, nargs='?')
-    parser.add_argument("--debug_only", default=False, action=argparse.BooleanOptionalAction)
-    parser.add_argument("--test", default=False, action=argparse.BooleanOptionalAction)
     parser.add_argument("--seed", type=int, default=1337, help="Seed for Optuna study")
     parser.add_argument("--num_generation_iters", type=int, default=1024, help="Number of samples to generate")
     parser.add_argument("--temperature", type=float, default=1.0, help="Temperature for sampling")
     parser.add_argument("--batch_size", type=int, default=256, help="Batch size for sampling")
-    parser.add_argument("--generation_k", type=int, default=25, help="Number of generations")
-    parser.add_argument("--k", type=int, default=1024, help="Number of samples to generate")
+    parser.add_argument("--top_k", type=int, default=25, help="Number of generations")
+    parser.add_argument("--n", type=int, default=1024, help="Number of samples to generate within each generation iteration")
     args = parser.parse_args()
     set_seed(args.seed)
     main(args)
