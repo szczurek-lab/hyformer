@@ -1,4 +1,7 @@
 """
+Reference: https://github.com/grimmlab/gumbeldore/blob/main/core/stochastic_beam_search.py
+No code modifications were made to the original implementation.
+
 Stochastic Beam Search (SBS) implementation for NumPy, mainly based on the implementation in UniqueRandomizer
 https://github.com/google-research/unique-randomizer/blob/master/unique_randomizer/stochastic_beam_search.py
 with small alterations (e.g., batching SBS to allow higher batch sizes in the policy network).

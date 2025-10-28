@@ -1,4 +1,7 @@
 """
+Reference: https://github.com/grimmlab/gumbeldore/blob/main/core/incremental_sbs.py
+No code modifications were made to the original implementation.
+
 (Improving) Incremental Stochastic Beam Search (SBS) implementation for NumPy, mainly based on the implementation in UniqueRandomizer
 https://github.com/google-research/unique-randomizer/blob/master/unique_randomizer/unique_randomizer.py
 with alterations, such as:

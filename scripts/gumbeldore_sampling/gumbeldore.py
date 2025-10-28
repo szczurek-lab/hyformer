@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Hyformer + Gumbeldore sampling adapters with Incremental SBS.
+Hyformer + Gumbeldore sampling with Incremental SBS.
 """
 
 import os
