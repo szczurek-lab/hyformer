@@ -51,3 +51,12 @@ dev = [
 
 # For pip install hyformer[full] - everything
 full = ["hyformer[molecules]", "hyformer[peptides]", "hyformer[dev]"]
+
+[[tool.uv.index]]
+name = "pytorch-cu118"
+url = "https://download.pytorch.org/whl/cu118"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu118" }
+torchvision = { index = "pytorch-cu118" }
