@@ -4,6 +4,7 @@ from hyformer.models.auto import AutoModel
 from hyformer.models.hyformer import Hyformer
 from hyformer.models.wrappers import HyformerEncoderWrapper
 from hyformer.tokenizers.auto import AutoTokenizer
+from hyformer.inference import embed, compute_perplexity
 
 __version__ = "2.0.0"
 
@@ -13,4 +14,6 @@ __all__ = [
     "AutoTokenizer",
     "Hyformer",
     "HyformerEncoderWrapper",
+    "embed",
+    "compute_perplexity",
 ]
