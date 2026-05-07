@@ -1,6 +1,6 @@
 # Hyformer
 
-This repository is an optimized implementation of [Hyformer](https://arxiv.org/abs/2504.16559), a [joint](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/LasserreBishopMinka06.pdf) transformer-based model that unifies a generative decoder with a predictive encoder. Depending on the task, Hyformer uses either a causal or a bidirectional mask and returns token probabilities or predicted property values.
+This repository is an optimized implementation of [Hyformer](https://openreview.net/forum?id=jnzCOLyGOA), a [joint](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/LasserreBishopMinka06.pdf) transformer-based model that unifies a generative decoder with a predictive encoder. Depending on the task, Hyformer uses either a causal or a bidirectional mask and returns token probabilities or predicted property values.
 
 <img src="_assets/hyformer.png" width="520" height="250"/>
 
@@ -18,6 +18,7 @@ Download pre-trained models from [HuggingFace](https://huggingface.co/SzczurekLa
 
 - [hyformer_peptides_34M](https://huggingface.co/SzczurekLab/hyformer_peptides_34M) trained on 3.5M general-purpose and antimicrobial peptides.
 - [hyformer_peptides_34M_MIC](https://huggingface.co/SzczurekLab/hyformer_peptides_34M_MIC) `Hyformer_peptides_34M` jointly fine-tuned on minimal inhibitory concentration values (MIC) against E. coli bacteria.
+
 
 ## Usage
 
@@ -97,13 +98,14 @@ predictor.predict(sequences)
 To cite our work, use
 
 ```
-@misc{izdebski2025synergisticbenefitsjointmolecule,
-      title={Synergistic Benefits of Joint Molecule Generation and Property Prediction}, 
-      author={Adam Izdebski and Jan Olszewski and Pankhil Gawade and Krzysztof Koras and Serra Korkmaz and Valentin Rauscher and Jakub M. Tomczak and Ewa Szczurek},
-      year={2025},
-      eprint={2504.16559},
-      archivePrefix={arXiv},
-      primaryClass={cs.LG},
-      url={https://arxiv.org/abs/2504.16559}, 
+@article{
+    izdebski2026synergistic,
+    title={Synergistic Benefits of Joint Molecule Generation and Property Prediction},
+    author={Adam Izdebski and Jan Olszewski and Pankhil Gawade and Krzysztof Koras and Serra Korkmaz and Valentin Rauscher and Jakub M. Tomczak and Ewa Szczurek},
+    journal={Transactions on Machine Learning Research},
+    issn={2835-8856},
+    year={2026},
+    url={https://openreview.net/forum?id=jnzCOLyGOA},
+    note={J2C Certification}
 }
 ```
