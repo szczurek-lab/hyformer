@@ -27,8 +27,8 @@ def embed(sequences: list[str], batch_size: int, checkpoint: str) -> np.ndarray:
     return np.concatenate(parts, axis=0)
 
 
-def compute_perplexity(sequences: list[str], batch_size: int, checkpoint: str) -> float:
-    """Return mean perplexity over all sequences."""
+def compute_perplexity(sequences: list[str], batch_size: int, checkpoint: str) -> np.ndarray:
+    """Return perplexity for each sequence, shape (len(sequences),)."""
     model, tokenizer, device = _load(checkpoint)
     loader = _get_data_loader(
         dataset=sequences,
@@ -45,7 +45,7 @@ def compute_perplexity(sequences: list[str], batch_size: int, checkpoint: str) -
             parts.append(
                 _sequence_perplexity(output["logits_generation"], batch["input_labels"]).cpu().numpy()
             )
-    return float(np.concatenate(parts).mean())
+    return np.concatenate(parts)
 
 
 def _load(checkpoint: str, local_dir: Optional[str] = None):
