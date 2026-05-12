@@ -1,4 +1,21 @@
-from typing import Optional
+"""
+Hyformer v1 inference — molecular (SMILES) sequences only.
+
+Available checkpoints:
+    - SzczurekLab/hyformer_molecules_8M: 8M parameters, 8 layers, embedding dim 256,
+      pretrained on GuacaMol dataset [Brown et al.]
+    - SzczurekLab/hyformer_molecules_50M: 50M parameters, 12 layers, embedding dim 512,
+      pretrained on Uni-Mol dataset [Zhou et al.]
+
+If used for prediction, pre-trained models predict the physicochemical properties
+used during pre-training.
+
+References:
+    Izdebski et al. "Synergistic Benefits of Joint Molecule Generation and Property Prediction"
+    Brown et al. "GuacaMol: benchmarking models for de novo molecular design"
+    Zhou et al. "Uni-mol: A universal 3d molecular representation learning framework"
+"""
+from typing import Literal, Optional
 
 import numpy as np
 import torch
@@ -8,9 +25,20 @@ from hyformer.utils.data_loading import get_data_loader as _get_data_loader
 from hyformer.utils.tokenizers.auto import AutoTokenizer
 
 
-def embed(sequences: list[str], batch_size: int, checkpoint: str) -> np.ndarray:
+Checkpoint = Literal[
+    "SzczurekLab/hyformer_molecules_8M",
+    "SzczurekLab/hyformer_molecules_50M",
+]
+
+
+def embed(
+    sequences: list[str],
+    checkpoint: Checkpoint,
+    batch_size: int = 32,
+    device: Optional[str] = None,
+) -> np.ndarray:
     """Return CLS-token embeddings, shape (len(sequences), embedding_dim)."""
-    model, tokenizer, device = _load(checkpoint)
+    model, tokenizer, device = _load(checkpoint, device=device)
     loader = _get_data_loader(
         dataset=sequences,
         tasks={"prediction": 1.0},
@@ -27,9 +55,14 @@ def embed(sequences: list[str], batch_size: int, checkpoint: str) -> np.ndarray:
     return np.concatenate(parts, axis=0)
 
 
-def compute_perplexity(sequences: list[str], batch_size: int, checkpoint: str) -> np.ndarray:
+def compute_perplexity(
+    sequences: list[str],
+    checkpoint: Checkpoint,
+    batch_size: int = 32,
+    device: Optional[str] = None,
+) -> np.ndarray:
     """Return perplexity for each sequence, shape (len(sequences),)."""
-    model, tokenizer, device = _load(checkpoint)
+    model, tokenizer, device = _load(checkpoint, device=device)
     loader = _get_data_loader(
         dataset=sequences,
         tasks={"generation": 1.0},
@@ -48,10 +81,11 @@ def compute_perplexity(sequences: list[str], batch_size: int, checkpoint: str) -
     return np.concatenate(parts)
 
 
-def _load(checkpoint: str, local_dir: Optional[str] = None):
+def _load(checkpoint: str, device: Optional[str] = None, local_dir: Optional[str] = None):
     tokenizer = AutoTokenizer.from_pretrained(checkpoint, local_dir=local_dir)
     model = AutoModel.from_pretrained(checkpoint)
-    device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
+    if device is None:
+        device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
     model.to(device)
     model.eval()
     return model, tokenizer, device
