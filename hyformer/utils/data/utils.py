@@ -190,7 +190,7 @@ def create_dataloader(
         shuffle=shuffle,
         num_workers=resolved_workers,
         collate_fn=collate_fn,
-        pin_memory=True,
+        pin_memory=torch.cuda.is_available(),
         persistent_workers=resolved_workers > 0,
         prefetch_factor=2 if resolved_workers > 0 else None,
         worker_init_fn=seed_worker if resolved_workers > 0 else None,

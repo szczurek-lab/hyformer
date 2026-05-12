@@ -52,7 +52,7 @@ def compute_perplexity(sequences: list[str], batch_size: int, checkpoint: str) -
 def _load(checkpoint: str, local_dir: Optional[str] = None):
     tokenizer = AutoTokenizer.from_pretrained(checkpoint, local_dir=local_dir)
     model = AutoModel.from_pretrained(checkpoint)
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
     model.to(device)
     model.eval()
     return model, tokenizer, device

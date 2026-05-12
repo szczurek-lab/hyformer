@@ -217,9 +217,9 @@ class Trainer:
             collate_fn=collator,
             sampler=sampler,
             num_workers=num_workers,
-            pin_memory=True,
-            persistent_workers=True,
-            prefetch_factor=2,  # Prefetch 2 batches per worker
+            pin_memory=torch.cuda.is_available(),
+            persistent_workers=num_workers > 0,
+            prefetch_factor=2 if num_workers > 0 else None,  # Prefetch 2 batches per worker
             worker_init_fn=seed_worker,  # Set seed for each worker
             generator=g  # Use fixed generator for reproducibility
         )
@@ -420,9 +420,10 @@ class Trainer:
             self.logger.watch_model(self.model)
 
         self.model.train()
-        torch.cuda.empty_cache()  # Clear GPU cache before training
-        start_event = torch.cuda.Event(enable_timing=True)
-        end_event = torch.cuda.Event(enable_timing=True)
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        start_event = torch.cuda.Event(enable_timing=True) if torch.cuda.is_available() else None
+        end_event = torch.cuda.Event(enable_timing=True) if torch.cuda.is_available() else None
         
         # Training loop
         while self._epoch < self.config.max_epochs:
@@ -434,7 +435,7 @@ class Trainer:
                 self._set_lr()
                 self.optimizer.zero_grad(set_to_none=True)
                 
-                if self._master_process:
+                if self._master_process and start_event is not None:
                     start_event.record()
                 
                 # Move batch to device
@@ -461,9 +462,12 @@ class Trainer:
 
                 # Logging
                 if _iterations_in_epoch % self.config.log_interval == 0 and self._master_process:
-                    end_event.record()
-                    torch.cuda.synchronize()
-                    tokens_per_second = batch['input_ids'].numel() / (start_event.elapsed_time(end_event) / 1000.0)
+                    if end_event is not None:
+                        end_event.record()
+                        torch.cuda.synchronize()
+                        tokens_per_second = batch['input_ids'].numel() / (start_event.elapsed_time(end_event) / 1000.0)
+                    else:
+                        tokens_per_second = float('nan')
                     grad_norm = self._get_grad_norm(self.model)
                     avg_loss = epoch_loss / processed_batch_count
                     console.info(
