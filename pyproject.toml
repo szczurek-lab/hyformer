@@ -17,7 +17,9 @@ dependencies = [
     "tqdm",
     "scikit-learn",
     "scipy",
-    "einops>=0.7"
+    "einops>=0.7",
+    "huggingface_hub",
+    "requests",
 ]
 
 [build-system]
@@ -46,7 +48,6 @@ dev = [
     "seaborn",
     "jupyterlab",
     "transformers",
-    "huggingface_hub"
 ]
 
 # For pip install hyformer[full] - everything
