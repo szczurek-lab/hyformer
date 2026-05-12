@@ -9,9 +9,10 @@ class ModelInput(dict):
 
     def to(self, device: str, pin_memory: bool = True) -> 'ModelInput':
         if device != 'cpu':
+            use_pin_memory = pin_memory and device != 'mps' and torch.cuda.is_available()
             for key, value in self.items():
                 if isinstance(value, torch.Tensor):
-                    if pin_memory:
+                    if use_pin_memory:
                         self[key] = value.pin_memory().to(device, non_blocking=True)
                     else:
                         self[key] = value.to(device, non_blocking=True)

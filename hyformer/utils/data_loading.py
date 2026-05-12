@@ -1,3 +1,4 @@
+import torch
 from torch.utils.data import DataLoader
 from typing import Optional, Dict
 
@@ -13,7 +14,7 @@ def get_data_loader(
     tokenizer: BaseTokenizer,
     batch_size: int,
     shuffle: bool = True,
-    num_workers: int = 4,
+    num_workers: int = 0,
     **kwargs
     ):
     collator = DataCollator(tokenizer=tokenizer, tasks=tasks)
@@ -24,6 +25,6 @@ def get_data_loader(
                 collate_fn=collator,
                 sampler=None,
                 num_workers=num_workers,
-                pin_memory=True,
+                pin_memory=torch.cuda.is_available(),
                 persistent_workers=False
             )

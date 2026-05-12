@@ -85,7 +85,8 @@ class Trainer:
         self._is_distributed_run = dist.is_initialized()
         self._master_process = True if int(os.environ.get('LOCAL_RANK', 0)) == 0 else False
         
-        torch.cuda.set_device(self.device)
+        if torch.cuda.is_available():
+            torch.cuda.set_device(self.device)
         torch.backends.cuda.matmul.allow_tf32 = True  # allow tf32 on matmul
         torch.backends.cudnn.allow_tf32 = True  # allow tf32 on cudnn
         
