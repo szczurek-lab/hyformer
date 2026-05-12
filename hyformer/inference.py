@@ -5,37 +5,33 @@ import torch
 
 from hyformer.models.auto import AutoModel
 from hyformer.tokenizers.auto import AutoTokenizer
-from hyformer.utils import create_dataloader
-from hyformer.utils.data.datasets.sequence import SequenceDataset
 
 
-def embed(sequences: list[str], batch_size: int, checkpoint: str) -> np.ndarray:
+def embed(
+    sequences: list[str],
+    checkpoint: str,
+    batch_size: int = 32,
+    device: Optional[str] = None,
+) -> np.ndarray:
     """Return CLS-token embeddings, shape (len(sequences), embedding_dim)."""
-    model, tokenizer, device = _load(checkpoint)
-    loader = create_dataloader(
-        dataset=SequenceDataset(data=sequences),
-        tasks={"prediction": 1.0},
-        tokenizer=tokenizer,
-        batch_size=batch_size,
-        shuffle=False,
-    )
-    parts = []
-    with torch.inference_mode():
-        for batch in loader:
-            batch = batch.to_device(device)
-            output = model(**batch, return_loss=False)
-            parts.append(output["embeddings"][:, 0].cpu().numpy())
-    return np.concatenate(parts, axis=0)
+    model, tokenizer, device = _load(checkpoint, device=device)
+    return model.to_encoder(tokenizer, batch_size, device).encode(sequences)
 
 
-def compute_perplexity(sequences: list[str], batch_size: int, checkpoint: str) -> np.ndarray:
+def compute_perplexity(
+    sequences: list[str],
+    checkpoint: str,
+    batch_size: int = 32,
+    device: Optional[str] = None,
+) -> np.ndarray:
     """Return perplexity for each sequence, shape (len(sequences),)."""
-    model, tokenizer, device = _load(checkpoint)
+    model, tokenizer, device = _load(checkpoint, device=device)
+    from hyformer.utils.data.utils import create_dataloader
     loader = create_dataloader(
-        dataset=SequenceDataset(data=sequences),
+        dataset=sequences,
         tasks={"lm": 1.0},
         tokenizer=tokenizer,
-        batch_size=batch_size,
+        batch_size=min(len(sequences), batch_size),
         shuffle=False,
     )
     parts = []
@@ -49,10 +45,11 @@ def compute_perplexity(sequences: list[str], batch_size: int, checkpoint: str) -
     return np.concatenate(parts)
 
 
-def _load(checkpoint: str, local_dir: Optional[str] = None):
+def _load(checkpoint: str, device: Optional[str] = None, local_dir: Optional[str] = None):
     tokenizer = AutoTokenizer.from_pretrained(checkpoint, local_dir=local_dir)
     model = AutoModel.from_pretrained(checkpoint)
-    device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
+    if device is None:
+        device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
     model.to(device)
     model.eval()
     return model, tokenizer, device
