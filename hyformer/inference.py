@@ -28,8 +28,8 @@ def embed(sequences: list[str], batch_size: int, checkpoint: str) -> np.ndarray:
     return np.concatenate(parts, axis=0)
 
 
-def compute_perplexity(sequences: list[str], batch_size: int, checkpoint: str) -> float:
-    """Return mean perplexity over all sequences."""
+def compute_perplexity(sequences: list[str], batch_size: int, checkpoint: str) -> np.ndarray:
+    """Return perplexity for each sequence, shape (len(sequences),)."""
     model, tokenizer, device = _load(checkpoint)
     loader = create_dataloader(
         dataset=SequenceDataset(data=sequences),
@@ -46,7 +46,7 @@ def compute_perplexity(sequences: list[str], batch_size: int, checkpoint: str) -
             parts.append(
                 _sequence_perplexity(output["logits"], batch["input_labels"]).cpu().numpy()
             )
-    return float(np.concatenate(parts).mean())
+    return np.concatenate(parts)
 
 
 def _load(checkpoint: str, local_dir: Optional[str] = None):
@@ -66,7 +66,7 @@ def _sequence_perplexity(
     targets = labels[:, 1:]
     mask = targets != ignore_index
     token_nll = torch.nn.functional.cross_entropy(
-        logits.transpose(1, 2), targets, reduction="none"
+        logits.transpose(1, 2), targets, ignore_index=ignore_index, reduction="none"
     )
     nll = (token_nll * mask).sum(dim=1) / mask.sum(dim=1)
     return nll.exp()
