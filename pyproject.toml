@@ -23,6 +23,9 @@ dependencies = [
     "fcd==1.2",
 ]
 
+[tool.setuptools.package-data]
+"hyformer.utils.properties.smiles.molbert" = ["physchem_distributions.json"]
+
 [tool.uv]
 required-environments = [
     "sys_platform == 'linux'",

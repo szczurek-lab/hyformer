@@ -7,8 +7,10 @@ Available checkpoints:
     - SzczurekLab/hyformer_molecules_50M: 50M parameters, 12 layers, embedding dim 512,
       pretrained on Uni-Mol dataset [Zhou et al.]
 
-If used for prediction, pre-trained models predict the physicochemical properties
-used during pre-training.
+Pre-trained models expose three inference functions:
+    - embed: CLS-token embeddings (len(sequences), embedding_dim)
+    - predict: physicochemical property predictions in original descriptor units (len(sequences), num_properties)
+    - compute_perplexity: sequence-level perplexity (len(sequences),)
 
 References:
     Izdebski et al. "Synergistic Benefits of Joint Molecule Generation and Property Prediction"
@@ -53,6 +55,46 @@ def embed(
             output = model(**batch, return_loss=False)
             parts.append(output["embeddings"][:, 0].cpu().numpy())
     return np.concatenate(parts, axis=0)
+
+
+def predict(
+    sequences: list[str],
+    checkpoint: Checkpoint,
+    batch_size: int = 32,
+    device: Optional[str] = None,
+    inverse_transform: bool = True,
+) -> np.ndarray:
+    """Return physicochemical property predictions, shape (len(sequences), num_properties).
+
+    Args:
+        inverse_transform: If True (default), invert the CDF normalization applied during
+            training so predictions are in original physicochemical descriptor units.
+            Set to False to obtain raw model outputs in [0, 1] space.
+    """
+    model, tokenizer, device = _load(checkpoint, device=device)
+    assert hasattr(model, "physchem_head") and model.physchem_head is not None, (
+        "This checkpoint does not have a physicochemical property prediction head. "
+        "Use embed() or compute_perplexity() instead."
+    )
+    loader = _get_data_loader(
+        dataset=sequences,
+        tasks={"prediction": 1.0},
+        tokenizer=tokenizer,
+        batch_size=batch_size,
+        shuffle=False,
+    )
+    parts = []
+    with torch.inference_mode():
+        for batch in loader:
+            batch = batch.to_device(device)
+            output = model(**batch, return_loss=False)
+            parts.append(output["logits_physchem"].cpu().numpy())
+    predictions = np.concatenate(parts, axis=0)
+    if inverse_transform:
+        from hyformer.utils.properties.smiles.molbert.featurizer import PhysChemFeaturizer
+        scaler = PhysChemFeaturizer(normalise=True).scaler
+        predictions = scaler.inverse_transform(predictions)
+    return predictions
 
 
 def compute_perplexity(

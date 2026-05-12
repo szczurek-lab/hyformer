@@ -845,6 +845,7 @@ class PhyschemScaler:
         self.descriptor_list = descriptor_list
         self.dists = dists
         self.cdfs = self.prepare_cdfs()
+        self.ppfs = self.prepare_ppfs()
 
     def prepare_cdfs(self):
         cdfs = {}
@@ -867,6 +868,25 @@ class PhyschemScaler:
 
         return cdfs
 
+    def prepare_ppfs(self):
+        ppfs = {}
+
+        dist_subset = dict(filter(lambda elem: elem[0] in self.descriptor_list, self.dists.items()))
+
+        for descriptor_name, (dist, params, minV, maxV, avg, std) in dist_subset.items():
+            arg = params[:-2]  # type: ignore
+            loc = params[-2]  # type: ignore
+            scale = params[-1]  # type: ignore
+
+            dist_obj = getattr(st, dist)
+
+            def ppf(v, dist=dist_obj, arg=arg, loc=loc, scale=scale):
+                return dist.ppf(np.clip(v, 1e-6, 1 - 1e-6), loc=loc, scale=scale, *arg)
+
+            ppfs[descriptor_name] = ppf
+
+        return ppfs
+
     def transform(self, X):
         # transform each column with the corresponding descriptor
         transformed_list = [
@@ -878,6 +898,13 @@ class PhyschemScaler:
         assert X.shape == transformed.shape
 
         return transformed
+
+    def inverse_transform(self, X: np.ndarray) -> np.ndarray:
+        transformed_list = [
+            self.ppfs[descriptor](X[:, idx])[..., np.newaxis]
+            for idx, descriptor in enumerate(self.descriptor_list)
+        ]
+        return np.concatenate(transformed_list, axis=1)
 
     def transform_single(self, X):
         assert len(X.shape) == 1, 'When using transform_single, input should have a 1-dimensional shape (e.g. (200,))'
