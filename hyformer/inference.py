@@ -65,7 +65,7 @@ def _sequence_perplexity(
     targets = labels[:, 1:]
     mask = targets != ignore_index
     token_nll = torch.nn.functional.cross_entropy(
-        logits.transpose(1, 2), targets, reduction="none"
+        logits.transpose(1, 2), targets, ignore_index=ignore_index, reduction="none"
     )
     nll = (token_nll * mask).sum(dim=1) / mask.sum(dim=1)
     return nll.exp()
