@@ -1,3 +1,20 @@
+"""
+Hyformer v2 inference — peptide sequences.
+
+Available checkpoints:
+    - SzczurekLab/hyformer_peptides_34M: 34M parameters, pretrained on 3.5M general-purpose
+      and antimicrobial peptides.
+    - SzczurekLab/hyformer_peptides_34M_MIC: hyformer_peptides_34M jointly fine-tuned on
+      minimal inhibitory concentration (MIC) values against E. coli bacteria.
+
+Pre-trained models expose three inference functions:
+    - embed: CLS-token embeddings (len(sequences), embedding_dim)
+    - predict: property predictions (len(sequences), num_properties)
+    - compute_perplexity: sequence-level perplexity (len(sequences),)
+
+References:
+    Izdebski et al. "Synergistic Benefits of Joint Molecule Generation and Property Prediction"
+"""
 from typing import Optional
 
 import numpy as np
@@ -16,6 +33,28 @@ def embed(
     """Return CLS-token embeddings, shape (len(sequences), embedding_dim)."""
     model, tokenizer, device = _load(checkpoint, device=device)
     return model.to_encoder(tokenizer, batch_size, device).encode(sequences)
+
+
+def predict(
+    sequences: list[str],
+    checkpoint: str,
+    batch_size: int = 32,
+    device: Optional[str] = None,
+) -> np.ndarray:
+    """Return property predictions, shape (len(sequences), num_properties).
+
+    Args:
+        checkpoint: Must be a checkpoint fine-tuned for property prediction
+            (e.g. ``SzczurekLab/hyformer_peptides_34M_MIC``). Base generative
+            checkpoints do not have a prediction head — use :func:`embed` or
+            :func:`compute_perplexity` instead.
+    """
+    model, tokenizer, device = _load(checkpoint, device=device)
+    assert hasattr(model, "prediction_head") and model.prediction_head is not None, (
+        "This checkpoint does not have a prediction head. "
+        "Use embed() or compute_perplexity() instead."
+    )
+    return model.to_predictor(tokenizer, batch_size, device).predict(sequences)
 
 
 def compute_perplexity(
