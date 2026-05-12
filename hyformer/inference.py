@@ -15,7 +15,13 @@ Pre-trained models expose three inference functions:
 References:
     Izdebski et al. "Synergistic Benefits of Joint Molecule Generation and Property Prediction"
 """
-from typing import Optional
+from typing import Literal, Optional
+
+_CHECKPOINT = Literal[
+    "SzczurekLab/hyformer_peptides_34M",
+    "SzczurekLab/hyformer_peptides_34M_MIC",
+]
+_CHECKPOINT_MIC = Literal["SzczurekLab/hyformer_peptides_34M_MIC"]
 
 import numpy as np
 import torch

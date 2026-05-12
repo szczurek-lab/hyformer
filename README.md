@@ -93,6 +93,50 @@ predictor = model.to_predictor(tokenizer, batch_size, device)
 predictor.predict(sequences)
 ```
 
+## seqme Integration
+
+Hyformer can be used as a [seqme](https://github.com/szczurek-lab/seqme) `ThirdPartyModel` for sequence scoring, embedding, and property prediction within the seqme framework.
+
+**Embedding** with the pre-trained model:
+
+```python
+import seqme as sm
+
+model = sm.models.ThirdPartyModel(
+    entry_point="hyformer.inference:embed",
+    url="https://github.com/szczurek-lab/hyformer",
+)
+
+sequences = [
+    "WGLKLRMRAAGTSYSSAGRRGSAATGATRATTQFPSKR",
+    "ILQNIGIKNVKKSAPIRVVLKLKPNQYGIIDG",
+    "IIAEATYYVTADKLK",
+]
+
+model(sequences, checkpoint="SzczurekLab/hyformer_peptides_34M", batch_size=32, device="cpu")
+# returns np.ndarray of shape (len(sequences), embedding_dim)
+```
+
+**Prediction** with the jointly trained model:
+
+```python
+import seqme as sm
+
+model = sm.models.ThirdPartyModel(
+    entry_point="hyformer.inference:predict",
+    url="https://github.com/szczurek-lab/hyformer",
+)
+
+sequences = [
+    "WGLKLRMRAAGTSYSSAGRRGSAATGATRATTQFPSKR",
+    "ILQNIGIKNVKKSAPIRVVLKLKPNQYGIIDG",
+    "IIAEATYYVTADKLK",
+]
+
+model(sequences, checkpoint="SzczurekLab/hyformer_peptides_34M_MIC", batch_size=32, device="cpu")
+# returns np.ndarray of shape (len(sequences), num_properties)
+```
+
 ## Cite
 
 To cite our work, use
