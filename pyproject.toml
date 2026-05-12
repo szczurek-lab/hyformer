@@ -62,6 +62,18 @@ name = "pytorch-cpu"
 url = "https://download.pytorch.org/whl/cpu"
 explicit = true
 
+[tool.uv]
+required-environments = [
+    "sys_platform == 'linux'",
+    "sys_platform == 'win32'",
+    "sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "sys_platform == 'darwin' and platform_machine == 'x86_64'",
+]
+
 [tool.uv.sources]
-torch = { index = "pytorch-cu118" }
-torchvision = { index = "pytorch-cu118" }
+torch = [
+    { index = "pytorch-cu118", marker = "sys_platform != 'darwin'" },
+]
+torchvision = [
+    { index = "pytorch-cu118", marker = "sys_platform != 'darwin'" },
+]
